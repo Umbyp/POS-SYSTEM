@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/stores/cart.store';
 import { analyticsApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 
 interface Suggestion {
   productId: string;
@@ -95,7 +96,7 @@ export function CrossSellSuggest() {
               className="flex items-center gap-2 p-2 rounded-lg bg-card/80 border border-border"
             >
               {s.image ? (
-                <img src={s.image} alt="" className="w-9 h-9 rounded object-cover" />
+                <img src={resolveImageUrl(s.image)} alt="" className="w-9 h-9 rounded object-cover" />
               ) : (
                 <div className="w-9 h-9 rounded bg-muted flex items-center justify-center text-lg">
                   🍽️

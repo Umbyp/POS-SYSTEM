@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { errorMiddleware } from './middleware/error.middleware';
+import uploadRoutes, { UPLOADS_DIR } from './modules/uploads/upload.routes';
 
 import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
@@ -42,6 +43,16 @@ app.use(
 
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 
+// Serve uploaded images statically at /uploads/* (long browser cache; filenames are content-hashed)
+app.use(
+  '/uploads',
+  express.static(UPLOADS_DIR, {
+    maxAge: '7d',
+    immutable: true,
+    fallthrough: false,
+  })
+);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -59,6 +70,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/uploads', uploadRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorMiddleware);

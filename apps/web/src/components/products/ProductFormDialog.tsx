@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ImageUploader } from '@/components/ui/ImageUploader';
 
 interface Props {
   open: boolean;
@@ -190,12 +191,11 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
               </select>
             </div>
 
-            <div>
-              <Label className="mb-1.5 block">Image URL</Label>
-              <Input
+            <div className="md:col-span-2">
+              <Label className="mb-1.5 block">Product image</Label>
+              <ImageUploader
                 value={form.image}
-                onChange={(e) => setForm({ ...form, image: e.target.value })}
-                placeholder="https://..."
+                onChange={(v) => setForm({ ...form, image: v })}
               />
             </div>
 

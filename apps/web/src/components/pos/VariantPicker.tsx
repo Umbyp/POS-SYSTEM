@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus, MessageSquare } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import {
   Dialog,
   DialogContent,
@@ -88,7 +89,7 @@ export function VariantPicker({ open, onClose, product, onConfirm }: Props) {
         <div className="flex items-center gap-3 p-3 bg-muted rounded-xl">
           <div className="w-14 h-14 rounded-lg bg-card flex items-center justify-center text-2xl shrink-0 overflow-hidden">
             {product.image ? (
-              <img src={product.image} alt="" className="w-full h-full object-cover" />
+              <img src={resolveImageUrl(product.image)} alt="" className="w-full h-full object-cover" />
             ) : (
               <span>{product.category?.icon || '📦'}</span>
             )}
