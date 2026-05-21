@@ -16,6 +16,10 @@ import storeRoutes from './modules/stores/store.routes'; // 🆕
 import activityRoutes from './modules/activity/activity.routes';
 import customerRoutes from './modules/customers/customer.routes';
 import paymentRoutes from './modules/payments/payment.routes';
+import {
+  smsWebhookPublicRouter,
+  smsWebhookAuthRouter,
+} from './modules/payments/sms-webhook.routes';
 import promotionRoutes from './modules/promotions/promotion.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
@@ -48,6 +52,9 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/stores', storeRoutes); // 🆕
 app.use('/api/activity-logs', activityRoutes);
 app.use('/api/customers', customerRoutes);
+// SMS webhook is public (per-store token in URL) — mount BEFORE auth-protected payment routes
+app.use('/api/payments', smsWebhookPublicRouter);
+app.use('/api/payments', smsWebhookAuthRouter);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/notifications', notificationRoutes);

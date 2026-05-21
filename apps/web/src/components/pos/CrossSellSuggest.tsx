@@ -15,8 +15,8 @@ interface Suggestion {
 }
 
 /**
- * เมื่อ cart มี items → query pos-analytics เพื่อแนะนำ "คนซื้อแบบนี้ มักซื้อ X ด้วย"
- * แสดง popup เล็กๆ มุมล่างขวา ในหน้า POS
+ * When cart has items → query pos-analytics to suggest "customers who bought this also bought X"
+ * Shows a small popup in the bottom-right corner of the POS page
  */
 export function CrossSellSuggest() {
   const { items, addItem } = useCart();
@@ -25,7 +25,7 @@ export function CrossSellSuggest() {
   const [productMeta, setProductMeta] = useState<Record<string, any>>({});
 
   const storeId = typeof window !== 'undefined' ? localStorage.getItem('storeId') : null;
-  // อ่าน storeId จาก auth store
+  // Read storeId from auth store
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const auth = localStorage.getItem('pos-auth');
@@ -41,7 +41,7 @@ export function CrossSellSuggest() {
   const realStoreId =
     typeof window !== 'undefined' ? localStorage.getItem('storeId') : null;
 
-  // Debounced: เมื่อ items เปลี่ยน → query cross-sell ของ item ล่าสุด
+  // Debounced: when items change → query cross-sell for the latest item
   useEffect(() => {
     if (!realStoreId || items.length === 0) {
       setSuggestions([]);
@@ -85,7 +85,7 @@ export function CrossSellSuggest() {
       >
         <div className="flex items-center gap-2 mb-2 text-xs">
           <Sparkles className="w-3.5 h-3.5 text-accent" />
-          <span className="font-medium text-accent">ลูกค้ามักซื้อด้วย</span>
+          <span className="font-medium text-accent">Customers also bought</span>
         </div>
 
         <div className="space-y-1.5">
@@ -104,7 +104,7 @@ export function CrossSellSuggest() {
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-medium truncate">{s.name}</div>
                 <div className="text-[10px] text-muted-foreground">
-                  {formatCurrency(s.price)} · ขายคู่กัน {s.co_count}×
+                  {formatCurrency(s.price)} · bundled {s.co_count}×
                 </div>
               </div>
               <button
@@ -132,7 +132,7 @@ export function CrossSellSuggest() {
         </div>
 
         <p className="text-[9px] text-muted-foreground text-center mt-2">
-          AI Cross-sell · จากข้อมูลร้านคุณ
+          AI Cross-sell · from your store data
         </p>
       </motion.div>
     </AnimatePresence>

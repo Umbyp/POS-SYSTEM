@@ -12,7 +12,7 @@ export function AIInsightsWidget() {
   const [answer, setAnswer] = useState('');
   const [streaming, setStreaming] = useState(false);
 
-  // ดึง insights ที่ generate ไว้แล้ว
+  // Fetch already generated insights
   const { data: insights = [], isLoading, refetch } = useQuery({
     queryKey: ['ai-insights', storeId],
     queryFn: () =>
@@ -24,14 +24,14 @@ export function AIInsightsWidget() {
     refetchInterval: 5 * 60_000,
   });
 
-  // Re-generate ใหม่
+  // Re-generate
   const regen = useMutation({
     mutationFn: () =>
       analyticsApi.post(`/api/insights/generate?store_id=${storeId}`).then((r) => r.data),
     onSuccess: () => refetch(),
   });
 
-  // ถาม AI (streaming)
+  // Ask AI (streaming)
   const ask = async () => {
     if (!question.trim() || !storeId) return;
     setStreaming(true);
@@ -57,7 +57,7 @@ export function AIInsightsWidget() {
         setAnswer(full);
       }
     } catch (e: any) {
-      setAnswer(`ไม่สามารถเชื่อมต่อ AI Analytics ได้ — ตรวจว่ารัน pos-analytics service ที่ port 8000 หรือไม่`);
+      setAnswer(`Cannot connect to AI Analytics — make sure pos-analytics service is running on port 8000`);
     } finally {
       setStreaming(false);
     }
@@ -74,7 +74,7 @@ export function AIInsightsWidget() {
             onClick={() => regen.mutate()}
             disabled={regen.isPending}
             className="p-1.5 rounded hover:bg-muted text-muted-foreground"
-            title="วิเคราะห์ใหม่"
+            title="Re-analyze"
           >
             {regen.isPending ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -91,7 +91,7 @@ export function AIInsightsWidget() {
       ) : insights.length === 0 ? (
         <div className="text-center py-3">
           <p className="text-xs text-muted-foreground mb-2">
-            ยังไม่มี AI insights หรือ analytics service ปิดอยู่
+            No AI insights yet or the analytics service is offline
           </p>
           <button
             onClick={() => regen.mutate()}
@@ -99,7 +99,7 @@ export function AIInsightsWidget() {
             disabled={regen.isPending}
           >
             {regen.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-            สร้าง insights ใหม่
+            Generate new insights
           </button>
         </div>
       ) : (
@@ -130,14 +130,14 @@ export function AIInsightsWidget() {
       <div className="border-t border-border pt-3">
         <div className="flex items-center gap-2 mb-2">
           <MessageSquare className="w-3.5 h-3.5 text-primary" />
-          <span className="text-xs font-medium">ถาม AI</span>
+          <span className="text-xs font-medium">Ask AI</span>
         </div>
         <div className="flex gap-2">
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !streaming && ask()}
-            placeholder="ถาม เช่น วันนี้ขายดีไหม? พรุ่งนี้ต้องสั่งอะไร?"
+            placeholder="Ask e.g. how are today's sales? What should I order tomorrow?"
             className="flex-1 h-9 bg-input border border-border rounded-lg px-3 text-sm"
             disabled={streaming}
           />
@@ -162,13 +162,13 @@ export function AIInsightsWidget() {
       </div>
 
       <p className="text-[10px] text-muted-foreground text-center">
-        ใช้ pos-analytics service ที่ port 8000 ·{' '}
+        Uses pos-analytics service on port 8000 ·{' '}
         <a
           href="http://localhost:3001"
           target="_blank"
           className="text-primary hover:underline inline-flex items-center gap-0.5"
         >
-          เปิด Analytics Dashboard <ExternalLink className="w-2.5 h-2.5" />
+          Open Analytics Dashboard <ExternalLink className="w-2.5 h-2.5" />
         </a>
       </p>
     </div>

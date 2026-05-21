@@ -35,7 +35,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const qc = useQueryClient();
   const cart = useCart();
 
-  // ดึงข้อมูลร้านมาใช้ PromptPay ID
+  // Fetch store data to use PromptPay ID
   const { data: store } = useQuery({
     queryKey: ['store-me'],
     queryFn: () => api.get('/stores/me').then((r) => r.data),
@@ -59,7 +59,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [success, setSuccess] = useState<any>(null);
   const [showingReceipt, setShowingReceipt] = useState(false);
   const [verifiedSlip, setVerifiedSlip] = useState<SlipVerifyResult | null>(null);
-  // ข้อมูลลูกค้าสำหรับใบกำกับเต็ม
+  // Customer info for full tax invoice
   const [showCustomerInfo, setShowCustomerInfo] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerTaxId, setCustomerTaxId] = useState('');
@@ -70,14 +70,14 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     return method === 'CASH' ? Math.max(0, r - total) : 0;
   }, [received, total, method]);
 
-  // PromptPay/โอน/บัตร: ถ้าตั้ง EasySlip ไว้ → require verified slip ก่อน confirm
-  // (CASH ไม่ต้อง)
+  // PromptPay/Transfer/Card: if EasySlip is configured → require verified slip before confirm
+  // (CASH does not need verification)
   const requiresSlip = method === 'PROMPTPAY' || method === 'BANK_TRANSFER';
   const canPay =
     method === 'CASH'
       ? parseFloat(received || '0') >= total
       : requiresSlip
-      ? !!verifiedSlip || !!reference // ผ่านสลิปแล้ว หรือ override ด้วย reference
+      ? !!verifiedSlip || !!reference // slip verified, or overridden by reference
       : true;
 
   const submit = async () => {
@@ -274,7 +274,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
               </div>
             )}
 
-            {/* PROMPTPAY — แสดง QR + ตรวจสลิป */}
+            {/* PROMPTPAY — show QR + verify slip */}
             {method === 'PROMPTPAY' && (
               <div className="space-y-3">
                 {store?.promptpayId ? (

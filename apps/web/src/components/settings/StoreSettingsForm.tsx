@@ -62,10 +62,10 @@ export function StoreSettingsForm() {
     mutationFn: (payload: any) => api.patch('/stores/me', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['store-me'] });
-      toast.success('บันทึกการตั้งค่าแล้ว');
+      toast.success('Settings saved');
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || 'บันทึกไม่สำเร็จ');
+      toast.error(err.response?.data?.error || 'Failed to save');
     },
   });
 
@@ -93,7 +93,7 @@ export function StoreSettingsForm() {
   const [testingLine, setTestingLine] = useState(false);
   const testLine = async () => {
     if (!form.lineNotifyToken) {
-      toast.error('กรุณาใส่ token ก่อน');
+      toast.error('Please enter a token first');
       return;
     }
     setTestingLine(true);
@@ -102,7 +102,7 @@ export function StoreSettingsForm() {
       if (data.ok) toast.success(data.message);
       else toast.error(data.message);
     } catch (e: any) {
-      toast.error(e.response?.data?.error || 'ทดสอบไม่สำเร็จ');
+      toast.error(e.response?.data?.error || 'Test failed');
     } finally {
       setTestingLine(false);
     }
@@ -118,11 +118,11 @@ export function StoreSettingsForm() {
     <form onSubmit={submit} className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>ข้อมูลร้าน</CardTitle>
+          <CardTitle>Store information</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">ชื่อร้าน *</Label>
+            <Label className="mb-1.5 block">Store name *</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -130,7 +130,7 @@ export function StoreSettingsForm() {
             />
           </div>
           <div>
-            <Label className="mb-1.5 block">ที่อยู่</Label>
+            <Label className="mb-1.5 block">Address</Label>
             <textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -140,14 +140,14 @@ export function StoreSettingsForm() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">เบอร์โทร</Label>
+              <Label className="mb-1.5 block">Phone</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">URL โลโก้</Label>
+              <Label className="mb-1.5 block">Logo URL</Label>
               <Input
                 value={form.logo}
                 onChange={(e) => setForm({ ...form, logo: e.target.value })}
@@ -160,12 +160,12 @@ export function StoreSettingsForm() {
 
       <Card>
         <CardHeader>
-          <CardTitle>ภาษีและใบกำกับ</CardTitle>
+          <CardTitle>Tax & invoicing</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">เลขผู้เสียภาษี (13 หลัก)</Label>
+              <Label className="mb-1.5 block">Tax ID (13 digits)</Label>
               <Input
                 value={form.taxId}
                 onChange={(e) => setForm({ ...form, taxId: e.target.value })}
@@ -173,12 +173,12 @@ export function StoreSettingsForm() {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">รหัสสาขา (5 หลัก)</Label>
+              <Label className="mb-1.5 block">Branch code (5 digits)</Label>
               <Input
                 value={form.branchCode}
                 onChange={(e) => setForm({ ...form, branchCode: e.target.value })}
                 maxLength={5}
-                placeholder="00000 = สำนักงานใหญ่"
+                placeholder="00000 = HQ"
               />
             </div>
           </div>
@@ -216,11 +216,11 @@ export function StoreSettingsForm() {
               className="mt-0.5 w-4 h-4 accent-primary"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium">ราคาสินค้ารวม VAT แล้ว</div>
+              <div className="text-sm font-medium">Prices include VAT</div>
               <div className="text-xs text-muted-foreground mt-0.5">
-                เปิด: ราคาที่ตั้งไว้รวม VAT แล้ว ระบบจะถอด VAT มาแสดงในใบเสร็จเพื่อยื่นภาษี (ไม่บวกซ้ำ)
+                On: Your set prices already include VAT. The system extracts VAT for receipts (no double charge)
                 <br />
-                ปิด: ราคาสินค้าไม่รวม VAT — ระบบจะบวก VAT เพิ่มจากยอดรวม
+                Off: Prices do not include VAT — the system adds VAT on top of the total
               </div>
             </div>
           </label>
@@ -231,7 +231,7 @@ export function StoreSettingsForm() {
         <CardHeader>
           <CardTitle>
             <span className="flex items-center gap-2">
-              <QrCode className="w-5 h-5" /> PromptPay สำหรับรับเงิน
+              <QrCode className="w-5 h-5" /> PromptPay for receiving payments
             </span>
           </CardTitle>
         </CardHeader>
@@ -241,16 +241,16 @@ export function StoreSettingsForm() {
             <Input
               value={form.promptpayId}
               onChange={(e) => setForm({ ...form, promptpayId: e.target.value })}
-              placeholder="เบอร์มือถือ (10) / เลข ปชช (13) / eWallet (15)"
+              placeholder="Mobile (10) / National ID (13) / eWallet (15)"
             />
             <p className="text-xs text-muted-foreground mt-1.5">
-              {ppType === 'MOBILE' && `📱 เบอร์มือถือ: ${formatPromptPayId(form.promptpayId)}`}
-              {ppType === 'NATIONAL_ID' && `🆔 เลขประจำตัวประชาชน: ${formatPromptPayId(form.promptpayId)}`}
+              {ppType === 'MOBILE' && `📱 Mobile: ${formatPromptPayId(form.promptpayId)}`}
+              {ppType === 'NATIONAL_ID' && `🆔 National ID: ${formatPromptPayId(form.promptpayId)}`}
               {ppType === 'EWALLET' && `💳 eWallet ID`}
               {form.promptpayId && !ppType && (
-                <span className="text-danger">⚠️ รูปแบบไม่ถูกต้อง (ต้อง 10, 13, หรือ 15 หลัก)</span>
+                <span className="text-danger">⚠️ Invalid format (must be 10, 13, or 15 digits)</span>
               )}
-              {!form.promptpayId && 'ใส่เลขเพื่อสร้าง QR สำหรับรับเงินอัตโนมัติในหน้าจ่ายเงิน'}
+              {!form.promptpayId && 'Enter your number to generate a QR for automatic payment'}
             </p>
           </div>
         </CardContent>
@@ -260,17 +260,17 @@ export function StoreSettingsForm() {
         <CardHeader>
           <CardTitle>
             <span className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-warning" /> เป้ายอดขาย
+              <Target className="w-5 h-5 text-warning" /> Sales goals
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            ตั้งเป้าเพื่อเห็น progress ใน Dashboard (0 = ไม่ใช้เป้า)
+            Set targets to see progress on the Dashboard (0 = no target)
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">เป้ารายวัน (฿)</Label>
+              <Label className="mb-1.5 block">Daily target (฿)</Label>
               <Input
                 type="number"
                 min="0"
@@ -281,7 +281,7 @@ export function StoreSettingsForm() {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">เป้ารายเดือน (฿)</Label>
+              <Label className="mb-1.5 block">Monthly target (฿)</Label>
               <Input
                 type="number"
                 min="0"
@@ -324,13 +324,13 @@ export function StoreSettingsForm() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <CheckCircle2 className="w-4 h-4 mr-1" /> ทดสอบ
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Test
                   </>
                 )}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              ขอ token ฟรีที่{' '}
+              Get a free token at{' '}
               <a
                 href="https://notify-bot.line.me/my/"
                 target="_blank"
@@ -339,17 +339,17 @@ export function StoreSettingsForm() {
               >
                 notify-bot.line.me <ExternalLink className="w-3 h-3" />
               </a>{' '}
-              → "Generate token" → เลือกห้อง chat ที่ต้องการ
+              → "Generate token" → choose your chat room
             </p>
           </div>
           {form.lineNotifyToken && (
             <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-xs space-y-1">
               <div className="font-medium text-success">
-                ✅ ระบบจะส่ง LINE notification เมื่อ:
+                ✅ The system will send LINE notifications when:
               </div>
               <ul className="space-y-0.5 text-muted-foreground list-disc list-inside">
-                <li>มีออเดอร์ใหม่ (พร้อมยอด, วิธีจ่าย, รายการ)</li>
-                <li>เรียก /api/notifications/line/daily-summary (สรุปรายวัน)</li>
+                <li>A new order is placed (with total, payment method, items)</li>
+                <li>/api/notifications/line/daily-summary is called (daily summary)</li>
               </ul>
             </div>
           )}
@@ -362,7 +362,7 @@ export function StoreSettingsForm() {
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <>
-              <Save className="w-4 h-4 mr-1" /> บันทึกการตั้งค่า
+              <Save className="w-4 h-4 mr-1" /> Save settings
             </>
           )}
         </Button>

@@ -83,11 +83,11 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   };
 
   const sub = subtotal();
-  const pointDiscount = pointsToRedeem; // 1pt = 1 บาท
+  const pointDiscount = pointsToRedeem; // 1pt = 1 baht
   const promoDiscount = promotion?.discountAmount || 0;
   const breakdown = computePricing(sub, discount + pointDiscount + promoDiscount, cfg);
 
-  // Auto-apply promotion เมื่อ cart/customer/code เปลี่ยน
+  // Auto-apply promotion when cart/customer/code changes
   const { data: products = [] } = useQuery({
     queryKey: ['products-meta-promo'],
     queryFn: () => api.get('/products').then((r) => r.data),
@@ -126,7 +126,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           setPromotion(undefined);
         }
       } catch {
-        // ignore — โปรเงียบๆ
+        // ignore — fail silently
       }
     }, 400);
     return () => clearTimeout(handler);

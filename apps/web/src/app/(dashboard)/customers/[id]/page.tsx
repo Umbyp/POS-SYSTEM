@@ -56,14 +56,14 @@ export default function CustomerDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['customer', id] });
       qc.invalidateQueries({ queryKey: ['customers-list'] });
-      toast.success('บันทึกแล้ว');
+      toast.success('Saved');
       setEditing(false);
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'บันทึกไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Save failed'),
   });
 
   if (isLoading || !customer) {
-    return <div className="p-6 text-muted-foreground">กำลังโหลด...</div>;
+    return <div className="p-6 text-muted-foreground">Loading...</div>;
   }
 
   const avgPerVisit =
@@ -74,13 +74,13 @@ export default function CustomerDetailPage() {
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> กลับ
+            <ArrowLeft className="w-4 h-4 mr-1" /> Back
           </Button>
           <h2 className="text-lg sm:text-xl font-bold">{customer.name}</h2>
         </div>
         {!editing && (
           <Button variant="outline" size="sm" onClick={() => setEditing(true)}>
-            <Edit3 className="w-4 h-4 mr-1" /> แก้ไข
+            <Edit3 className="w-4 h-4 mr-1" /> Edit
           </Button>
         )}
       </div>
@@ -89,7 +89,7 @@ export default function CustomerDetailPage() {
         {/* Profile */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">ข้อมูลลูกค้า</CardTitle>
+            <CardTitle className="text-base">Customer information</CardTitle>
           </CardHeader>
           <CardContent>
             {editing ? (
@@ -108,7 +108,7 @@ export default function CustomerDetailPage() {
                 className="space-y-3"
               >
                 <div>
-                  <Label className="mb-1.5 block">ชื่อ *</Label>
+                  <Label className="mb-1.5 block">Name *</Label>
                   <Input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -116,14 +116,14 @@ export default function CustomerDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">เบอร์โทร</Label>
+                  <Label className="mb-1.5 block">Phone</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })}
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">อีเมล</Label>
+                  <Label className="mb-1.5 block">Email</Label>
                   <Input
                     type="email"
                     value={form.email}
@@ -131,7 +131,7 @@ export default function CustomerDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">เลขผู้เสียภาษี</Label>
+                  <Label className="mb-1.5 block">Tax ID</Label>
                   <Input
                     value={form.taxId}
                     onChange={(e) => setForm({ ...form, taxId: e.target.value })}
@@ -139,7 +139,7 @@ export default function CustomerDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">ที่อยู่</Label>
+                  <Label className="mb-1.5 block">Address</Label>
                   <textarea
                     value={form.address}
                     onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -148,48 +148,48 @@ export default function CustomerDetailPage() {
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">บันทึก</Label>
+                  <Label className="mb-1.5 block">Notes</Label>
                   <textarea
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm"
                     rows={2}
-                    placeholder="ลูกค้า VIP, แพ้นม, ฯลฯ"
+                    placeholder="VIP customer, lactose intolerant, etc."
                   />
                 </div>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setEditing(false)}>
-                    <X className="w-4 h-4 mr-1" /> ยกเลิก
+                    <X className="w-4 h-4 mr-1" /> Cancel
                   </Button>
                   <Button type="submit" className="flex-1" disabled={save.isPending}>
-                    <Save className="w-4 h-4 mr-1" /> บันทึก
+                    <Save className="w-4 h-4 mr-1" /> Save
                   </Button>
                 </div>
               </form>
             ) : (
               <div className="space-y-2 text-sm">
                 {customer.phone && (
-                  <Row icon={<Phone className="w-4 h-4" />} label="เบอร์" value={customer.phone} />
+                  <Row icon={<Phone className="w-4 h-4" />} label="Phone" value={customer.phone} />
                 )}
                 {customer.email && (
-                  <Row icon={<Mail className="w-4 h-4" />} label="อีเมล" value={customer.email} />
+                  <Row icon={<Mail className="w-4 h-4" />} label="Email" value={customer.email} />
                 )}
-                {customer.taxId && <Row label="เลขผู้เสียภาษี" value={customer.taxId} />}
+                {customer.taxId && <Row label="Tax ID" value={customer.taxId} />}
                 {customer.address && (
                   <Row
                     icon={<MapPin className="w-4 h-4" />}
-                    label="ที่อยู่"
+                    label="Address"
                     value={customer.address}
                   />
                 )}
                 <Row
                   icon={<Calendar className="w-4 h-4" />}
-                  label="ลูกค้าตั้งแต่"
+                  label="Customer since"
                   value={formatDate(customer.createdAt)}
                 />
                 {customer.notes && (
                   <div className="pt-2 mt-2 border-t border-border">
-                    <div className="text-xs text-muted-foreground mb-1">บันทึก</div>
+                    <div className="text-xs text-muted-foreground mb-1">Notes</div>
                     <div className="text-sm italic">{customer.notes}</div>
                   </div>
                 )}
@@ -203,23 +203,23 @@ export default function CustomerDetailPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard
               icon={<TrendingUp className="w-4 h-4" />}
-              label="ใช้จ่ายรวม"
+              label="Total spent"
               value={formatCurrency(customer.totalSpent)}
               accent
             />
             <StatCard
               icon={<ShoppingBag className="w-4 h-4" />}
-              label="มาทั้งหมด"
-              value={`${customer.visitCount} ครั้ง`}
+              label="Total visits"
+              value={`${customer.visitCount} visit${customer.visitCount !== 1 ? 's' : ''}`}
             />
             <StatCard
               icon={<ReceiptIcon className="w-4 h-4" />}
-              label="เฉลี่ย/ครั้ง"
+              label="Avg/visit"
               value={formatCurrency(avgPerVisit)}
             />
             <StatCard
               icon={<Sparkles className="w-4 h-4" />}
-              label="คะแนนสะสม"
+              label="Loyalty points"
               value={`${customer.points} pts`}
               highlight
             />
@@ -227,12 +227,12 @@ export default function CustomerDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">ประวัติออเดอร์</CardTitle>
+              <CardTitle className="text-base">Order history</CardTitle>
             </CardHeader>
             <CardContent>
               {customer.orders?.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">
-                  ยังไม่มีประวัติออเดอร์
+                  No order history yet
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -248,7 +248,7 @@ export default function CustomerDetailPage() {
                             {o.orderNumber}
                           </div>
                           <div className="text-sm font-medium">
-                            {o.items.length} รายการ
+                            {o.items.length} items
                             <span className="text-muted-foreground ml-2 text-xs">
                               {o.items
                                 .slice(0, 3)

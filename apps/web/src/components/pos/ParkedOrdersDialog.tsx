@@ -36,18 +36,18 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ['parked-orders'] });
       qc.invalidateQueries({ queryKey: ['parked-count'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
-      toast.success('ลบออเดอร์ที่พักไว้แล้ว');
+      toast.success('Parked order removed');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'ลบไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to delete'),
   });
 
   const recall = async (order: any) => {
     if (cart.items.length > 0) {
-      if (!confirm('ตะกร้าปัจจุบันมีสินค้าอยู่ — เรียกออเดอร์นี้จะทับของเดิม. ยืนยัน?')) {
+      if (!confirm('Current cart has items — recalling this order will overwrite them. Continue?')) {
         return;
       }
     }
-    // โหลด items เข้า cart
+    // Load items into cart
     cart.clear();
     order.items.forEach((it: any) => {
       cart.addItem({
@@ -70,9 +70,9 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
     }
     cart.setType(order.type);
     cart.setDiscount(Number(order.discount || 0));
-    // ลบ parked หลังโหลด เพื่อกัน double
+    // Remove parked after loading to prevent duplicates
     await remove.mutateAsync(order.id);
-    toast.success('โหลดออเดอร์เข้าตะกร้าแล้ว');
+    toast.success('Order loaded into cart');
     onClose();
   };
 
@@ -82,7 +82,7 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ClipboardList className="w-5 h-5" />
-            ออเดอร์ที่พักไว้ {parked.length > 0 && `(${parked.length})`}
+            Parked orders {parked.length > 0 && `(${parked.length})`}
           </DialogTitle>
         </DialogHeader>
 
@@ -95,7 +95,7 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
         ) : parked.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground text-sm">
             <ClipboardList className="w-12 h-12 mx-auto opacity-30 mb-3" />
-            ไม่มีออเดอร์ที่พักไว้
+            No parked orders
           </div>
         ) : (
           <div className="space-y-2">
@@ -116,15 +116,15 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
                         </span>
                         {o.table && (
                           <Badge variant="accent" className="text-[10px]">
-                            โต๊ะ {o.table.number}
+                            Table {o.table.number}
                           </Badge>
                         )}
                         <Badge variant="default" className="text-[10px]">
                           {o.type === 'DINE_IN'
-                            ? 'ทานที่ร้าน'
+                            ? 'Dine-in'
                             : o.type === 'TAKEAWAY'
-                            ? 'กลับบ้าน'
-                            : 'เดลิเวอรี'}
+                            ? 'Takeaway'
+                            : 'Delivery'}
                         </Badge>
                       </div>
                       {o.customer && (
@@ -134,7 +134,7 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
                       )}
                       <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                         <Clock className="w-3 h-3" />
-                        {formatTime(o.createdAt)} ({elapsed} นาทีที่แล้ว) ·{' '}
+                        {formatTime(o.createdAt)} ({elapsed} min ago) ·{' '}
                         {o.cashier?.name}
                       </div>
                     </div>
@@ -143,7 +143,7 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
                         {formatCurrency(o.total)}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {o.items.length} รายการ
+                        {o.items.length} items
                       </div>
                     </div>
                   </div>
@@ -163,13 +163,13 @@ export function ParkedOrdersDialog({ open, onClose }: Props) {
                       onClick={() => recall(o)}
                       disabled={remove.isPending}
                     >
-                      <ShoppingCart className="w-3.5 h-3.5 mr-1" /> เรียก
+                      <ShoppingCart className="w-3.5 h-3.5 mr-1" /> Recall
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        if (confirm(`ลบออเดอร์ ${o.orderNumber}?`)) {
+                        if (confirm(`Delete order ${o.orderNumber}?`)) {
                           remove.mutate(o.id);
                         }
                       }}

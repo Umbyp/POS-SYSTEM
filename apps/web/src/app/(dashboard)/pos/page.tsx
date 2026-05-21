@@ -41,10 +41,10 @@ export default function POSPage() {
     queryFn: () => api.get('/products/categories').then((r) => r.data),
   });
 
-  // Barcode handler: ถ้ากด Enter ในช่อง search → ลองค้น barcode ตรง ๆ
+  // Barcode handler: when Enter is pressed in search → try direct barcode lookup
   const handleSearchEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !q) return;
-    // ถ้า input ดูเหมือน barcode (ตัวเลขล้วน ≥ 8 ตัว)
+    // If input looks like a barcode (digits only, ≥ 8 chars)
     if (/^\d{8,}$/.test(q)) {
       try {
         const { data } = await api.get(`/products/barcode/${q}`);
@@ -57,7 +57,7 @@ export default function POSPage() {
     }
   };
 
-  // Focus search ด้วย F2 (เครื่องสแกนบาร์โค้ดส่วนใหญ่ทำงานเหมือนคีย์บอร์ด)
+  // Focus search with F2 (most barcode scanners act as keyboard input)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'F2') {

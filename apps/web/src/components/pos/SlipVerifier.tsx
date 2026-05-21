@@ -76,10 +76,10 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
     } catch (e: any) {
       setCameraError(
         e.name === 'NotAllowedError'
-          ? 'ไม่ได้รับสิทธิ์ใช้กล้อง — กดอนุญาตในเบราว์เซอร์'
+          ? 'Camera permission denied — allow it in your browser'
           : e.name === 'NotFoundError'
-          ? 'ไม่พบกล้องในอุปกรณ์นี้'
-          : 'เปิดกล้องไม่ได้: ' + e.message
+          ? 'No camera found on this device'
+          : 'Cannot open camera: ' + e.message
       );
     }
   };
@@ -103,7 +103,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, result]);
 
-  // Scan loop — ทุก animation frame
+  // Scan loop — every animation frame
   const tick = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -150,13 +150,13 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
           const qr = jsQR(imgData.data, imgData.width, imgData.height, {
             inversionAttempts: 'attemptBoth',
           });
-          if (!qr) return reject(new Error('ไม่พบ QR ในรูป — ลองถ่ายใหม่ให้ชัดขึ้น'));
+          if (!qr) return reject(new Error('No QR found in image — try a clearer photo'));
           resolve(qr.data);
         };
-        img.onerror = () => reject(new Error('โหลดรูปไม่ได้'));
+        img.onerror = () => reject(new Error('Failed to load image'));
         img.src = e.target?.result as string;
       };
-      reader.onerror = () => reject(new Error('อ่านไฟล์ไม่ได้'));
+      reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsDataURL(file);
     });
   };
@@ -171,7 +171,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
       });
       setResult(data);
       if (data.ok) {
-        toast.success('✅ ยืนยันสลิปสำเร็จ');
+        toast.success('✅ Slip verified');
         onVerified({
           transRef: data.slip.transRef,
           payload: data.payload,
@@ -180,11 +180,11 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
           receiverName: data.slip.receiver.accountName,
         });
       } else {
-        toast.error('❌ สลิปไม่ผ่านการตรวจสอบ');
+        toast.error('❌ Slip verification failed');
         onCleared();
       }
     } catch (e: any) {
-      const msg = e.response?.data?.error || 'ตรวจสอบสลิปไม่สำเร็จ';
+      const msg = e.response?.data?.error || 'Slip verification failed';
       toast.error(msg);
       setResult({ ok: false, reasons: [msg], slip: {} as any, payload });
       onCleared();
@@ -218,23 +218,23 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
       <div className="bg-success/10 border-2 border-success rounded-xl p-3 space-y-2">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="w-5 h-5 text-success" />
-          <span className="font-medium text-success">ยืนยันสลิปสำเร็จ</span>
+          <span className="font-medium text-success">Slip verified</span>
         </div>
         <div className="text-xs space-y-1">
           <div className="flex justify-between">
-            <span className="text-muted-foreground">ยอด</span>
+            <span className="text-muted-foreground">Amount</span>
             <span className="tabular-nums font-medium">
               {formatCurrency(result.slip.amount)}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">ผู้ส่ง</span>
+            <span className="text-muted-foreground">Sender</span>
             <span className="font-medium truncate ml-2">
               {result.slip.sender.accountName}
             </span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">ผู้รับ</span>
+            <span className="text-muted-foreground">Receiver</span>
             <span className="font-medium truncate ml-2">
               {result.slip.receiver.accountName}
             </span>
@@ -248,7 +248,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
           onClick={reset}
           className="text-xs text-muted-foreground hover:text-foreground underline"
         >
-          ตรวจสลิปอื่น
+          Verify another slip
         </button>
       </div>
     );
@@ -265,7 +265,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
             mode === 'live' ? 'bg-card font-medium' : 'text-muted-foreground'
           }`}
         >
-          <Video className="w-3 h-3 inline mr-1" /> สแกน Live
+          <Video className="w-3 h-3 inline mr-1" /> Live scan
         </button>
         <button
           onClick={() => setMode('photo')}
@@ -273,7 +273,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
             mode === 'photo' ? 'bg-card font-medium' : 'text-muted-foreground'
           }`}
         >
-          <ImageIcon className="w-3 h-3 inline mr-1" /> รูปสลิป
+          <ImageIcon className="w-3 h-3 inline mr-1" /> Slip image
         </button>
         <button
           onClick={() => setMode('manual')}
@@ -293,7 +293,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
               <AlertCircle className="w-6 h-6 text-danger mx-auto" />
               <p>{cameraError}</p>
               <Button size="sm" variant="outline" onClick={startCamera}>
-                ลองอีกครั้ง
+                Try again
               </Button>
             </div>
           ) : (
@@ -322,21 +322,21 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
                 {loading ? (
                   <>
                     <Loader2 className="w-3 h-3 animate-spin" />
-                    <span>กำลังตรวจสอบ...</span>
+                    <span>Verifying...</span>
                   </>
                 ) : scanning ? (
                   <>
                     <Video className="w-3 h-3 animate-pulse text-primary" />
-                    <span>กำลังสแกน — เอา QR สลิปมาส่อง</span>
+                    <span>Scanning — point QR at the camera</span>
                   </>
                 ) : (
-                  <span>กำลังเปิดกล้อง...</span>
+                  <span>Opening camera...</span>
                 )}
               </div>
             </div>
           )}
           <p className="text-[10px] text-center text-muted-foreground">
-            💡 ให้ลูกค้าเปิดสลิปจากแอปธนาคาร แล้วเอา QR ขึ้นมาให้กล้องสแกน
+            💡 Ask the customer to open the slip in their banking app, then show the QR to the camera
           </p>
         </div>
       )}
@@ -362,9 +362,9 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
             ) : (
               <>
                 <Camera className="w-6 h-6 text-primary" />
-                <span className="font-medium">ถ่าย / เลือกรูปสลิป</span>
+                <span className="font-medium">Take / choose slip photo</span>
                 <span className="text-[10px] text-muted-foreground">
-                  เหมาะกับ screenshot จากแอปธนาคาร
+                  Works with screenshots from banking apps
                 </span>
               </>
             )}
@@ -378,7 +378,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
           <textarea
             value={manualPayload}
             onChange={(e) => setManualPayload(e.target.value)}
-            placeholder="วาง payload QR ของสลิป..."
+            placeholder="Paste slip QR payload..."
             className="w-full h-20 bg-input border border-border rounded-lg px-3 py-2 text-xs font-mono"
             disabled={loading}
           />
@@ -388,7 +388,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
             disabled={loading || manualPayload.length < 10}
             onClick={() => verify(manualPayload.trim())}
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'ตรวจสอบ'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Verify'}
           </Button>
         </div>
       )}
@@ -398,7 +398,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
         <div className="bg-danger/10 border border-danger/40 rounded-lg p-2.5 text-xs space-y-1">
           <div className="flex items-center gap-1.5 font-medium text-danger">
             <AlertCircle className="w-3.5 h-3.5" />
-            <span>ไม่ผ่านการตรวจสอบ</span>
+            <span>Verification failed</span>
           </div>
           <ul className="space-y-0.5 list-disc list-inside text-muted-foreground">
             {result.reasons.map((r, i) => (
@@ -409,7 +409,7 @@ export function SlipVerifier({ expectedAmount, onVerified, onCleared }: Props) {
             onClick={reset}
             className="text-muted-foreground hover:text-foreground underline mt-1"
           >
-            ลองใหม่
+            Try again
           </button>
         </div>
       )}

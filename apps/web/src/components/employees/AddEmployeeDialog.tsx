@@ -17,10 +17,10 @@ import { Label } from '@/components/ui/label';
 type Role = 'OWNER' | 'ADMIN' | 'CASHIER' | 'KITCHEN';
 
 const ROLE_OPTIONS: { value: Role; label: string; desc: string }[] = [
-  { value: 'CASHIER', label: 'แคชเชียร์', desc: 'ขายหน้าร้าน + จัดการโต๊ะ + ดูออเดอร์' },
-  { value: 'KITCHEN', label: 'พนักงานครัว', desc: 'ดูหน้า Kitchen Display + อัปเดตสถานะออเดอร์' },
-  { value: 'ADMIN', label: 'ผู้ดูแล', desc: 'จัดการสินค้า/สต็อก/พนักงาน + ทุกอย่างยกเว้นโอนกรรมสิทธิ์' },
-  { value: 'OWNER', label: 'เจ้าของ', desc: 'สิทธิ์เต็ม รวมถึงตั้งค่าร้าน' },
+  { value: 'CASHIER', label: 'Cashier', desc: 'POS sales + table management + view orders' },
+  { value: 'KITCHEN', label: 'Kitchen staff', desc: 'View Kitchen Display + update order status' },
+  { value: 'ADMIN', label: 'Admin', desc: 'Manage products/stock/staff + everything except ownership transfer' },
+  { value: 'OWNER', label: 'Owner', desc: 'Full access including store settings' },
 ];
 
 interface Props {
@@ -42,12 +42,12 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
       api.post('/employees', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] });
-      toast.success('เพิ่มพนักงานสำเร็จ');
+      toast.success('Staff added');
       setForm({ name: '', email: '', password: '', role: 'CASHIER' });
       onClose();
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'เพิ่มพนักงานไม่สำเร็จ';
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Failed to add staff';
       toast.error(msg);
     },
   });
@@ -55,7 +55,7 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (form.password.length < 6) {
-      toast.error('รหัสผ่านต้องอย่างน้อย 6 ตัวอักษร');
+      toast.error('Password must be at least 6 characters');
       return;
     }
     create.mutate(form);
@@ -66,24 +66,24 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="w-5 h-5" /> เพิ่มพนักงานใหม่
+            <UserPlus className="w-5 h-5" /> Add new staff
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">ชื่อ-นามสกุล *</Label>
+            <Label className="mb-1.5 block">Full name *</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="เช่น สมศักดิ์ ใจดี"
+              placeholder="e.g. John Doe"
               required
               autoFocus
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">อีเมล *</Label>
+            <Label className="mb-1.5 block">Email *</Label>
             <Input
               type="email"
               value={form.email}
@@ -94,7 +94,7 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
           </div>
 
           <div>
-            <Label className="mb-1.5 block">รหัสผ่าน * (≥ 6 ตัวอักษร)</Label>
+            <Label className="mb-1.5 block">Password * (≥ 6 chars)</Label>
             <Input
               type="password"
               value={form.password}
@@ -104,12 +104,12 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
               required
             />
             <p className="text-xs text-muted-foreground mt-1">
-              พนักงานสามารถเปลี่ยนรหัสผ่านเองได้ภายหลัง
+              Staff can change their password later
             </p>
           </div>
 
           <div>
-            <Label className="mb-1.5 block">บทบาท *</Label>
+            <Label className="mb-1.5 block">Role *</Label>
             <div className="space-y-1.5">
               {ROLE_OPTIONS.map((opt) => (
                 <label
@@ -139,13 +139,13 @@ export function AddEmployeeDialog({ open, onClose }: Props) {
 
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={create.isPending}>
               {create.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                'เพิ่มพนักงาน'
+                'Add staff'
               )}
             </Button>
           </div>

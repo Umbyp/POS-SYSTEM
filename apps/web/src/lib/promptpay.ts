@@ -2,10 +2,10 @@
  * PromptPay QR Code Payload Generator
  * Implements EMVCo Merchant-Presented QR for Thai PromptPay
  *
- * รองรับ:
- * - เบอร์มือถือ 10 หลัก (เช่น 0812345678)
- * - เลขประจำตัวประชาชน 13 หลัก
- * - eWallet ID 15 หลัก
+ * Supports:
+ * - Mobile number 10 digits (e.g. 0812345678)
+ * - National ID 13 digits
+ * - eWallet ID 15 digits
  */
 
 function tlv(tag: string, value: string): string {

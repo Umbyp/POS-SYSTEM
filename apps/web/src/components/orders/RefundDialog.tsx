@@ -54,14 +54,14 @@ export function RefundDialog({ open, onClose, order }: Props) {
       qc.invalidateQueries({ queryKey: ['order', order.id] });
       toast.success(
         data.fullyRefunded
-          ? `คืนเงินครบทั้งบิล (${formatCurrency(data.refundedAmount)})`
-          : `คืนเงินบางรายการ (${formatCurrency(data.refundedAmount)})`
+          ? `Full refund (${formatCurrency(data.refundedAmount)})`
+          : `Partial refund (${formatCurrency(data.refundedAmount)})`
       );
       setQtyMap({});
       setReason('');
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'คืนเงินไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Refund failed'),
   });
 
   const submit = () => {
@@ -74,11 +74,11 @@ export function RefundDialog({ open, onClose, order }: Props) {
       }));
 
     if (itemsToRefund.length === 0) {
-      toast.error('กรุณาเลือกรายการที่ต้องการคืนเงิน');
+      toast.error('Please select items to refund');
       return;
     }
     if (!reason.trim()) {
-      if (!confirm('ยังไม่ได้ใส่เหตุผล — ดำเนินการต่อ?')) return;
+      if (!confirm('No reason provided — continue anyway?')) return;
     }
     mut.mutate({ items: itemsToRefund });
   };
@@ -98,20 +98,20 @@ export function RefundDialog({ open, onClose, order }: Props) {
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Undo2 className="w-5 h-5 text-warning" /> คืนเงิน
+            <Undo2 className="w-5 h-5 text-warning" /> Refund
           </DialogTitle>
         </DialogHeader>
 
         <div className="text-sm text-muted-foreground">
-          เลือกรายการและจำนวนที่ต้องการคืนเงิน
+          Select items and quantity to refund
         </div>
 
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={selectAll}>
-            เลือกทั้งหมด
+            Select all
           </Button>
           <Button variant="outline" size="sm" onClick={clearAll}>
-            ล้าง
+            Clear
           </Button>
         </div>
 
@@ -137,14 +137,14 @@ export function RefundDialog({ open, onClose, order }: Props) {
                       {formatCurrency(item.unitPrice)} × {item.quantity}
                       {item.refundedQty > 0 && (
                         <span className="text-warning ml-2">
-                          (คืนแล้ว {item.refundedQty})
+                          (refunded {item.refundedQty})
                         </span>
                       )}
                     </div>
                   </div>
                   {allRefunded ? (
                     <span className="text-xs text-success px-2 py-1 bg-success/10 rounded">
-                      คืนครบแล้ว
+                      Fully refunded
                     </span>
                   ) : (
                     <div className="flex items-center gap-1">
@@ -196,29 +196,29 @@ export function RefundDialog({ open, onClose, order }: Props) {
         </div>
 
         <div>
-          <Label className="mb-1.5 block">เหตุผล (แนะนำให้ระบุ)</Label>
+          <Label className="mb-1.5 block">Reason (recommended)</Label>
           <Input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="เช่น ลูกค้าเปลี่ยนใจ, รสชาติไม่อร่อย, สินค้าหมด..."
+            placeholder="e.g. customer changed mind, taste issue, out of stock..."
           />
         </div>
 
         {selectedCount > 0 && (
           <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
-            <div className="text-xs text-muted-foreground">ยอดเงินที่จะคืน</div>
+            <div className="text-xs text-muted-foreground">Refund amount</div>
             <div className="text-2xl font-bold text-warning tabular-nums">
               {formatCurrency(totalRefund)}
             </div>
             <div className="text-xs text-muted-foreground mt-1">
-              {selectedCount} รายการ
+              {selectedCount} item{selectedCount !== 1 ? 's' : ''}
             </div>
           </div>
         )}
 
         <div className="flex gap-2 pt-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button
             variant="danger"
@@ -229,7 +229,7 @@ export function RefundDialog({ open, onClose, order }: Props) {
             {mut.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              `ยืนยันคืนเงิน ${formatCurrency(totalRefund)}`
+              `Confirm refund ${formatCurrency(totalRefund)}`
             )}
           </Button>
         </div>

@@ -66,7 +66,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     enabled: open,
   });
 
-  // Load product สำหรับ edit
+  // Load product for editing
   const { data: product } = useQuery({
     queryKey: ['product', productId],
     queryFn: () => api.get(`/products/${productId}`).then((r) => r.data),
@@ -104,11 +104,11 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] });
-      toast.success(productId ? 'อัปเดตสินค้าสำเร็จ' : 'เพิ่มสินค้าสำเร็จ');
+      toast.success(productId ? 'Product updated' : 'Product added');
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || 'บันทึกไม่สำเร็จ');
+      toast.error(err.response?.data?.error || 'Failed to save');
     },
   });
 
@@ -142,13 +142,13 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
-          <DialogTitle>{productId ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}</DialogTitle>
+          <DialogTitle>{productId ? 'Edit product' : 'Add new product'}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="md:col-span-2">
-              <Label className="mb-1.5 block">ชื่อสินค้า *</Label>
+              <Label className="mb-1.5 block">Product name *</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -166,7 +166,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             </div>
 
             <div>
-              <Label className="mb-1.5 block">บาร์โค้ด</Label>
+              <Label className="mb-1.5 block">Barcode</Label>
               <Input
                 value={form.barcode}
                 onChange={(e) => setForm({ ...form, barcode: e.target.value })}
@@ -174,14 +174,14 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             </div>
 
             <div>
-              <Label className="mb-1.5 block">หมวดหมู่ *</Label>
+              <Label className="mb-1.5 block">Category *</Label>
               <select
                 value={form.categoryId}
                 onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
                 required
                 className="w-full h-10 bg-input border border-border rounded-lg px-3 text-sm"
               >
-                <option value="">เลือกหมวดหมู่...</option>
+                <option value="">Select category...</option>
                 {categories.map((c: any) => (
                   <option key={c.id} value={c.id}>
                     {c.icon} {c.name}
@@ -191,7 +191,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             </div>
 
             <div>
-              <Label className="mb-1.5 block">URL รูปสินค้า</Label>
+              <Label className="mb-1.5 block">Image URL</Label>
               <Input
                 value={form.image}
                 onChange={(e) => setForm({ ...form, image: e.target.value })}
@@ -200,7 +200,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             </div>
 
             <div>
-              <Label className="mb-1.5 block">ต้นทุน *</Label>
+              <Label className="mb-1.5 block">Cost *</Label>
               <Input
                 type="number" step="0.01" min="0"
                 value={form.costPrice}
@@ -210,7 +210,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             </div>
 
             <div>
-              <Label className="mb-1.5 block">ราคาขาย *</Label>
+              <Label className="mb-1.5 block">Selling price *</Label>
               <Input
                 type="number" step="0.01" min="0"
                 value={form.sellingPrice}
@@ -219,13 +219,13 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
               />
               {margin > 0 && (
                 <div className="text-xs text-success mt-1">
-                  กำไร {margin.toFixed(1)}%
+                  Margin {margin.toFixed(1)}%
                 </div>
               )}
             </div>
 
             <div className="md:col-span-2">
-              <Label className="mb-1.5 block">รายละเอียด</Label>
+              <Label className="mb-1.5 block">Description</Label>
               <textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -244,13 +244,13 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
                 onChange={(e) => setForm({ ...form, trackStock: e.target.checked })}
                 className="w-4 h-4 accent-primary"
               />
-              <span className="text-sm font-medium">ติดตามสต็อก</span>
+              <span className="text-sm font-medium">Track stock</span>
             </label>
 
             {form.trackStock && !productId && (
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="mb-1.5 block">สต็อกเริ่มต้น</Label>
+                  <Label className="mb-1.5 block">Initial stock</Label>
                   <Input
                     type="number" min="0"
                     value={form.initialStock}
@@ -258,7 +258,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
                   />
                 </div>
                 <div>
-                  <Label className="mb-1.5 block">แจ้งเตือนเมื่อต่ำกว่า</Label>
+                  <Label className="mb-1.5 block">Alert when below</Label>
                   <Input
                     type="number" min="0"
                     value={form.lowStockAt}
@@ -269,11 +269,11 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             )}
           </div>
 
-          {/* Variants (เฉพาะตอนสร้างใหม่) */}
+          {/* Variants (only when creating new) */}
           {!productId && (
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-2">
-                <Label>ตัวเลือก (Variants)</Label>
+                <Label>Options (Variants)</Label>
                 <Button
                   type="button" size="sm" variant="outline"
                   onClick={() =>
@@ -283,13 +283,13 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
                     })
                   }
                 >
-                  <Plus className="w-3 h-3 mr-1" /> เพิ่ม
+                  <Plus className="w-3 h-3 mr-1" /> Add
                 </Button>
               </div>
               {form.variants.map((v, i) => (
                 <div key={i} className="flex gap-2 mb-2">
                   <Input
-                    placeholder="ชื่อ (เช่น ขนาด L)"
+                    placeholder="Name (e.g. Size L)"
                     value={v.name}
                     onChange={(e) => {
                       const next = [...form.variants];
@@ -299,7 +299,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
                   />
                   <Input
                     type="number" step="0.01"
-                    placeholder="ราคา +/-"
+                    placeholder="Price +/-"
                     value={v.priceDelta}
                     onChange={(e) => {
                       const next = [...form.variants];
@@ -321,10 +321,10 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
 
           <div className="flex gap-2 pt-4 border-t border-border">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button type="submit" className="flex-1" disabled={save.isPending}>
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'บันทึก'}
+              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
             </Button>
           </div>
         </form>
