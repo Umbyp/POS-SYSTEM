@@ -1,0 +1,386 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id         String        @id @default(cuid())
+  email      String        @unique
+  password   String?
+  googleId   String?       @unique
+  name       String
+  avatar     String?
+  role       Role          @default(CASHIER)
+  storeId    String
+  isActive   Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  activities ActivityLog[]
+  orders     Order[]
+  shifts     Shift[]
+  store      Store         @relation(fields: [storeId], references: [id])
+  memberOf   StoreMember[]
+}
+
+// จับคู่ user กับ store ที่เขา access ได้ (สำหรับ multi-store)
+model StoreMember {
+  id        String   @id @default(cuid())
+  userId    String
+  storeId   String
+  role      Role     @default(ADMIN)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@index([userId])
+  @@index([storeId])
+}
+
+model Store {
+  id            String     @id @default(cuid())
+  name          String
+  address       String?
+  phone         String?
+  taxId         String?
+  logo          String?
+  currency      String     @default("THB")
+  taxRate          Float   @default(7.0)
+  priceIncludesTax Boolean @default(true)
+  serviceCharge    Float   @default(0)
+  promptpayId   String?
+  invoicePrefix String?
+  branchCode    String?
+  createdAt     DateTime   @default(now())
+  lineNotifyToken String?
+  dailyTarget     Decimal  @default(0) @db.Decimal(12, 2)
+  monthlyTarget   Decimal  @default(0) @db.Decimal(12, 2)
+  members         StoreMember[]
+  categories    Category[]
+  customers     Customer[]
+  orders        Order[]
+  products      Product[]
+  promotions    Promotion[]
+  suppliers     Supplier[]
+  tables        Table[]
+  users         User[]
+}
+
+model Promotion {
+  id          String         @id @default(cuid())
+  storeId     String
+  name        String
+  code        String?        // โค้ดส่วนลดที่ลูกค้ากรอก (optional)
+  type        PromotionType
+  scope       PromotionScope @default(ALL_ORDER)
+  value       Decimal        @default(0) @db.Decimal(10, 2) // % หรือ บาท
+  buyQty      Int?           // สำหรับ BUY_X_GET_Y
+  getQty      Int?
+  productIds  String[]       @default([])
+  categoryIds String[]       @default([])
+  minSpend    Decimal?       @db.Decimal(10, 2)
+  startAt     DateTime?
+  endAt       DateTime?
+  daysOfWeek  Int[]          @default([])
+  hourStart   Int?
+  hourEnd     Int?
+  memberOnly  Boolean        @default(false)
+  isActive    Boolean        @default(true)
+  usageLimit  Int?
+  usageCount  Int            @default(0)
+  createdAt   DateTime       @default(now())
+  store       Store          @relation(fields: [storeId], references: [id])
+
+  @@index([storeId, isActive])
+  @@index([code])
+}
+
+enum PromotionType {
+  PERCENT_OFF
+  FIXED_OFF
+  BUY_X_GET_Y
+  FIXED_PRICE
+}
+
+enum PromotionScope {
+  ALL_ORDER
+  CATEGORY
+  PRODUCT
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  icon      String?
+  color     String?
+  sortOrder Int       @default(0)
+  storeId   String
+  createdAt DateTime  @default(now())
+  store     Store     @relation(fields: [storeId], references: [id])
+  products  Product[]
+}
+
+model Product {
+  id           String           @id @default(cuid())
+  name         String
+  sku          String           @unique
+  barcode      String?          @unique
+  description  String?
+  image        String?
+  costPrice    Decimal          @db.Decimal(10, 2)
+  sellingPrice Decimal          @db.Decimal(10, 2)
+  categoryId   String
+  storeId      String
+  trackStock   Boolean          @default(true)
+  isActive     Boolean          @default(true)
+  isIngredient Boolean          @default(false)
+  isCombo      Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  inventory    Inventory?
+  orderItems   OrderItem[]
+  category     Category         @relation(fields: [categoryId], references: [id])
+  store        Store            @relation(fields: [storeId], references: [id])
+  variants     ProductVariant[]
+  recipe       RecipeItem[]     @relation("ProductRecipe")
+  usedIn       RecipeItem[]     @relation("IngredientFor")
+
+  @@index([categoryId])
+  @@index([storeId])
+}
+
+model RecipeItem {
+  id           String  @id @default(cuid())
+  productId    String  // เมนูที่ขาย (เช่น ลาเต้)
+  ingredientId String  // วัตถุดิบ (เป็น Product เช่นกัน — เมล็ดกาแฟ, นม)
+  quantity     Decimal @db.Decimal(10, 3)
+  unit         String? // กรัม, มล., ชิ้น, ช้อน
+  notes        String?
+  product      Product @relation("ProductRecipe", fields: [productId], references: [id], onDelete: Cascade)
+  ingredient   Product @relation("IngredientFor", fields: [ingredientId], references: [id])
+
+  @@index([productId])
+  @@index([ingredientId])
+}
+
+model ProductVariant {
+  id         String  @id @default(cuid())
+  productId  String
+  name       String
+  priceDelta Decimal @default(0) @db.Decimal(10, 2)
+  sku        String?
+  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model Inventory {
+  id         String          @id @default(cuid())
+  productId  String          @unique
+  quantity   Int             @default(0)
+  lowStockAt Int             @default(10)
+  expiryDate DateTime?
+  updatedAt  DateTime        @updatedAt
+  product    Product         @relation(fields: [productId], references: [id])
+  movements  StockMovement[]
+}
+
+model StockMovement {
+  id          String       @id @default(cuid())
+  inventoryId String
+  type        MovementType
+  quantity    Int
+  reason      String?
+  orderId     String?
+  userId      String?
+  createdAt   DateTime     @default(now())
+  inventory   Inventory    @relation(fields: [inventoryId], references: [id])
+}
+
+model Supplier {
+  id             String          @id @default(cuid())
+  name           String
+  contact        String?
+  phone          String?
+  email          String?
+  storeId        String
+  createdAt      DateTime        @default(now())
+  purchaseOrders PurchaseOrder[]
+  store          Store           @relation(fields: [storeId], references: [id])
+}
+
+model PurchaseOrder {
+  id         String    @id @default(cuid())
+  supplierId String
+  status     String    @default("PENDING")
+  total      Decimal   @db.Decimal(10, 2)
+  notes      String?
+  createdAt  DateTime  @default(now())
+  receivedAt DateTime?
+  supplier   Supplier  @relation(fields: [supplierId], references: [id])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  orderNumber   String      @unique
+  storeId       String
+  cashierId     String
+  customerId    String?
+  tableId       String?
+  promotionId   String?
+  promotionName String?
+  type          OrderType   @default(DINE_IN)
+  status        OrderStatus @default(DRAFT)
+  subtotal      Decimal     @db.Decimal(10, 2)
+  discount      Decimal     @default(0) @db.Decimal(10, 2)
+  promotionDiscount Decimal  @default(0) @db.Decimal(10, 2)
+  tax           Decimal     @default(0) @db.Decimal(10, 2)
+  serviceCharge Decimal     @default(0) @db.Decimal(10, 2)
+  total         Decimal     @db.Decimal(10, 2)
+  pointsRedeemed   Int         @default(0)
+  pointsEarned     Int         @default(0)
+  notes            String?
+  customerName     String?
+  customerTaxId    String?
+  customerAddress  String?
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  cashier          User        @relation(fields: [cashierId], references: [id])
+  customer      Customer?   @relation(fields: [customerId], references: [id])
+  store         Store       @relation(fields: [storeId], references: [id])
+  table         Table?      @relation(fields: [tableId], references: [id])
+  items         OrderItem[]
+  payments      Payment[]
+
+  @@index([storeId, createdAt])
+  @@index([status])
+  @@index([customerId])
+}
+
+model Customer {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String
+  phone       String?
+  email       String?
+  taxId       String?
+  address     String?
+  points      Int      @default(0)
+  totalSpent  Decimal  @default(0) @db.Decimal(12, 2)
+  visitCount  Int      @default(0)
+  lastVisitAt DateTime?
+  notes       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  store       Store    @relation(fields: [storeId], references: [id])
+  orders      Order[]
+
+  @@index([storeId, phone])
+  @@index([storeId, name])
+}
+
+model OrderItem {
+  id           String  @id @default(cuid())
+  orderId      String
+  productId    String
+  quantity     Int
+  refundedQty  Int     @default(0)
+  unitPrice    Decimal @db.Decimal(10, 2)
+  discount     Decimal @default(0) @db.Decimal(10, 2)
+  notes        String?
+  variants     Json?
+  refundReason String?
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product @relation(fields: [productId], references: [id])
+}
+
+model Payment {
+  id              String        @id @default(cuid())
+  orderId         String
+  method          PaymentMethod
+  amount          Decimal       @db.Decimal(10, 2)
+  reference       String?
+  slipVerified    Boolean       @default(false)
+  slipTransRef    String?       @unique
+  slipVerifiedAt  DateTime?
+  slipPayload     String?
+  createdAt       DateTime      @default(now())
+  order           Order         @relation(fields: [orderId], references: [id])
+}
+
+model Table {
+  id       String  @id @default(cuid())
+  number   String
+  capacity Int     @default(4)
+  status   String  @default("AVAILABLE")
+  qrCode   String? @unique
+  storeId  String
+  orders   Order[]
+  store    Store   @relation(fields: [storeId], references: [id])
+}
+
+model Shift {
+  id          String    @id @default(cuid())
+  userId      String
+  startTime   DateTime  @default(now())
+  endTime     DateTime?
+  openingCash Decimal   @default(0) @db.Decimal(10, 2)
+  closingCash Decimal?  @db.Decimal(10, 2)
+  cashSales   Decimal   @default(0) @db.Decimal(10, 2)
+  totalSales  Decimal   @default(0) @db.Decimal(10, 2)
+  notes       String?
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  CASHIER
+  KITCHEN
+}
+
+enum MovementType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  RETURN
+  WASTE
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING
+  PREPARING
+  READY
+  COMPLETED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum PaymentMethod {
+  CASH
+  PROMPTPAY
+  CREDIT_CARD
+  BANK_TRANSFER
+}
