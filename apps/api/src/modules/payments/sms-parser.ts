@@ -23,7 +23,11 @@
  */
 
 export interface ParsedMessage {
+  /** Parsed amount in baht. 0 when the bank notification didn't include it. */
   amount: number;
+  /** True when we recognized this as an inbound transfer but couldn't extract amount.
+   *  Common for privacy-aware emails like "เกิดรายการในบัญชี ตรวจสอบในแอป" */
+  hasAmount: boolean;
   bank?: string;
   senderName?: string;
   raw: string;
@@ -39,6 +43,20 @@ const INBOUND_KEYWORDS = [
   /เงินเข้า/, // เงินเข้า
   /credited/i,
   /\+\s*[\d,]+\.\d{2}/, // explicit +amount
+];
+
+/** Looser patterns for privacy-aware bank notifications that mention a
+ *  transaction but don't include the amount.
+ *  E.g. "เกิดรายการในบัญชี xxxx โปรดตรวจสอบในแอป"
+ *       "Transaction occurred on your account ..." */
+const TRANSACTION_HINT_KEYWORDS = [
+  /เกิดรายการ/, // "เกิดรายการในบัญชี"
+  /มีรายการ/,   // "มีรายการในบัญชี"
+  /รายการในบัญชี/,
+  /transaction\s+(?:occurred|alert|notification)/i,
+  /account\s+activity/i,
+  /โปรดตรวจสอบในแอป/,
+  /please\s+check\s+(?:in|the|your)\s+app/i,
 ];
 
 const OUTBOUND_KEYWORDS = [
@@ -130,17 +148,30 @@ export function parseBankMessage(
     return null;
   }
 
-  // Must look like an inbound transfer
-  if (!INBOUND_KEYWORDS.some((rx) => rx.test(text))) return null;
+  const isInbound = INBOUND_KEYWORDS.some((rx) => rx.test(text));
+  const isTxHint = TRANSACTION_HINT_KEYWORDS.some((rx) => rx.test(text));
+
+  // Must look like either an inbound transfer or a transaction notification
+  if (!isInbound && !isTxHint) return null;
 
   const amountMatch = text.match(AMOUNT_RX);
-  if (!amountMatch) return null;
+  let amount = 0;
+  let hasAmount = false;
+  if (amountMatch) {
+    const parsed = parseFloat(amountMatch[1].replace(/,/g, ''));
+    if (!isNaN(parsed) && parsed > 0) {
+      amount = parsed;
+      hasAmount = true;
+    }
+  }
 
-  const amount = parseFloat(amountMatch[1].replace(/,/g, ''));
-  if (isNaN(amount) || amount <= 0) return null;
+  // No amount + only a transaction hint (not an explicit inbound keyword) →
+  // still report it so the POS can show a "check the app" alert
+  if (!hasAmount && !isInbound && !isTxHint) return null;
 
   return {
     amount,
+    hasAmount,
     bank: detectBank(text),
     senderName: extractSender(text),
     raw: text,
@@ -165,7 +196,9 @@ export function parseBankEmail(
 /** Backwards-compatible alias */
 export const parseBankSms = parseBankMessage;
 
-/** Sanity check: amount should be plausible (avoid parsing transaction IDs as amounts) */
+/** Sanity check: amount should be plausible (avoid parsing transaction IDs as amounts).
+ *  amount === 0 is allowed (means notification with no amount). */
 export function isPlausibleAmount(amount: number): boolean {
+  if (amount === 0) return true; // no-amount alerts are still valid notifications
   return amount >= 1 && amount <= 1_000_000;
 }

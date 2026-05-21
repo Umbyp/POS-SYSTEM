@@ -53,9 +53,10 @@ export function useOrderRealtime() {
       }
     };
 
-    // Inbound bank SMS notification: play sound + voice-announce + toast
+    // Inbound bank SMS/email notification: play sound + voice-announce + toast
     const onPaymentReceived = (n: {
       amount: number;
+      hasAmount?: boolean;
       bank?: string;
       senderName?: string;
       matchedOrderNumber?: string | null;
@@ -66,18 +67,29 @@ export function useOrderRealtime() {
 
       playCashRegister();
       if (voiceOn) {
-        announcePayment(n.amount, lang);
+        announcePayment(n.amount || 0, lang);
       }
 
-      const matchedLabel = n.matchedOrderNumber
-        ? ` · matched ${n.matchedOrderNumber}`
-        : ' · no match';
-      toast.success(`💰 Money in ${formatCurrency(n.amount)}${matchedLabel}`, {
-        duration: 8000,
-        description: n.senderName ? `From ${n.senderName}` : undefined,
-      });
+      if (n.hasAmount === false || !n.amount) {
+        // Privacy-aware bank notification — no amount available
+        toast.warning(`🔔 Payment activity detected`, {
+          duration: 12000,
+          description:
+            (n.bank ? `${n.bank} · ` : '') +
+            'Bank notification arrived without amount. Please verify in your banking app.',
+        });
+      } else {
+        const matchedLabel = n.matchedOrderNumber
+          ? ` · matched ${n.matchedOrderNumber}`
+          : ' · no match';
+        toast.success(`💰 Money in ${formatCurrency(n.amount)}${matchedLabel}`, {
+          duration: 8000,
+          description: n.senderName ? `From ${n.senderName}` : undefined,
+        });
+      }
 
-      // Refresh orders / dashboard if we matched an order
+      // Refresh orders / dashboard if we matched an order, or refresh notifications list
+      qc.invalidateQueries({ queryKey: ['payment-notifications'] });
       if (n.matchedOrderNumber) {
         qc.invalidateQueries({ queryKey: ['orders'] });
         qc.invalidateQueries({ queryKey: ['dashboard-overview'] });

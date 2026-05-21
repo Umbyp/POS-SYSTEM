@@ -10,8 +10,18 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { detectPromptPayType, formatPromptPayId } from '@/lib/promptpay';
 
-export function StoreSettingsForm() {
+export type StoreSettingsSection = 'store' | 'tax' | 'promptpay' | 'goals' | 'line';
+
+interface StoreSettingsFormProps {
+  /** When provided, only renders these section cards. Otherwise renders everything. */
+  sections?: StoreSettingsSection[];
+  /** Hide the floating save button (caller provides its own). */
+  hideSaveButton?: boolean;
+}
+
+export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFormProps = {}) {
   const qc = useQueryClient();
+  const show = (key: StoreSettingsSection) => !sections || sections.includes(key);
 
   const { data: store, isLoading } = useQuery({
     queryKey: ['store-me'],
@@ -116,6 +126,7 @@ export function StoreSettingsForm() {
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {show('store') && (
       <Card>
         <CardHeader>
           <CardTitle>Store information</CardTitle>
@@ -157,7 +168,9 @@ export function StoreSettingsForm() {
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {show('tax') && (
       <Card>
         <CardHeader>
           <CardTitle>Tax & invoicing</CardTitle>
@@ -226,7 +239,9 @@ export function StoreSettingsForm() {
           </label>
         </CardContent>
       </Card>
+      )}
 
+      {show('promptpay') && (
       <Card>
         <CardHeader>
           <CardTitle>
@@ -255,7 +270,9 @@ export function StoreSettingsForm() {
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {show('goals') && (
       <Card>
         <CardHeader>
           <CardTitle>
@@ -294,7 +311,9 @@ export function StoreSettingsForm() {
           </div>
         </CardContent>
       </Card>
+      )}
 
+      {show('line') && (
       <Card>
         <CardHeader>
           <CardTitle>
@@ -355,18 +374,21 @@ export function StoreSettingsForm() {
           )}
         </CardContent>
       </Card>
+      )}
 
-      <div className="flex justify-end gap-2 sticky bottom-0 bg-background py-4">
-        <Button type="submit" size="lg" disabled={save.isPending}>
-          {save.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-1" /> Save settings
-            </>
-          )}
-        </Button>
-      </div>
+      {!hideSaveButton && (
+        <div className="flex justify-end gap-2 sticky bottom-0 bg-background py-4">
+          <Button type="submit" size="lg" disabled={save.isPending}>
+            {save.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-1" /> Save settings
+              </>
+            )}
+          </Button>
+        </div>
+      )}
     </form>
   );
 }

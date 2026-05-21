@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Smartphone,
   Mail,
+  Bell,
   Laptop,
   Copy,
   Download,
@@ -20,7 +21,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { announcePayment, isVoiceAvailable } from '@/lib/voice';
 
-type Channel = 'android' | 'ios' | 'mac';
+type Channel = 'android' | 'noti' | 'ios' | 'mac';
 
 export function SmsWebhookSetup() {
   const qc = useQueryClient();
@@ -257,28 +258,35 @@ function forwardPaymentEmails() {
         {/* Channel tabs */}
         <div>
           <label className="text-sm font-medium mb-2 block">Setup guide</label>
-          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-3">
+          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-3 overflow-x-auto">
             <ChannelTab
               active={channel === 'android'}
               onClick={() => setChannel('android')}
               icon={<Smartphone className="w-3.5 h-3.5" />}
-              label="Android (SMS)"
+              label="Android SMS"
+            />
+            <ChannelTab
+              active={channel === 'noti'}
+              onClick={() => setChannel('noti')}
+              icon={<Bell className="w-3.5 h-3.5" />}
+              label="Android Noti"
             />
             <ChannelTab
               active={channel === 'ios'}
               onClick={() => setChannel('ios')}
               icon={<Mail className="w-3.5 h-3.5" />}
-              label="iOS (Email)"
+              label="iOS Email"
             />
             <ChannelTab
               active={channel === 'mac'}
               onClick={() => setChannel('mac')}
               icon={<Laptop className="w-3.5 h-3.5" />}
-              label="Mac (Messages)"
+              label="Mac"
             />
           </div>
 
           {channel === 'android' && <AndroidGuide webhookUrl={webhookUrl} />}
+          {channel === 'noti' && <NotificationListenerGuide webhookUrl={webhookUrl} />}
           {channel === 'ios' && (
             <IOSGuide
               webhookUrl={webhookUrl}
@@ -416,6 +424,69 @@ function ChannelTab({
       {icon}
       {label}
     </button>
+  );
+}
+
+function NotificationListenerGuide({ webhookUrl }: { webhookUrl: string }) {
+  return (
+    <div className="bg-muted/40 border border-border rounded-lg p-3 text-xs space-y-2">
+      <div className="bg-warning/10 border border-warning/30 rounded p-2">
+        <p className="text-foreground font-medium mb-1">
+          💡 Use this when your bank's email or SMS doesn't include the amount
+        </p>
+        <p className="text-muted-foreground">
+          Some banks (esp. K-Bank "K-Plus" privacy mode, SCB) send notifications
+          like <em>"เกิดรายการในบัญชี โปรดตรวจสอบในแอป"</em> with no amount. The fix:
+          read the <strong>app's push notification</strong> directly — those{' '}
+          <em>always</em> contain the amount.
+        </p>
+      </div>
+
+      <ol className="list-decimal list-inside space-y-1.5 text-muted-foreground">
+        <li>
+          Install one of these free Android apps that forward notifications to a webhook:
+          <ul className="list-disc list-inside ml-4 mt-1 space-y-0.5 text-[11px]">
+            <li>
+              <strong className="text-foreground">Notification Forwarder</strong> (by lucky-apps,
+              free, on Play Store)
+            </li>
+            <li>
+              <strong className="text-foreground">Macrodroid</strong> (free with limits, very
+              powerful — use the "Notification" trigger + "HTTP Request" action)
+            </li>
+            <li>
+              <strong className="text-foreground">Tasker + AutoNotification</strong> (paid, most
+              flexible)
+            </li>
+          </ul>
+        </li>
+        <li>
+          Grant the app <strong>Notification Access</strong> permission (Android Settings → Apps
+          → Special access → Notification access).
+        </li>
+        <li>
+          Configure a rule to listen for notifications from your bank app
+          (com.kasikorn.kplus, com.scb.phone, com.bbl.mobilebanking, etc.)
+        </li>
+        <li>
+          Set the action to POST to your webhook URL with JSON body:
+          <pre className="mt-1.5 p-2 bg-card border border-border rounded font-mono text-[10px] leading-tight overflow-x-auto">
+            {`{"message":"%notification_text%","from":"%app_name%"}`}
+          </pre>
+          (replace <code>%notification_text%</code> with whatever placeholder your app uses for
+          the notification body)
+        </li>
+        <li>
+          Test by transferring 1 baht to your account → notification should appear in app →
+          POS should announce the amount.
+        </li>
+      </ol>
+
+      <p className="text-[10px] text-muted-foreground italic pt-1 border-t border-border">
+        💡 This works even when SMS/email lacks the amount, because the bank app's own push
+        notification (the one that appears on the lock screen) always includes it.
+      </p>
+    </div>
   );
 }
 

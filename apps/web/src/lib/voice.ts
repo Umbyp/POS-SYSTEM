@@ -52,9 +52,14 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
 
 /**
  * Announce a payment in Thai.
- * Example: "ได้รับเงิน 1,250 บาท" / "Received 1,250 baht"
+ * With amount: "ได้รับเงิน 1,250 บาท" / "Received 1,250 baht"
+ * Without amount: "มีรายการเงินเข้า กรุณาตรวจสอบ" / "Payment received, please verify"
  */
 export function announcePayment(amount: number, lang: 'th' | 'en' = 'th'): void {
+  if (!amount || amount <= 0) {
+    announcePaymentAlert(lang);
+    return;
+  }
   const formatted = new Intl.NumberFormat('en-US', {
     maximumFractionDigits: amount % 1 === 0 ? 0 : 2,
   }).format(amount);
@@ -65,6 +70,15 @@ export function announcePayment(amount: number, lang: 'th' | 'en' = 'th'): void 
       : `Received ${formatted} baht`;
 
   speak(text, { lang: lang === 'th' ? 'th-TH' : 'en-US', rate: 1.05 });
+}
+
+/** Announce a payment alert when the bank notification didn't include amount */
+export function announcePaymentAlert(lang: 'th' | 'en' = 'th'): void {
+  const text =
+    lang === 'th'
+      ? `มีรายการเงินเข้า กรุณาตรวจสอบ`
+      : `Payment received, please verify`;
+  speak(text, { lang: lang === 'th' ? 'th-TH' : 'en-US', rate: 1.0 });
 }
 
 /** Check if voice announcement is available */

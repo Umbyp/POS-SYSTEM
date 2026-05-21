@@ -71,17 +71,20 @@ router.post('/sms-webhook/:storeToken', async (req, res, next) => {
     // Replace raw with full email body (parser sees a truncated combined view)
     parsed.raw = rawForStorage;
 
-    // Find a matching unpaid order: pending with this exact total within last 60 min
+    // Only try to match an order when we actually have the amount.
+    // For "transaction hint" notifications without amount, we just alert staff.
     const sinceWindow = new Date(Date.now() - 60 * 60_000);
-    const candidate = await prisma.order.findFirst({
-      where: {
-        storeId: store.id,
-        status: { in: ['PENDING', 'PREPARING'] },
-        total: parsed.amount,
-        createdAt: { gte: sinceWindow },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const candidate = parsed.hasAmount
+      ? await prisma.order.findFirst({
+          where: {
+            storeId: store.id,
+            status: { in: ['PENDING', 'PREPARING'] },
+            total: parsed.amount,
+            createdAt: { gte: sinceWindow },
+          },
+          orderBy: { createdAt: 'desc' },
+        })
+      : null;
 
     const notification = await prisma.paymentNotification.create({
       data: {
@@ -96,12 +99,13 @@ router.post('/sms-webhook/:storeToken', async (req, res, next) => {
       },
     });
 
-    // Emit Socket.io event so POS can speak the amount
+    // Emit Socket.io event so POS can speak the amount (or alert without one)
     const io = req.app.get('io');
     if (io) {
       io.to(`store:${store.id}`).emit('payment:received', {
         notificationId: notification.id,
         amount: parsed.amount,
+        hasAmount: parsed.hasAmount,
         bank: parsed.bank,
         senderName: parsed.senderName,
         matchedOrderId: candidate?.id || null,
