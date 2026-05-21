@@ -12,6 +12,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "ts-node prisma/seed.ts",
     "db:seed:recipes": "ts-node prisma/seed-recipes.ts",
+    "db:seed:mock": "ts-node prisma/seed-mock-orders.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {
