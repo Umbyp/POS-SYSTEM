@@ -170,27 +170,28 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           </div>
           <button
             onClick={() => setCustomer(undefined)}
-            className="text-muted-foreground hover:text-foreground p-1"
+            className="text-muted-foreground hover:text-foreground p-2 -m-1 touch-manipulation"
+            aria-label="Remove customer"
           >
-            <X className="w-3.5 h-3.5" />
+            <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
           </button>
         </div>
       ) : (
         <button
           onClick={() => setPickerOpen(true)}
-          className="mb-3 w-full px-3 py-2 rounded-md border border-dashed border-border hover:border-primary hover:bg-card-hover text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="mb-3 w-full h-10 lg:h-auto lg:py-2 px-3 rounded-md border border-dashed border-border hover:border-primary hover:bg-card-hover text-sm lg:text-xs text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
         >
           + Select customer
         </button>
       )}
 
       {/* Order type — flat tabs */}
-      <div className="grid grid-cols-3 gap-1 mb-3 text-xs border border-border rounded-md p-0.5">
+      <div className="grid grid-cols-3 gap-1 mb-3 text-sm lg:text-xs border border-border rounded-md p-0.5">
         {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (
           <button
             key={t}
             onClick={() => setType(t)}
-            className={`py-1.5 rounded-sm transition-colors ${
+            className={`py-2.5 lg:py-1.5 rounded-sm transition-colors touch-manipulation ${
               type === t
                 ? 'bg-foreground text-background font-medium'
                 : 'text-muted-foreground hover:text-foreground'
@@ -212,7 +213,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
             <select
               value={tableId || ''}
               onChange={(e) => setTable(e.target.value || undefined)}
-              className="w-full h-9 bg-card border border-border rounded-lg px-3 text-sm"
+              className="w-full h-11 lg:h-9 bg-card border border-border rounded-lg px-3 text-base lg:text-sm touch-manipulation"
             >
               <option value="">Select table (optional)</option>
               {selectable.map((t: any) => (
@@ -258,30 +259,34 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                   </div>
                   <button
                     onClick={() => removeItem(item.productId)}
-                    className="text-muted-foreground hover:text-foreground p-0.5"
+                    className="text-muted-foreground hover:text-foreground p-2 lg:p-0.5 -m-2 lg:m-0 touch-manipulation"
+                    aria-label="Remove from cart"
                   >
-                    <X className="w-3.5 h-3.5" />
+                    <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
                 </div>
                 <div className="flex items-center justify-between">
+                  {/* Touch-friendly +/- on tablet/mobile; compact on desktop to fit narrow sidebar */}
                   <div className="flex items-center border border-border rounded-md">
                     <button
                       onClick={() => updateQty(item.productId, item.quantity - 1)}
-                      className="w-7 h-7 flex items-center justify-center hover:bg-card-hover text-muted-foreground hover:text-foreground"
+                      className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
+                      aria-label="Decrease quantity"
                     >
-                      <Minus className="w-3 h-3" />
+                      <Minus className="w-4 h-4 lg:w-3 lg:h-3" />
                     </button>
-                    <span className="w-8 text-center text-sm font-medium tabular-nums">
+                    <span className="w-10 lg:w-8 text-center text-base lg:text-sm font-medium tabular-nums">
                       {item.quantity}
                     </span>
                     <button
                       onClick={() => updateQty(item.productId, item.quantity + 1)}
-                      className="w-7 h-7 flex items-center justify-center hover:bg-card-hover text-muted-foreground hover:text-foreground"
+                      className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
+                      aria-label="Increase quantity"
                     >
-                      <Plus className="w-3 h-3" />
+                      <Plus className="w-4 h-4 lg:w-3 lg:h-3" />
                     </button>
                   </div>
-                  <div className="text-sm font-semibold tabular-nums">
+                  <div className="text-base lg:text-sm font-semibold tabular-nums">
                     {formatCurrency(item.unitPrice * item.quantity)}
                   </div>
                 </div>
@@ -301,10 +306,11 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           <span>Discount</span>
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             value={discount || ''}
             onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-            className="w-24 h-7 bg-input border border-border rounded px-2 text-right tabular-nums text-sm"
+            className="w-24 h-9 lg:h-7 bg-input border border-border rounded px-2 text-right tabular-nums text-base lg:text-sm"
             placeholder="0"
           />
         </div>
@@ -320,12 +326,12 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         )}
 
         {/* Promo code input */}
-        <div className="flex items-center gap-1 text-xs">
+        <div className="flex items-center gap-1">
           <input
             value={promoCode}
             onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
             placeholder="Promo code (optional)"
-            className="flex-1 h-7 bg-card border border-border rounded px-2 font-mono uppercase text-xs"
+            className="flex-1 h-9 lg:h-7 bg-card border border-border rounded px-2 font-mono uppercase text-sm lg:text-xs"
           />
         </div>
 
@@ -409,12 +415,14 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         )}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 mt-3">
+      {/* Action buttons — sticky to the bottom of the cart container so
+          they're always visible on iPad/mobile bottom sheet */}
+      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border lg:border-0 lg:pt-0 shrink-0">
         <Button
           variant="outline"
           disabled={items.length === 0 || park.isPending}
           onClick={handlePark}
-          className="col-span-1"
+          className="col-span-1 h-12 lg:h-10 touch-manipulation"
         >
           {park.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -426,7 +434,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         </Button>
         <Button
           size="lg"
-          className="col-span-2"
+          className="col-span-2 h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
           disabled={items.length === 0}
           onClick={onCheckout}
         >
