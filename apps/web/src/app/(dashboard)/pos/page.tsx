@@ -8,6 +8,7 @@ import { ProductGrid } from '@/components/pos/ProductGrid';
 import { Cart } from '@/components/pos/Cart';
 import { ParkedOrdersDialog } from '@/components/pos/ParkedOrdersDialog';
 import { CrossSellSuggest } from '@/components/pos/CrossSellSuggest';
+import { MobileCartSheet, MobileCartEmptyHint } from '@/components/pos/MobileCartSheet';
 import { PaymentDialog } from './PaymentDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -71,7 +72,12 @@ export default function POSPage() {
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full p-4 overflow-hidden">
-      <section className="col-span-12 lg:col-span-8 flex flex-col gap-3 overflow-hidden">
+      {/*
+        On mobile/tablet (< lg) products take full width and cart becomes a
+        bottom-sheet (see MobileCartSheet below). Add pb-24 so the floating
+        cart button doesn't cover the last row of products.
+      */}
+      <section className="col-span-12 lg:col-span-8 flex flex-col gap-3 overflow-hidden pb-24 lg:pb-0">
         {/* Search + scan */}
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -136,10 +142,14 @@ export default function POSPage() {
         </div>
       </section>
 
-      {/* Cart */}
-      <aside className="col-span-12 lg:col-span-4 bg-card rounded-xl p-4 flex flex-col overflow-hidden border border-border shadow-card">
+      {/* Cart sidebar — desktop only (lg+) */}
+      <aside className="hidden lg:flex col-span-4 bg-card rounded-xl p-4 flex-col overflow-hidden border border-border shadow-card">
         <Cart onCheckout={() => setPayOpen(true)} />
       </aside>
+
+      {/* Mobile/Tablet — floating cart button + bottom sheet */}
+      <MobileCartSheet onCheckout={() => setPayOpen(true)} />
+      <MobileCartEmptyHint />
 
       <PaymentDialog open={payOpen} onClose={() => setPayOpen(false)} />
       <ParkedOrdersDialog open={parkedOpen} onClose={() => setParkedOpen(false)} />
