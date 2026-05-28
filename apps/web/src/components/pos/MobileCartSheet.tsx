@@ -47,24 +47,27 @@ export function MobileCartSheet({ onCheckout }: { onCheckout: () => void }) {
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-      {/* Floating action button — hidden on lg+ */}
-      <DialogPrimitive.Trigger asChild>
-        <button
-          className="lg:hidden fixed bottom-4 left-4 right-4 z-30 h-14 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform flex items-center justify-between px-5"
-          style={{ display: hasItems ? 'flex' : 'none' }}
-        >
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <ShoppingCart className="w-5 h-5" />
-              <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-foreground text-background text-[10px] font-bold flex items-center justify-center tabular-nums">
-                {itemCount}
-              </span>
+      {/* Floating action button — only render when there are items, and only
+          visible below the lg breakpoint. Using conditional render (not
+          inline `display:none`) so Tailwind's `lg:hidden` is not overridden */}
+      {hasItems && (
+        <DialogPrimitive.Trigger asChild>
+          <button
+            className="lg:hidden fixed bottom-4 left-4 right-4 z-30 h-14 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 active:scale-[0.98] transition-transform flex items-center justify-between px-5"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="relative">
+                <ShoppingCart className="w-5 h-5" />
+                <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-foreground text-background text-[10px] font-bold flex items-center justify-center tabular-nums">
+                  {itemCount}
+                </span>
+              </div>
+              <span className="font-medium">View cart</span>
             </div>
-            <span className="font-medium">View cart</span>
-          </div>
-          <span className="text-lg font-bold tabular-nums">{formatCurrency(total)}</span>
-        </button>
-      </DialogPrimitive.Trigger>
+            <span className="text-lg font-bold tabular-nums">{formatCurrency(total)}</span>
+          </button>
+        </DialogPrimitive.Trigger>
+      )}
 
       <DialogPrimitive.Portal>
         <AnimatePresence>
