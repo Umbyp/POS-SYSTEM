@@ -327,7 +327,6 @@ export default function DashboardPage() {
                     <div className="text-sm truncate">{s.name}</div>
                     <div className="text-[10px] text-muted-foreground">
                       Min {s.lowStockAt}
-                      {s.isIngredient && ' · ingredient'}
                     </div>
                   </div>
                   <div

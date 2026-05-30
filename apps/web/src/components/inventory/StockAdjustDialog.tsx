@@ -19,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 type Mode = 'PURCHASE' | 'WASTE' | 'COUNT';
 
@@ -124,9 +123,6 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
             <div className="text-xs text-muted-foreground">Current stock</div>
             <div className="text-2xl font-bold tabular-nums">{item?.quantity}</div>
           </div>
-          {item?.product?.isIngredient && (
-            <Badge variant="warning">Ingredient</Badge>
-          )}
         </div>
 
         {/* Mode select */}
