@@ -90,6 +90,21 @@
 
 ---
 
+## 6.5 Supabase Storage (เก็บรูปสินค้าถาวร — แนะนำให้ทำ)
+ไม่ทำขั้นนี้ก็ deploy ได้ แต่รูปสินค้าจะหายทุกครั้งที่ redeploy เพราะดิสก์ Render เป็น ephemeral
+1. Supabase Dashboard → **Settings → API** → คัดลอก:
+   - **Project URL** (เช่น `https://napyjovegudrpirqdujn.supabase.co`)
+   - **service_role** key (อยู่ใต้ "Project API keys" — กด reveal; **ลับมาก อย่าเอาไปใส่ฝั่ง frontend**)
+2. ไป Render → `pos-api` → **Environment** → เพิ่ม:
+   - `SUPABASE_URL` = Project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = service_role key
+   → Save (redeploy อัตโนมัติ)
+3. bucket ชื่อ `product-images` (แบบ public) จะถูก **สร้างให้อัตโนมัติ** ตอนอัปโหลดรูปแรก
+   - (ถ้าอยากสร้างเอง: Supabase → Storage → New bucket → ชื่อ `product-images` → ติ๊ก Public)
+4. เทสต์: ไปหน้า Products → เพิ่มสินค้า → อัปโหลดรูป → รูปต้องโชว์ และ URL ขึ้นต้นด้วย `https://...supabase.co/storage/...`
+
+---
+
 ## 7. ตรวจหลัง deploy (checklist)
 - [ ] เปิด `https://pos-web.vercel.app` → login ได้
 - [ ] สร้างออเดอร์ + จ่ายเงินสด → สำเร็จ
@@ -101,8 +116,6 @@
 
 ## ⚠️ ข้อควรรู้ / ข้อจำกัด
 1. **Render free plan หลับเมื่อไม่มีทราฟฟิก** (cold start ~50 วิ) — สำหรับร้านที่เปิดทั้งวันและใช้ realtime แนะนำอัปเป็น **Starter ($7/เดือน/service)** ทั้ง 2 API
-2. **รูปสินค้าที่อัปโหลดเก็บบนดิสก์ของ API** (`apps/api/uploads`) — บน Render ดิสก์เป็น *ephemeral* รูปจะหายเมื่อ redeploy. ทางแก้:
-   - เพิ่ม **Render Disk** (persistent, จ่ายเพิ่ม) mount ที่ `apps/api/uploads`, หรือ
-   - ย้ายไปเก็บที่ **Supabase Storage / S3** (แนะนำระยะยาว — บอกได้ถ้าจะให้ทำ)
+2. **รูปสินค้า** — รองรับ Supabase Storage แล้ว (ดูข้อ "Supabase Storage" ด้านล่าง) ถ้าตั้ง env ครบ รูปจะเก็บถาวรบน cloud ไม่หายตอน redeploy. ถ้าไม่ตั้ง จะ fallback เก็บลงดิสก์ Render (ephemeral — รูปหายตอน redeploy เหมาะกับทดสอบเท่านั้น)
 3. **Schema ฐานข้อมูล** อยู่บน Supabase อยู่แล้ว — deploy นี้ไม่รัน migration อัตโนมัติ ถ้าแก้ schema ภายหลังให้รัน `prisma db push` จากเครื่อง local ชี้ไปที่ `DIRECT_URL`
 4. **ความลับทั้งหมด** (Stripe/DB/JWT/Gemini) ใส่ในหน้า dashboard ของ Render/Vercel เท่านั้น — ไฟล์ `.env` ถูก gitignore ไว้แล้ว อย่า commit ค่าจริง

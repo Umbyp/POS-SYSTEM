@@ -57,8 +57,8 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
   };
 
   const clear = () => {
-    // Best-effort delete from disk if we own this image
-    if (value && value.startsWith('/uploads/')) {
+    // Best-effort delete if we own this image (local disk OR Supabase Storage)
+    if (value && (value.startsWith('/uploads/') || value.includes('/storage/v1/object/public/'))) {
       removeFile.mutate(value);
     }
     onChange('');

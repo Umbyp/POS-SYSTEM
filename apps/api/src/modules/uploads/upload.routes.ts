@@ -19,6 +19,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
+import * as storage from './storage.service';
 
 const router = Router();
 
@@ -72,7 +73,6 @@ router.post(
       }
 
       const filename = crypto.randomBytes(12).toString('hex') + '.webp';
-      const outputPath = path.join(PRODUCTS_DIR, filename);
 
       const pipeline = sharp(req.file.buffer, { failOn: 'truncated' })
         .rotate() // honor EXIF orientation
@@ -85,10 +85,20 @@ router.post(
         .webp({ quality: 80, effort: 4 });
 
       const { data, info } = await pipeline.toBuffer({ resolveWithObject: true });
-      await fs.writeFile(outputPath, data);
+
+      // ถ้าตั้งค่า Supabase → เก็บถาวรบน cloud (กันหายตอน redeploy)
+      // ไม่งั้น fallback เก็บลงดิสก์ในเครื่อง (สำหรับ dev)
+      let url: string;
+      if (storage.isStorageConfigured()) {
+        url = await storage.uploadProductImage(data, filename);
+      } else {
+        const outputPath = path.join(PRODUCTS_DIR, filename);
+        await fs.writeFile(outputPath, data);
+        url = `/uploads/products/${filename}`;
+      }
 
       res.json({
-        url: `/uploads/products/${filename}`,
+        url,
         size: info.size,
         width: info.width,
         height: info.height,
@@ -111,8 +121,20 @@ router.post(
 router.delete('/product-image', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
     const { url } = req.body || {};
-    if (typeof url !== 'string' || !url.startsWith('/uploads/products/')) {
-      return res.status(400).json({ error: 'url must be a /uploads/products/* path' });
+    if (typeof url !== 'string' || !url) {
+      return res.status(400).json({ error: 'url required' });
+    }
+
+    // รูปบน Supabase Storage
+    if (storage.isStorageConfigured() && storage.isOwnedStorageUrl(url)) {
+      await storage.deleteProductImage(url);
+      return res.json({ ok: true });
+    }
+
+    // รูปบนดิสก์ในเครื่อง (/uploads/products/*)
+    if (!url.startsWith('/uploads/products/')) {
+      // URL ภายนอกอื่น ๆ (เช่นผู้ใช้วาง URL เอง) — ไม่ใช่ของเรา ไม่ต้องลบ
+      return res.json({ ok: true, skipped: true });
     }
     const filename = path.basename(url);
     // Guard against directory traversal

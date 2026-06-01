@@ -13,6 +13,10 @@ const schema = z.object({
   EASYSLIP_API_KEY: z.string().optional(),
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  // Supabase Storage (สำหรับเก็บรูปสินค้าถาวร) — ถ้าไม่ตั้ง จะ fallback เก็บลงดิสก์ในเครื่อง
+  SUPABASE_URL: z.string().optional(),
+  SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_STORAGE_BUCKET: z.string().optional(),
 });
 
 const parsed = schema.safeParse(process.env);
