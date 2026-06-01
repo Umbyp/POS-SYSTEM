@@ -1,12 +1,12 @@
 /**
- * Pricing math — ต้องตรงกับ backend (apps/api/src/modules/orders/order.service.ts)
+ * Pricing math — must match backend (apps/api/src/modules/orders/order.service.ts)
  *
- * VAT-inclusive  (priceIncludesTax = true):  ราคาสินค้ารวมภาษีแล้ว
- *   tax   = afterDiscount × rate / (100 + rate)   ← ถอดออกมา
- *   total = afterDiscount + service                 (ไม่บวก tax ซ้ำ)
+ * VAT-inclusive  (priceIncludesTax = true):  Prices already include tax
+ *   tax   = afterDiscount × rate / (100 + rate)   ← extracted from price
+ *   total = afterDiscount + service                 (do not add tax again)
  *
- * VAT-exclusive (priceIncludesTax = false): ราคาสินค้าไม่รวมภาษี
- *   tax   = afterDiscount × rate / 100             ← บวกเพิ่ม
+ * VAT-exclusive (priceIncludesTax = false): Prices exclude tax
+ *   tax   = afterDiscount × rate / 100             ← added on top
  *   total = afterDiscount + tax + service
  */
 

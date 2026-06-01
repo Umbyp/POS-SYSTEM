@@ -7,12 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 
 const ACTION_META: Record<string, { label: string; icon: any; variant: any; color: string }> = {
-  LOGIN: { label: 'เข้าสู่ระบบ', icon: LogIn, variant: 'default', color: 'text-blue-400' },
-  CREATE_ORDER: { label: 'สร้างออเดอร์', icon: ShoppingCart, variant: 'success', color: 'text-success' },
-  REFUND: { label: 'คืนเงิน', icon: Undo2, variant: 'warning', color: 'text-warning' },
-  CREATE_PRODUCT: { label: 'เพิ่มสินค้า', icon: Package, variant: 'success', color: 'text-success' },
-  UPDATE_PRODUCT: { label: 'แก้ไขสินค้า', icon: Edit3, variant: 'default', color: 'text-foreground' },
-  DELETE_PRODUCT: { label: 'ลบสินค้า', icon: Trash2, variant: 'danger', color: 'text-danger' },
+  LOGIN: { label: 'Login', icon: LogIn, variant: 'default', color: 'text-blue-400' },
+  CREATE_ORDER: { label: 'Create order', icon: ShoppingCart, variant: 'success', color: 'text-success' },
+  REFUND: { label: 'Refund', icon: Undo2, variant: 'warning', color: 'text-warning' },
+  CREATE_PRODUCT: { label: 'Add product', icon: Package, variant: 'success', color: 'text-success' },
+  UPDATE_PRODUCT: { label: 'Edit product', icon: Edit3, variant: 'default', color: 'text-foreground' },
+  DELETE_PRODUCT: { label: 'Delete product', icon: Trash2, variant: 'danger', color: 'text-danger' },
 };
 
 export default function ActivityPage() {
@@ -32,9 +32,9 @@ export default function ActivityPage() {
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">
       <div className="flex items-center justify-between mb-4 gap-2">
         <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-          <History className="w-5 h-5" /> ประวัติการใช้งาน
+          <History className="w-5 h-5" /> Activity log
         </h2>
-        <Badge variant="default">{data?.total || 0} รายการ</Badge>
+        <Badge variant="default">{data?.total || 0} entries</Badge>
       </div>
 
       {/* Filter chips */}
@@ -46,7 +46,7 @@ export default function ActivityPage() {
             !filter ? 'bg-primary text-white border-primary' : 'border-border hover:bg-muted/50'
           }`}
         >
-          ทั้งหมด
+          All
         </button>
         {Object.entries(ACTION_META).map(([key, meta]) => (
           <button
@@ -72,7 +72,7 @@ export default function ActivityPage() {
       ) : logs.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <History className="w-12 h-12 mb-3 opacity-30" />
-          <p className="text-sm">ยังไม่มีประวัติการใช้งาน</p>
+          <p className="text-sm">No activity logged yet</p>
         </div>
       ) : (
         <div className="space-y-2">

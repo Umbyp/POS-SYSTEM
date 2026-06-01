@@ -141,7 +141,7 @@ export default function EmployeesPage() {
                     <div className="font-medium truncate">
                       {u.name}
                       {u.id === me?.id && (
-                        <span className="text-xs text-muted-foreground ml-1">(คุณ)</span>
+                        <span className="text-xs text-muted-foreground ml-1">(you)</span>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{u.email}</div>

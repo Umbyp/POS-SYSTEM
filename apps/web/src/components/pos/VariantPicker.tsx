@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Plus, Minus, MessageSquare } from 'lucide-react';
 import { formatCurrency } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import {
   Dialog,
   DialogContent,
@@ -64,7 +65,7 @@ export function VariantPicker({ open, onClose, product, onConfirm }: Props) {
     onClose();
   };
 
-  // Group variants by prefix (e.g., "ขนาด:S" / "ขนาด:M") OR show all flat
+  // Group variants by prefix (e.g., "Size:S" / "Size:M") OR show all flat
   const groupedVariants = (() => {
     const groups: Record<string, any[]> = {};
     for (const v of variants) {
@@ -88,13 +89,13 @@ export function VariantPicker({ open, onClose, product, onConfirm }: Props) {
         <div className="flex items-center gap-3 p-3 bg-muted rounded-xl">
           <div className="w-14 h-14 rounded-lg bg-card flex items-center justify-center text-2xl shrink-0 overflow-hidden">
             {product.image ? (
-              <img src={product.image} alt="" className="w-full h-full object-cover" />
+              <img src={resolveImageUrl(product.image)} alt="" className="w-full h-full object-cover" />
             ) : (
               <span>{product.category?.icon || '📦'}</span>
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm text-muted-foreground">ราคาเริ่มต้น</div>
+            <div className="text-sm text-muted-foreground">Base price</div>
             <div className="font-bold tabular-nums">
               {formatCurrency(product.sellingPrice)}
             </div>
@@ -146,26 +147,26 @@ export function VariantPicker({ open, onClose, product, onConfirm }: Props) {
           </div>
         ) : (
           <p className="text-xs text-muted-foreground text-center py-2">
-            สินค้านี้ไม่มีตัวเลือกพิเศษ
+            No options available for this product
           </p>
         )}
 
         {/* Notes */}
         <div>
           <Label className="mb-1.5 block text-xs flex items-center gap-1">
-            <MessageSquare className="w-3 h-3" /> หมายเหตุ (ไม่บังคับ)
+            <MessageSquare className="w-3 h-3" /> Notes (optional)
           </Label>
           <Input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="เช่น หวานน้อย, ไม่ใส่น้ำตาล, แยกถุง..."
+            placeholder="e.g. less sweet, no sugar, separate bag..."
             className="text-sm"
           />
         </div>
 
         {/* Quantity */}
         <div className="flex items-center justify-between">
-          <Label>จำนวน</Label>
+          <Label>Quantity</Label>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -188,13 +189,13 @@ export function VariantPicker({ open, onClose, product, onConfirm }: Props) {
         {/* Total + Add button */}
         <div className="border-t border-border pt-3">
           <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">รวม</span>
+            <span className="text-muted-foreground">Total</span>
             <span className="text-xl font-bold text-accent tabular-nums">
               {formatCurrency(total)}
             </span>
           </div>
           <Button size="xl" className="w-full" onClick={handleConfirm}>
-            เพิ่มลงตะกร้า · {formatCurrency(total)}
+            Add to cart · {formatCurrency(total)}
           </Button>
         </div>
       </DialogContent>

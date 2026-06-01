@@ -8,6 +8,7 @@ import { ProductGrid } from '@/components/pos/ProductGrid';
 import { Cart } from '@/components/pos/Cart';
 import { ParkedOrdersDialog } from '@/components/pos/ParkedOrdersDialog';
 import { CrossSellSuggest } from '@/components/pos/CrossSellSuggest';
+import { MobileCartSheet, MobileCartEmptyHint } from '@/components/pos/MobileCartSheet';
 import { PaymentDialog } from './PaymentDialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -41,10 +42,10 @@ export default function POSPage() {
     queryFn: () => api.get('/products/categories').then((r) => r.data),
   });
 
-  // Barcode handler: ถ้ากด Enter ในช่อง search → ลองค้น barcode ตรง ๆ
+  // Barcode handler: when Enter is pressed in search → try direct barcode lookup
   const handleSearchEnter = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter' || !q) return;
-    // ถ้า input ดูเหมือน barcode (ตัวเลขล้วน ≥ 8 ตัว)
+    // If input looks like a barcode (digits only, ≥ 8 chars)
     if (/^\d{8,}$/.test(q)) {
       try {
         const { data } = await api.get(`/products/barcode/${q}`);
@@ -57,7 +58,7 @@ export default function POSPage() {
     }
   };
 
-  // Focus search ด้วย F2 (เครื่องสแกนบาร์โค้ดส่วนใหญ่ทำงานเหมือนคีย์บอร์ด)
+  // Focus search with F2 (most barcode scanners act as keyboard input)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'F2') {
@@ -71,7 +72,12 @@ export default function POSPage() {
 
   return (
     <div className="grid grid-cols-12 gap-4 h-full p-4 overflow-hidden">
-      <section className="col-span-12 lg:col-span-8 flex flex-col gap-3 overflow-hidden">
+      {/*
+        On mobile/tablet (< lg) products take full width and cart becomes a
+        bottom-sheet (see MobileCartSheet below). Add pb-24 so the floating
+        cart button doesn't cover the last row of products.
+      */}
+      <section className="col-span-12 lg:col-span-8 flex flex-col gap-3 overflow-hidden pb-24 lg:pb-0">
         {/* Search + scan */}
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -136,10 +142,14 @@ export default function POSPage() {
         </div>
       </section>
 
-      {/* Cart */}
-      <aside className="col-span-12 lg:col-span-4 bg-card rounded-xl p-4 flex flex-col overflow-hidden border border-border shadow-card">
+      {/* Cart sidebar — desktop only (lg+) */}
+      <aside className="hidden lg:flex col-span-4 bg-card rounded-xl p-4 flex-col overflow-hidden border border-border shadow-card">
         <Cart onCheckout={() => setPayOpen(true)} />
       </aside>
+
+      {/* Mobile/Tablet — floating cart button + bottom sheet */}
+      <MobileCartSheet onCheckout={() => setPayOpen(true)} />
+      <MobileCartEmptyHint />
 
       <PaymentDialog open={payOpen} onClose={() => setPayOpen(false)} />
       <ParkedOrdersDialog open={parkedOpen} onClose={() => setParkedOpen(false)} />

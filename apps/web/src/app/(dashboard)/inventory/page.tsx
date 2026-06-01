@@ -27,7 +27,7 @@ const TYPE_META: Record<string, { label: string; color: string }> = {
 
 export default function InventoryPage() {
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'all' | 'low' | 'ingredient'>('all');
+  const [filter, setFilter] = useState<'all' | 'low'>('all');
   const [adjusting, setAdjusting] = useState<any>(null);
 
   const { data: inventory = [], isLoading } = useQuery({
@@ -44,12 +44,11 @@ export default function InventoryPage() {
     if (q && !i.product.name.toLowerCase().includes(q.toLowerCase()) &&
         !i.product.sku.toLowerCase().includes(q.toLowerCase())) return false;
     if (filter === 'low' && i.quantity > i.lowStockAt) return false;
-    if (filter === 'ingredient' && !i.product.isIngredient) return false;
     return true;
   });
 
   const lowStock = inventory.filter((i: any) => i.quantity <= i.lowStockAt);
-  const ingredientCount = inventory.filter((i: any) => i.product.isIngredient).length;
+  const outOfStock = inventory.filter((i: any) => i.quantity === 0);
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin space-y-5">
@@ -61,7 +60,11 @@ export default function InventoryPage() {
           value={lowStock.length}
           tone={lowStock.length > 0 ? 'warning' : 'default'}
         />
-        <Kpi label="Ingredients" value={ingredientCount} />
+        <Kpi
+          label="Out of stock"
+          value={outOfStock.length}
+          tone={outOfStock.length > 0 ? 'warning' : 'default'}
+        />
         <Kpi
           label="Total units"
           value={inventory.reduce((s: number, i: any) => s + i.quantity, 0)}
@@ -84,7 +87,6 @@ export default function InventoryPage() {
             [
               { k: 'all', label: 'All' },
               { k: 'low', label: `Low stock (${lowStock.length})` },
-              { k: 'ingredient', label: `Ingredients (${ingredientCount})` },
             ] as const
           ).map((f) => (
             <button
@@ -135,14 +137,7 @@ export default function InventoryPage() {
                   return (
                     <tr key={i.id} className="border-t border-border hover:bg-card-hover">
                       <td className="p-3">
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium">{i.product.name}</div>
-                          {i.product.isIngredient && (
-                            <Badge variant="warning" className="text-[10px]">
-                              Ingredient
-                            </Badge>
-                          )}
-                        </div>
+                        <div className="font-medium">{i.product.name}</div>
                         <div className="text-[10px] text-muted-foreground font-mono">
                           {i.product.sku}
                         </div>
@@ -183,11 +178,6 @@ export default function InventoryPage() {
                       <div className="min-w-0 flex-1">
                         <div className="font-medium truncate">{i.product.name}</div>
                         <div className="flex gap-1 flex-wrap mt-0.5">
-                          {i.product.isIngredient && (
-                            <Badge variant="warning" className="text-[10px]">
-                              Ingredient
-                            </Badge>
-                          )}
                           {i.quantity === 0 ? (
                             <Badge variant="danger" className="text-[10px]">Out</Badge>
                           ) : low ? (

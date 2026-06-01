@@ -21,7 +21,6 @@ const updateSchema = z.object({
   promptpayId: z.string().optional().nullable(),
   invoicePrefix: z.string().optional().nullable(),
   branchCode: z.string().optional().nullable(),
-  lineNotifyToken: z.string().optional().nullable(),
   dailyTarget: z.number().nonnegative().optional(),
   monthlyTarget: z.number().nonnegative().optional(),
 });

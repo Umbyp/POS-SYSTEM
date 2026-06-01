@@ -1,0 +1,6 @@
+# Ignore all uploaded files but keep the directory structure
+*
+!.gitignore
+!products/
+products/*
+!products/.gitkeep

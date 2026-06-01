@@ -9,21 +9,21 @@ interface Props {
   store: any;
   /** 'thermal' = 80mm thermal printer · 'a4' = full page */
   format?: 'thermal' | 'a4';
-  /** 'abbreviated' = ใบกำกับภาษีอย่างย่อ · 'full' = ใบกำกับภาษีเต็ม */
+  /** 'abbreviated' = short tax invoice · 'full' = full tax invoice */
   invoiceType?: 'abbreviated' | 'full';
 }
 
 const PAYMENT_LABEL: Record<string, string> = {
-  CASH: '💵 เงินสด',
-  PROMPTPAY: '📱 พร้อมเพย์',
-  CREDIT_CARD: '💳 บัตรเครดิต',
-  BANK_TRANSFER: '🏦 โอนธนาคาร',
+  CASH: '💵 Cash',
+  PROMPTPAY: '📱 PromptPay',
+  CREDIT_CARD: '💳 Credit Card',
+  BANK_TRANSFER: '🏦 Bank Transfer',
 };
 
 const TYPE_LABEL: Record<string, string> = {
-  DINE_IN: 'ทานที่ร้าน',
-  TAKEAWAY: 'กลับบ้าน',
-  DELIVERY: 'เดลิเวอรี',
+  DINE_IN: 'Dine-in',
+  TAKEAWAY: 'Takeaway',
+  DELIVERY: 'Delivery',
 };
 
 export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbreviated' }: Props) {
@@ -142,7 +142,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
               borderRadius: 4,
             }}
           >
-            {isFullInvoice ? 'ใบกำกับภาษี / TAX INVOICE' : 'ใบกำกับภาษีอย่างย่อ / ABB. TAX INVOICE'}
+            {isFullInvoice ? 'TAX INVOICE' : 'ABB. TAX INVOICE'}
           </div>
         </div>
 
@@ -151,13 +151,13 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           className={isThermal ? 'space-y-0.5' : 'grid grid-cols-2 gap-x-6 gap-y-1'}
           style={{ fontSize: isThermal ? '11px' : '12px' }}
         >
-          <Meta label="เลขที่" value={order.orderNumber} bold />
-          <Meta label="วันที่" value={formatDate(order.createdAt)} />
-          {order.cashier && <Meta label="พนักงาน" value={order.cashier.name} />}
-          {order.table && <Meta label="โต๊ะ" value={order.table.number} />}
-          {order.type && <Meta label="ประเภท" value={TYPE_LABEL[order.type] || order.type} />}
+          <Meta label="No." value={order.orderNumber} bold />
+          <Meta label="Date" value={formatDate(order.createdAt)} />
+          {order.cashier && <Meta label="Cashier" value={order.cashier.name} />}
+          {order.table && <Meta label="Table" value={order.table.number} />}
+          {order.type && <Meta label="Type" value={TYPE_LABEL[order.type] || order.type} />}
           {order.customer && (
-            <Meta label="ลูกค้า" value={order.customer.name} bold />
+            <Meta label="Customer" value={order.customer.name} bold />
           )}
         </div>
 
@@ -171,10 +171,10 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
               fontSize: isThermal ? '11px' : '12px',
             }}
           >
-            <div className="font-semibold mb-0.5">ข้อมูลลูกค้า</div>
+            <div className="font-semibold mb-0.5">Customer information</div>
             <div>{order.customerName || '-'}</div>
             {order.customerTaxId && (
-              <div className="text-[11px]">เลขผู้เสียภาษี: {order.customerTaxId}</div>
+              <div className="text-[11px]">Tax ID: {order.customerTaxId}</div>
             )}
             {order.customerAddress && (
               <div className="text-[10px] mt-0.5">{order.customerAddress}</div>
@@ -199,7 +199,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                   </div>
                   <div style={{ fontSize: '10px', color: '#666' }}>
                     {item.quantity} × {Number(item.unitPrice).toFixed(2)}
-                    {Number(item.discount) > 0 && ` − ส่วนลด ${Number(item.discount).toFixed(2)}`}
+                    {Number(item.discount) > 0 && ` − Discount ${Number(item.discount).toFixed(2)}`}
                   </div>
                   {item.notes && (
                     <div style={{ fontSize: '10px', color: '#777', fontStyle: 'italic', paddingLeft: 6 }}>
@@ -215,10 +215,10 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             <thead>
               <tr style={{ backgroundColor: '#f0f0f0' }}>
                 <th className="text-left py-2 px-2" style={{ width: 36 }}>#</th>
-                <th className="text-left py-2 px-2">รายการ</th>
-                <th className="text-center py-2 px-2" style={{ width: 60 }}>จำนวน</th>
-                <th className="text-right py-2 px-2" style={{ width: 80 }}>ราคา</th>
-                <th className="text-right py-2 px-2" style={{ width: 90 }}>รวม</th>
+                <th className="text-left py-2 px-2">Item</th>
+                <th className="text-center py-2 px-2" style={{ width: 60 }}>Qty</th>
+                <th className="text-right py-2 px-2" style={{ width: 80 }}>Price</th>
+                <th className="text-right py-2 px-2" style={{ width: 90 }}>Total</th>
               </tr>
             </thead>
             <tbody>
@@ -254,26 +254,26 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
 
         {/* ==================== TOTALS ==================== */}
         <div className="space-y-1" style={{ fontSize: isThermal ? '12px' : '13px' }}>
-          <Row label="ยอดรวม" value={formatCurrency(order.subtotal)} muted />
+          <Row label="Subtotal" value={formatCurrency(order.subtotal)} muted />
           {Number(order.discount) > 0 && (
             <Row
               label={
                 order.pointsRedeemed > 0
-                  ? `ส่วนลด (รวม ${order.pointsRedeemed} pts)`
-                  : 'ส่วนลด'
+                  ? `Discount (incl. ${order.pointsRedeemed} pts)`
+                  : 'Discount'
               }
               value={`-${formatCurrency(order.discount)}`}
               muted
             />
           )}
           {Number(order.serviceCharge) > 0 && (
-            <Row label="ค่าบริการ" value={formatCurrency(order.serviceCharge)} muted />
+            <Row label="Service charge" value={formatCurrency(order.serviceCharge)} muted />
           )}
           {Number(order.tax) > 0 && (
             <Row
               label={
                 store.priceIncludesTax
-                  ? `VAT ${store.taxRate}% (รวมในราคา)`
+                  ? `VAT ${store.taxRate}% (incl.)`
                   : `VAT ${store.taxRate}%`
               }
               value={formatCurrency(order.tax)}
@@ -292,7 +292,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             }}
           >
             <span style={{ fontWeight: 700, fontSize: isThermal ? '13px' : '15px' }}>
-              รวมทั้งสิ้น
+              Total
             </span>
             <span
               className="tabular-nums"
@@ -305,7 +305,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
 
         {/* ==================== PAYMENTS ==================== */}
         <div className="mt-3 space-y-0.5" style={{ fontSize: isThermal ? '11px' : '12px' }}>
-          <div className="font-semibold text-gray-700 mb-1">การชำระเงิน</div>
+          <div className="font-semibold text-gray-700 mb-1">Payment</div>
           {order.payments.map((p: any) => (
             <div key={p.id}>
               <Row label={PAYMENT_LABEL[p.method] || p.method} value={formatCurrency(p.amount)} />
@@ -313,7 +313,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                 <div
                   style={{ fontSize: '10px', color: '#0a7a23', paddingLeft: 8, fontWeight: 600 }}
                 >
-                  ✓ สลิปยืนยันแล้ว
+                  ✓ Slip verified
                   {p.slipTransRef && (
                     <span style={{ fontFamily: 'monospace', marginLeft: 4 }}>
                       ({p.slipTransRef.slice(-8)})
@@ -333,7 +333,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             const change = paid - Number(order.total);
             if (change > 0.01) {
               return (
-                <Row label="เงินทอน" value={formatCurrency(change)} highlight />
+                <Row label="Change" value={formatCurrency(change)} highlight />
               );
             }
             return null;
@@ -347,7 +347,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             style={{ border: '1px solid #ddd', backgroundColor: '#fafafa' }}
           >
             <div style={{ fontSize: 10, color: '#666', marginBottom: 4 }}>
-              หลักฐานการรับเงินผ่าน QR
+              Payment QR proof
             </div>
             <img src={qrUrl} alt="payment qr" className="mx-auto" />
           </div>
@@ -366,14 +366,14 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             }}
           >
             <div style={{ fontWeight: 600, marginBottom: 2 }}>
-              สมาชิก: {order.customer.name}
+              Member: {order.customer.name}
             </div>
             {order.pointsRedeemed > 0 && (
-              <div>ใช้คะแนน {order.pointsRedeemed} pts</div>
+              <div>Redeemed {order.pointsRedeemed} pts</div>
             )}
             {order.pointsEarned > 0 && (
               <div style={{ color: '#0a7a23' }}>
-                ✨ ได้คะแนน +{order.pointsEarned} pts
+                ✨ Earned +{order.pointsEarned} pts
               </div>
             )}
           </div>
@@ -382,12 +382,12 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
         {/* ==================== FOOTER ==================== */}
         <div className="text-center" style={{ fontSize: isThermal ? '10px' : '11px', color: '#555' }}>
           <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '12px', color: '#111' }}>
-            ขอบคุณที่ใช้บริการ 🙏
+            Thank you 🙏
           </div>
           <div style={{ marginTop: 2 }}>Thank you for your purchase</div>
           {isFullInvoice && (
             <div style={{ marginTop: 4, fontSize: 9, color: '#888' }}>
-              เอกสารฉบับนี้ออกโดยระบบคอมพิวเตอร์
+              This document is issued by computer
             </div>
           )}
           <div style={{ marginTop: 6, fontSize: 9, color: '#aaa' }}>

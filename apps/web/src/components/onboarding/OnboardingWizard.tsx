@@ -23,12 +23,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 const SUGGESTED_CATEGORIES = [
-  { name: 'เครื่องดื่ม', icon: '☕' },
-  { name: 'อาหาร', icon: '🍱' },
-  { name: 'ของหวาน', icon: '🍰' },
-  { name: 'ขนม', icon: '🥨' },
-  { name: 'ผลไม้', icon: '🍎' },
-  { name: 'อื่นๆ', icon: '📦' },
+  { name: 'Drinks', icon: '☕' },
+  { name: 'Food', icon: '🍱' },
+  { name: 'Desserts', icon: '🍰' },
+  { name: 'Snacks', icon: '🥨' },
+  { name: 'Fruits', icon: '🍎' },
+  { name: 'Other', icon: '📦' },
 ];
 
 interface Props {
@@ -51,9 +51,9 @@ export function OnboardingWizard({ open, onClose }: Props) {
 
   // Step 2: Categories — preselect first 3
   const [selectedCats, setSelectedCats] = useState<string[]>([
-    'เครื่องดื่ม',
-    'อาหาร',
-    'ของหวาน',
+    'Drinks',
+    'Food',
+    'Desserts',
   ]);
 
   // Step 3: Products
@@ -63,7 +63,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
   const [newProduct, setNewProduct] = useState({
     name: '',
     price: '',
-    category: 'เครื่องดื่ม',
+    category: 'Drinks',
   });
 
   // Step 4: Tables
@@ -155,19 +155,19 @@ export function OnboardingWizard({ open, onClose }: Props) {
       }
     },
     onSuccess: () => {
-      toast.success('🎉 ตั้งค่าเสร็จเรียบร้อย!');
+      toast.success('🎉 Setup complete!');
       qc.invalidateQueries();
       setStep(4);
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'มีบางอย่างผิดพลาด'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Something went wrong'),
   });
 
   const STEPS = [
-    { icon: StoreIcon, label: 'ข้อมูลร้าน' },
-    { icon: FolderTree, label: 'หมวดหมู่' },
-    { icon: Package, label: 'สินค้า' },
-    { icon: Grid3X3, label: 'โต๊ะ' },
-    { icon: Sparkles, label: 'เสร็จ' },
+    { icon: StoreIcon, label: 'Store info' },
+    { icon: FolderTree, label: 'Categories' },
+    { icon: Package, label: 'Products' },
+    { icon: Grid3X3, label: 'Tables' },
+    { icon: Sparkles, label: 'Done' },
   ];
 
   const canNext =
@@ -224,12 +224,12 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 0: Store */}
         {step === 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">👋 ยินดีต้อนรับสู่ POS System</h2>
+            <h2 className="text-lg font-bold">👋 Welcome to POS System</h2>
             <p className="text-sm text-muted-foreground">
-              ตั้งค่าร้านของคุณใน 4 ขั้นตอนง่ายๆ
+              Set up your store in 4 easy steps
             </p>
             <div>
-              <Label className="mb-1.5 block">ชื่อร้าน *</Label>
+              <Label className="mb-1.5 block">Store name *</Label>
               <Input
                 value={storeForm.name}
                 onChange={(e) => setStoreForm({ ...storeForm, name: e.target.value })}
@@ -238,15 +238,15 @@ export function OnboardingWizard({ open, onClose }: Props) {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">ที่อยู่</Label>
+              <Label className="mb-1.5 block">Address</Label>
               <Input
                 value={storeForm.address}
                 onChange={(e) => setStoreForm({ ...storeForm, address: e.target.value })}
-                placeholder="123 ถนน..."
+                placeholder="123 Main St..."
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">เบอร์โทร</Label>
+              <Label className="mb-1.5 block">Phone</Label>
               <Input
                 value={storeForm.phone}
                 onChange={(e) => setStoreForm({ ...storeForm, phone: e.target.value })}
@@ -272,7 +272,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
                   }
                   className="w-4 h-4 accent-primary"
                 />
-                <span className="text-sm">ราคาสินค้ารวม VAT แล้ว</span>
+                <span className="text-sm">Prices include VAT</span>
               </label>
             </div>
           </div>
@@ -281,9 +281,9 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 1: Categories */}
         {step === 1 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">📁 หมวดหมู่สินค้า</h2>
+            <h2 className="text-lg font-bold">📁 Product categories</h2>
             <p className="text-sm text-muted-foreground">
-              เลือกหมวดหมู่ที่ต้องการใช้ (เพิ่ม/แก้ภายหลังได้)
+              Select categories to use (you can add/edit them later)
             </p>
             <div className="grid grid-cols-2 gap-2">
               {SUGGESTED_CATEGORIES.map((c) => {
@@ -320,9 +320,9 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 2: Products */}
         {step === 2 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">📦 เพิ่มสินค้า</h2>
+            <h2 className="text-lg font-bold">📦 Add products</h2>
             <p className="text-sm text-muted-foreground">
-              เพิ่มสินค้าเริ่มต้น (ไม่ใส่ก็ได้ ไปเพิ่มใน /products ภายหลัง)
+              Add some starter products (optional — you can add more later in /products)
             </p>
 
             {products.length > 0 && (
@@ -354,14 +354,14 @@ export function OnboardingWizard({ open, onClose }: Props) {
               <Input
                 value={newProduct.name}
                 onChange={(e) => setNewProduct({ ...newProduct, name: e.target.value })}
-                placeholder="ชื่อสินค้า (เช่น ลาเต้)"
+                placeholder="Product name (e.g. Latte)"
               />
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="number"
                   value={newProduct.price}
                   onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                  placeholder="ราคา"
+                  placeholder="Price"
                 />
                 <select
                   value={newProduct.category}
@@ -391,11 +391,11 @@ export function OnboardingWizard({ open, onClose }: Props) {
                   setNewProduct({ name: '', price: '', category: newProduct.category });
                 }}
               >
-                <Plus className="w-3.5 h-3.5 mr-1" /> เพิ่มสินค้า
+                <Plus className="w-3.5 h-3.5 mr-1" /> Add product
               </Button>
             </div>
             <p className="text-[10px] text-muted-foreground text-center">
-              เพิ่มได้ {products.length} รายการ — ไปต่อหรือเว้นว่างก็ได้
+              {products.length} item{products.length !== 1 ? 's' : ''} added — proceed or skip
             </p>
           </div>
         )}
@@ -403,13 +403,13 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 3: Tables */}
         {step === 3 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">🪑 โต๊ะในร้าน</h2>
+            <h2 className="text-lg font-bold">🪑 Tables</h2>
             <p className="text-sm text-muted-foreground">
-              สร้างโต๊ะให้อัตโนมัติ (ใส่ 0 ถ้าเป็นร้าน takeaway/online)
+              Auto-create tables (set to 0 for takeaway/online-only stores)
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="mb-1.5 block">จำนวนโต๊ะ</Label>
+                <Label className="mb-1.5 block">Number of tables</Label>
                 <Input
                   type="number"
                   min="0"
@@ -419,7 +419,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
                 />
               </div>
               <div>
-                <Label className="mb-1.5 block">ที่นั่งต่อโต๊ะ</Label>
+                <Label className="mb-1.5 block">Seats per table</Label>
                 <Input
                   type="number"
                   min="1"
@@ -430,7 +430,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              จะสร้างโต๊ะ T01, T02, ... T{String(parseInt(tableCount) || 0).padStart(2, '0')} (ที่นั่ง {tableCapacity})
+              Will create tables T01, T02, ... T{String(parseInt(tableCount) || 0).padStart(2, '0')} ({tableCapacity} seats each)
             </p>
           </div>
         )}
@@ -441,15 +441,15 @@ export function OnboardingWizard({ open, onClose }: Props) {
             <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center mx-auto">
               <Sparkles className="w-10 h-10 text-success" />
             </div>
-            <h2 className="text-xl font-bold">🎉 พร้อมเปิดร้านแล้ว!</h2>
+            <h2 className="text-xl font-bold">🎉 Ready to open shop!</h2>
             <p className="text-sm text-muted-foreground">
-              ตั้งค่าเสร็จเรียบร้อย ไปเริ่มขายได้เลย
+              Setup complete — you can start selling now
             </p>
             <Button size="lg" className="w-full" onClick={onClose}>
-              เริ่มใช้งาน
+              Get started
             </Button>
             <p className="text-xs text-muted-foreground">
-              💡 ไปที่ <strong>Settings</strong> ถ้าอยากตั้งค่าเพิ่ม เช่น PromptPay,
+              💡 Visit <strong>Settings</strong> for more options like PromptPay,
               EasySlip, LINE Notify
             </p>
           </div>
@@ -460,7 +460,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
           <div className="flex gap-2 pt-3 border-t border-border">
             {step > 0 && (
               <Button variant="outline" onClick={back} disabled={finish.isPending}>
-                <ArrowLeft className="w-4 h-4 mr-1" /> ย้อน
+                <ArrowLeft className="w-4 h-4 mr-1" /> Back
               </Button>
             )}
             <Button
@@ -471,9 +471,9 @@ export function OnboardingWizard({ open, onClose }: Props) {
               {finish.isPending ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : step === 3 ? (
-                <>เสร็จสิ้น <Sparkles className="w-4 h-4 ml-1" /></>
+                <>Finish <Sparkles className="w-4 h-4 ml-1" /></>
               ) : (
-                <>ถัดไป <ArrowRight className="w-4 h-4 ml-1" /></>
+                <>Next <ArrowRight className="w-4 h-4 ml-1" /></>
               )}
             </Button>
           </div>

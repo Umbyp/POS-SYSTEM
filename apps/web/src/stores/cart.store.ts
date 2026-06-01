@@ -107,7 +107,7 @@ export const useCart = create<CartState>()(
       setType: (t) => set({ type: t }),
       setCustomerNote: (n) => set({ customerNote: n }),
       setCustomer: (c) =>
-        // reset points เมื่อเปลี่ยน customer
+        // Reset points when changing customer
         set({ customer: c, pointsToRedeem: 0 }),
 
       clear: () =>

@@ -19,9 +19,15 @@ import {
   X,
   History,
   LayoutDashboard,
+  LineChart,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/stores/auth.store';
+
+// Analytics runs as a separate (read-only) app sharing the same database.
+// Owners/admins just click through — no setup, no second login flow.
+const ANALYTICS_URL =
+  process.env.NEXT_PUBLIC_ANALYTICS_URL || 'http://localhost:3001';
 
 const NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['OWNER', 'ADMIN'] },
@@ -109,6 +115,22 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             </Link>
           );
         })}
+
+        {/* Analytics — opens the read-only insights app (shared data, new tab) */}
+        {(!user?.role || ['OWNER', 'ADMIN'].includes(user.role)) && (
+          <a
+            href={ANALYTICS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <LineChart className="w-4 h-4 shrink-0" />
+            <span className="flex-1">Analytics</span>
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              ดูข้อมูล
+            </span>
+          </a>
+        )}
       </nav>
 
       <div className="border-t border-border p-2">

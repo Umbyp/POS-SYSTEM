@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ImageIcon } from 'lucide-react';
 import { useCart } from '@/stores/cart.store';
 import { formatCurrency } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import { VariantPicker } from './VariantPicker';
 
 /** Subtle pastel gradient placeholders — keyed by product id so same product = same color */
@@ -87,9 +88,12 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
               <div className={`aspect-square rounded-lg mb-2 overflow-hidden bg-gradient-to-br ${gradient} relative`}>
                 {p.image ? (
                   <img
-                    src={p.image}
+                    src={resolveImageUrl(p.image)}
                     alt={p.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">

@@ -30,7 +30,7 @@ export default function ReceiptPage() {
     queryFn: () => api.get('/stores/me').then((r) => r.data),
   });
 
-  // Auto-print เมื่อมาจาก ?autoprint=1
+  // Auto-print when arriving from ?autoprint=1
   useEffect(() => {
     if (autoPrint && order && store) {
       setTimeout(() => window.print(), 500);
@@ -41,7 +41,7 @@ export default function ReceiptPage() {
   if (isLoading || !order || !store) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-muted-foreground">กำลังโหลด...</div>
+        <div className="text-muted-foreground">Loading...</div>
       </div>
     );
   }
@@ -53,7 +53,7 @@ export default function ReceiptPage() {
         <div className="max-w-4xl mx-auto flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 mr-1" /> กลับ
+              <ArrowLeft className="w-4 h-4 mr-1" /> Back
             </Button>
             <Badge variant="accent">#{order.orderNumber}</Badge>
           </div>
@@ -67,7 +67,7 @@ export default function ReceiptPage() {
                   format === 'thermal' ? 'bg-primary text-white' : 'text-muted-foreground'
                 }`}
               >
-                80mm ใบเสร็จ
+                80mm receipt
               </button>
               <button
                 onClick={() => setFormat('a4')}
@@ -87,7 +87,7 @@ export default function ReceiptPage() {
                   invoiceType === 'abbreviated' ? 'bg-primary text-white' : 'text-muted-foreground'
                 }`}
               >
-                อย่างย่อ
+                Abbreviated
               </button>
               <button
                 onClick={() => setInvoiceType('full')}
@@ -95,12 +95,12 @@ export default function ReceiptPage() {
                   invoiceType === 'full' ? 'bg-primary text-white' : 'text-muted-foreground'
                 }`}
               >
-                เต็ม
+                Full
               </button>
             </div>
 
             <Button size="sm" onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-1" /> พิมพ์
+              <Printer className="w-4 h-4 mr-1" /> Print
             </Button>
             <Button size="sm" variant="outline" onClick={() => window.print()}>
               <Download className="w-4 h-4 mr-1" /> Save PDF
@@ -112,12 +112,12 @@ export default function ReceiptPage() {
                 // Direct print to network thermal printer via backend endpoint
                 try {
                   const r = await api.post(`/orders/${id}/print/escpos`);
-                  alert(r.data.message || 'ส่งไปที่ printer แล้ว');
+                  alert(r.data.message || 'Sent to printer');
                 } catch (e: any) {
-                  alert(e.response?.data?.error || 'พิมพ์ไม่สำเร็จ — ต้องตั้งค่า PRINTER_IP ใน backend');
+                  alert(e.response?.data?.error || 'Print failed — set PRINTER_IP in backend');
                 }
               }}
-              title="ส่ง ESC/POS ไปยัง network printer (ต้องตั้ง PRINTER_IP ใน backend)"
+              title="Send ESC/POS to network printer (requires PRINTER_IP set in backend)"
             >
               <FileText className="w-4 h-4 mr-1" /> Thermal
             </Button>

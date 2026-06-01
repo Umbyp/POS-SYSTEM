@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit3, Trash2, Tag, Power, Calendar, Clock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,19 +18,55 @@ import {
 } from '@/components/ui/dialog';
 
 const TYPE_LABEL: Record<string, string> = {
-  PERCENT_OFF: 'ลด %',
-  FIXED_OFF: 'ลดบาท',
-  BUY_X_GET_Y: 'ซื้อแถม',
-  FIXED_PRICE: 'ราคาพิเศษ',
+  PERCENT_OFF: '% off',
+  FIXED_OFF: 'Amount off',
+  BUY_X_GET_Y: 'Buy & get',
+  FIXED_PRICE: 'Fixed price',
 };
 
 const SCOPE_LABEL: Record<string, string> = {
-  ALL_ORDER: 'ทั้งบิล',
-  CATEGORY: 'เฉพาะหมวด',
-  PRODUCT: 'เฉพาะสินค้า',
+  ALL_ORDER: 'Whole order',
+  CATEGORY: 'Category only',
+  PRODUCT: 'Product only',
 };
 
-const DOW_LABEL = ['อา', 'จ', 'อ', 'พ', 'พฤ', 'ศ', 'ส'];
+const DOW_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const EMPTY_FORM = {
+  name: '',
+  code: '',
+  type: 'PERCENT_OFF',
+  scope: 'ALL_ORDER',
+  value: '',
+  buyQty: '',
+  getQty: '',
+  minSpend: '',
+  daysOfWeek: [] as number[],
+  hourStart: '',
+  hourEnd: '',
+  memberOnly: false,
+  usageLimit: '',
+};
+
+// Map a saved promotion into the form shape (nulls -> '', keeps 0 values).
+function promoToForm(p: any) {
+  if (!p) return { ...EMPTY_FORM };
+  return {
+    name: p.name ?? '',
+    code: p.code ?? '',
+    type: p.type ?? 'PERCENT_OFF',
+    scope: p.scope ?? 'ALL_ORDER',
+    value: p.value ?? '',
+    buyQty: p.buyQty ?? '',
+    getQty: p.getQty ?? '',
+    minSpend: p.minSpend ?? '',
+    daysOfWeek: p.daysOfWeek ?? [],
+    hourStart: p.hourStart ?? '',
+    hourEnd: p.hourEnd ?? '',
+    memberOnly: p.memberOnly ?? false,
+    usageLimit: p.usageLimit ?? '',
+  };
+}
 
 export function PromotionsManager() {
   const qc = useQueryClient();
@@ -46,7 +82,7 @@ export function PromotionsManager() {
     mutationFn: (id: string) => api.delete(`/promotions/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promotions'] });
-      toast.success('ลบโปรโมชันแล้ว');
+      toast.success('Promotion deleted');
     },
   });
 
@@ -61,17 +97,17 @@ export function PromotionsManager() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Tag className="w-5 h-5" /> โปรโมชัน
+            <Tag className="w-5 h-5" /> Promotions
           </span>
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="w-4 h-4 mr-1" /> เพิ่มโปรฯ
+            <Plus className="w-4 h-4 mr-1" /> Add promo
           </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
         {promos.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            ยังไม่มีโปรโมชัน
+            No promotions yet
           </p>
         ) : (
           <div className="space-y-2">
@@ -99,20 +135,20 @@ export function PromotionsManager() {
                       )}
                       {p.memberOnly && (
                         <Badge variant="success" className="text-[10px]">
-                          สมาชิกเท่านั้น
+                          Members only
                         </Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center flex-wrap gap-x-3 gap-y-0.5">
                       <span>
-                        ค่า: <strong>{p.value}</strong>
+                        Value: <strong>{p.value}</strong>
                         {p.type === 'PERCENT_OFF' && '%'}
                       </span>
                       {p.type === 'BUY_X_GET_Y' && (
-                        <span>ซื้อ {p.buyQty} แถม {p.getQty}</span>
+                        <span>Buy {p.buyQty} get {p.getQty}</span>
                       )}
                       {p.minSpend && (
-                        <span>ขั้นต่ำ {formatCurrency(p.minSpend)}</span>
+                        <span>Min {formatCurrency(p.minSpend)}</span>
                       )}
                       {p.daysOfWeek?.length > 0 && (
                         <span className="flex items-center gap-1">
@@ -128,7 +164,7 @@ export function PromotionsManager() {
                       )}
                       {p.usageLimit && (
                         <span>
-                          ใช้แล้ว {p.usageCount}/{p.usageLimit}
+                          Used {p.usageCount}/{p.usageLimit}
                         </span>
                       )}
                     </div>
@@ -141,7 +177,7 @@ export function PromotionsManager() {
                           ? 'text-success hover:bg-success/10'
                           : 'text-muted-foreground hover:bg-muted'
                       }`}
-                      title={p.isActive ? 'ปิด' : 'เปิด'}
+                      title={p.isActive ? 'Disable' : 'Enable'}
                     >
                       <Power className="w-4 h-4" />
                     </button>
@@ -153,7 +189,7 @@ export function PromotionsManager() {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`ลบ "${p.name}"?`)) remove.mutate(p.id);
+                        if (confirm(`Delete "${p.name}"?`)) remove.mutate(p.id);
                       }}
                       className="p-1.5 rounded hover:bg-muted text-danger"
                     >
@@ -191,26 +227,13 @@ function PromotionDialog({
   const qc = useQueryClient();
   const isEdit = !!editing;
 
-  const [form, setForm] = useState<any>(() => ({
-    name: editing?.name || '',
-    code: editing?.code || '',
-    type: editing?.type || 'PERCENT_OFF',
-    scope: editing?.scope || 'ALL_ORDER',
-    value: editing?.value || '',
-    buyQty: editing?.buyQty || '',
-    getQty: editing?.getQty || '',
-    minSpend: editing?.minSpend || '',
-    daysOfWeek: editing?.daysOfWeek || [],
-    hourStart: editing?.hourStart ?? '',
-    hourEnd: editing?.hourEnd ?? '',
-    memberOnly: editing?.memberOnly || false,
-    usageLimit: editing?.usageLimit || '',
-  }));
+  const [form, setForm] = useState<any>(() => promoToForm(editing));
 
-  // reset form when editing changes
-  useState(() => {
-    if (editing) setForm(editing);
-  });
+  // Re-sync the form every time the dialog opens — populate from the promotion
+  // being edited, or reset to a blank form when creating a new one.
+  useEffect(() => {
+    if (open) setForm(promoToForm(editing));
+  }, [open, editing]);
 
   const save = useMutation({
     mutationFn: (payload: any) =>
@@ -219,10 +242,10 @@ function PromotionDialog({
         : api.post('/promotions', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promotions'] });
-      toast.success(isEdit ? 'บันทึกแล้ว' : 'สร้างโปรโมชันแล้ว');
+      toast.success(isEdit ? 'Saved' : 'Promotion created');
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'บันทึกไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to save'),
   });
 
   const toggleDay = (d: number) => {
@@ -256,50 +279,50 @@ function PromotionDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'แก้ไขโปรโมชัน' : 'โปรโมชันใหม่'}</DialogTitle>
+          <DialogTitle>{isEdit ? 'Edit promotion' : 'New promotion'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">ชื่อโปรโมชัน *</Label>
+            <Label className="mb-1.5 block">Promotion name *</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="เช่น Happy Hour 50%, รับ 200 ลด 30"
+              placeholder="e.g. Happy Hour 50%, Spend 200 get 30 off"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">ประเภท *</Label>
+              <Label className="mb-1.5 block">Type *</Label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full h-10 bg-input border border-border rounded-lg px-3 text-sm"
               >
-                <option value="PERCENT_OFF">ลด %</option>
-                <option value="FIXED_OFF">ลดบาท</option>
-                <option value="BUY_X_GET_Y">ซื้อ X แถม Y</option>
-                <option value="FIXED_PRICE">ราคาพิเศษ</option>
+                <option value="PERCENT_OFF">% off</option>
+                <option value="FIXED_OFF">Amount off</option>
+                <option value="BUY_X_GET_Y">Buy X get Y</option>
+                <option value="FIXED_PRICE">Fixed price</option>
               </select>
             </div>
             <div>
-              <Label className="mb-1.5 block">ขอบเขต *</Label>
+              <Label className="mb-1.5 block">Scope *</Label>
               <select
                 value={form.scope}
                 onChange={(e) => setForm({ ...form, scope: e.target.value })}
                 className="w-full h-10 bg-input border border-border rounded-lg px-3 text-sm"
               >
-                <option value="ALL_ORDER">ทั้งบิล</option>
-                <option value="CATEGORY">เฉพาะหมวด</option>
-                <option value="PRODUCT">เฉพาะสินค้า</option>
+                <option value="ALL_ORDER">Whole order</option>
+                <option value="CATEGORY">Category only</option>
+                <option value="PRODUCT">Product only</option>
               </select>
             </div>
           </div>
 
           <div>
             <Label className="mb-1.5 block">
-              ค่า * {form.type === 'PERCENT_OFF' && '(%)'} {form.type !== 'PERCENT_OFF' && '(บาท)'}
+              Value * {form.type === 'PERCENT_OFF' && '(%)'} {form.type !== 'PERCENT_OFF' && '(฿)'}
             </Label>
             <Input
               type="number"
@@ -313,7 +336,7 @@ function PromotionDialog({
           {form.type === 'BUY_X_GET_Y' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="mb-1.5 block">ซื้อ (X)</Label>
+                <Label className="mb-1.5 block">Buy (X)</Label>
                 <Input
                   type="number"
                   min="1"
@@ -322,7 +345,7 @@ function PromotionDialog({
                 />
               </div>
               <div>
-                <Label className="mb-1.5 block">แถม (Y)</Label>
+                <Label className="mb-1.5 block">Get (Y)</Label>
                 <Input
                   type="number"
                   min="1"
@@ -334,28 +357,28 @@ function PromotionDialog({
           )}
 
           <div>
-            <Label className="mb-1.5 block">โค้ดส่วนลด (ไม่บังคับ)</Label>
+            <Label className="mb-1.5 block">Promo code (optional)</Label>
             <Input
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              placeholder="เช่น SUMMER2026 — ถ้ามีจะ require ลูกค้ากรอก"
+              placeholder="e.g. SUMMER2026 — customers must enter this code"
               className="font-mono uppercase"
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">ยอดขั้นต่ำ (บาท)</Label>
+            <Label className="mb-1.5 block">Minimum spend (฿)</Label>
             <Input
               type="number"
               min="0"
               value={form.minSpend}
               onChange={(e) => setForm({ ...form, minSpend: e.target.value })}
-              placeholder="0 = ไม่จำกัด"
+              placeholder="0 = no minimum"
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">วันในสัปดาห์ (เว้นว่าง = ทุกวัน)</Label>
+            <Label className="mb-1.5 block">Days of week (empty = every day)</Label>
             <div className="flex gap-1">
               {DOW_LABEL.map((d, i) => (
                 <button
@@ -376,7 +399,7 @@ function PromotionDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">ช่วงเวลาเริ่ม</Label>
+              <Label className="mb-1.5 block">Start hour</Label>
               <Input
                 type="number"
                 min="0"
@@ -387,7 +410,7 @@ function PromotionDialog({
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">ช่วงเวลาสิ้นสุด</Label>
+              <Label className="mb-1.5 block">End hour</Label>
               <Input
                 type="number"
                 min="0"
@@ -400,13 +423,13 @@ function PromotionDialog({
           </div>
 
           <div>
-            <Label className="mb-1.5 block">จำกัดจำนวนครั้งใช้ (รวมทุกบิล)</Label>
+            <Label className="mb-1.5 block">Usage limit (total across all orders)</Label>
             <Input
               type="number"
               min="1"
               value={form.usageLimit}
               onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
-              placeholder="เว้นว่าง = ไม่จำกัด"
+              placeholder="empty = unlimited"
             />
           </div>
 
@@ -417,19 +440,19 @@ function PromotionDialog({
               onChange={(e) => setForm({ ...form, memberOnly: e.target.checked })}
               className="w-4 h-4 accent-primary"
             />
-            <span className="text-sm">เฉพาะสมาชิก (ต้องเลือกลูกค้าก่อน)</span>
+            <span className="text-sm">Members only (customer must be selected)</span>
           </label>
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button
               className="flex-1"
               onClick={handleSubmit}
               disabled={save.isPending || !form.name || !form.value}
             >
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'บันทึก'}
+              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
             </Button>
           </div>
         </div>
