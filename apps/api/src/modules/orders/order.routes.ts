@@ -33,8 +33,6 @@ const createSchema = z.object({
     method: z.enum(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER']),
     amount: z.number().nonnegative(),
     reference: z.string().optional(),
-    slipTransRef: z.string().optional(),
-    slipPayload: z.string().optional(),
   })).min(1),
   notes: z.string().optional(),
   // 🆕 ข้อมูลลูกค้าสำหรับใบกำกับเต็ม

@@ -26,8 +26,6 @@ interface CreateOrderInput {
     method: PaymentMethod;
     amount: number;
     reference?: string;
-    slipTransRef?: string;
-    slipPayload?: string;
   }[];
   notes?: string;
   customerName?: string;
@@ -227,10 +225,6 @@ export async function create(input: CreateOrderInput, io: Server) {
             method: p.method,
             amount: new Prisma.Decimal(p.amount),
             reference: p.reference,
-            slipTransRef: p.slipTransRef,
-            slipPayload: p.slipPayload,
-            slipVerified: !!p.slipTransRef,
-            slipVerifiedAt: p.slipTransRef ? new Date() : null,
           })),
         },
       },

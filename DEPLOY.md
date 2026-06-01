@@ -30,7 +30,7 @@
    - `WEB_URL` = (ใส่ทีหลังหลังได้ URL ของ POS Web) ชั่วคราวใส่ `https://example.com`
    - `STRIPE_SECRET_KEY` = `sk_live_...`
    - `STRIPE_WEBHOOK_SECRET` = (ใส่ทีหลัง ดูข้อ 6)
-   - `EASYSLIP_API_KEY` = ถ้ามี
+   - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` = (สำหรับเก็บรูปสินค้าถาวร — ดูข้อ 6.5)
 3. Deploy → รอจน health check `/health` เขียว → **คัดลอก URL** (เช่น `https://pos-api.onrender.com`)
 
 > Build command/Start command ถูกตั้งไว้แล้วใน `render.yaml`:
