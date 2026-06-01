@@ -27,8 +27,6 @@ services:
         value: 7d
       - key: WEB_URL
         sync: false
-      - key: EASYSLIP_API_KEY
-        sync: false
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET

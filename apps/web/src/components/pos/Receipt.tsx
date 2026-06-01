@@ -309,7 +309,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           {order.payments.map((p: any) => (
             <div key={p.id}>
               <Row label={PAYMENT_LABEL[p.method] || p.method} value={formatCurrency(p.amount)} />
-              {p.slipVerified && (
+              {p.slipVerified ? (
                 <div
                   style={{ fontSize: '10px', color: '#0a7a23', paddingLeft: 8, fontWeight: 600 }}
                 >
@@ -320,12 +320,15 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                     </span>
                   )}
                 </div>
-              )}
-              {p.reference && !p.slipVerified && (
+              ) : p.reference?.startsWith('pi_') ? (
+                <div style={{ fontSize: '10px', color: '#0a7a23', paddingLeft: 8, fontWeight: 600 }}>
+                  ✓ Paid via PromptPay
+                </div>
+              ) : p.reference ? (
                 <div style={{ fontSize: '10px', color: '#777', paddingLeft: 8 }}>
                   Ref: {p.reference}
                 </div>
-              )}
+              ) : null}
             </div>
           ))}
           {(() => {
