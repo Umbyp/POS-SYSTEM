@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -24,6 +24,7 @@ import {
 import promotionRoutes from './modules/promotions/promotion.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
+import { stripeWebhookHandler } from './modules/payments/stripe-webhook.routes';
 
 const app = express();
 
@@ -34,11 +35,19 @@ app.use(
     credentials: true,
   })
 );
+// Stripe webhook MUST receive the raw body (signature verification) — mount BEFORE express.json
+app.post(
+  '/api/payments/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  stripeWebhookHandler
+);
+
 app.use(express.json({ limit: '10mb' }));
 
+// Cast: express-rate-limit@7 ships Express-5-aligned handler types; runtime is Express 4
 app.use(
   '/api/auth',
-  rateLimit({ windowMs: 15 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false }),
+  rateLimit({ windowMs: 15 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false }) as unknown as RequestHandler,
 );
 
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));

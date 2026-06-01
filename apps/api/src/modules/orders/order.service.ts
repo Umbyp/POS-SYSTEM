@@ -2,7 +2,7 @@ import { Server } from 'socket.io';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, OrderType, PaymentMethod, Prisma } from '@prisma/client';
-import * as line from '../notifications/line.service';
+import * as stripeService from '../payments/stripe.service';
 
 interface CreateOrderInput {
   storeId: string;
@@ -58,6 +58,22 @@ export const POINT_VALUE = 1;
 export async function create(input: CreateOrderInput, io: Server) {
   if (!input.items?.length) throw BadRequest('No items in order');
   if (!input.payments?.length) throw BadRequest('No payment provided');
+
+  // ตรวจการจ่ายผ่าน Stripe PromptPay ก่อนเริ่ม transaction (กัน reference ปลอม)
+  // เฉพาะ payment ที่ reference เป็น Stripe PaymentIntent (ขึ้นต้น pi_)
+  for (const p of input.payments) {
+    if (p.method === 'PROMPTPAY' && p.reference?.startsWith('pi_')) {
+      const st = await stripeService.getIntentStatus(p.reference);
+      if (!st.paid) {
+        throw BadRequest('ยังไม่ได้รับเงิน PromptPay — กรุณารอลูกค้าชำระให้สำเร็จก่อน');
+      }
+      if (st.amount + 0.5 < Number(p.amount)) {
+        throw BadRequest(
+          `ยอดที่จ่ายผ่าน PromptPay (${st.amount.toFixed(2)}) น้อยกว่ายอดบิล (${Number(p.amount).toFixed(2)})`
+        );
+      }
+    }
+  }
 
   return prisma.$transaction(async (tx) => {
     // 1. ดึงข้อมูลสินค้า
@@ -340,9 +356,6 @@ export async function create(input: CreateOrderInput, io: Server) {
     if (updatedTable) {
       io.to(`store:${input.storeId}`).emit('table:updated', updatedTable);
     }
-
-    // 10. LINE Notify (fire-and-forget)
-    line.notifyOrderCreated(order).catch((e) => console.warn('LINE notify failed:', e));
 
     return order;
   });

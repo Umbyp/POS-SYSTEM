@@ -1,0 +1,35 @@
+# Render Blueprint — POS API (Express + Socket.io + Prisma)
+# วิธีใช้: Render Dashboard → New → Blueprint → เลือก repo นี้
+# จากนั้นกรอกค่า env ที่ sync:false ในหน้า dashboard
+#
+# หมายเหตุ: plan free จะ "หลับ" เมื่อไม่มีทราฟฟิก (cold start ~50 วิ)
+# สำหรับร้านที่เปิดใช้ทั้งวัน + ใช้ realtime (Socket.io) แนะนำเปลี่ยนเป็น plan: starter
+services:
+  - type: web
+    name: pos-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: .
+    buildCommand: npm install && npm run build --workspace=apps/api
+    startCommand: npm run start --workspace=apps/api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: WEB_URL
+        sync: false
+      - key: EASYSLIP_API_KEY
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false

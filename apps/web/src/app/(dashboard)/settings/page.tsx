@@ -9,7 +9,6 @@ import {
   FolderTree,
   Tag,
   Target,
-  MessageCircle,
   Info,
   ChevronRight,
 } from 'lucide-react';
@@ -31,7 +30,6 @@ type SectionKey =
   | 'categories'
   | 'promotions'
   | 'goals'
-  | 'line'
   | 'system';
 
 interface SectionDef {
@@ -50,7 +48,6 @@ const SECTIONS: SectionDef[] = [
   { key: 'categories', label: 'Categories', description: 'Product categories', icon: FolderTree, ownerOnly: true },
   { key: 'promotions', label: 'Promotions', description: 'Discounts, codes, member-only', icon: Tag, ownerOnly: true },
   { key: 'goals', label: 'Sales goals', description: 'Daily / monthly targets', icon: Target, ownerOnly: true },
-  { key: 'line', label: 'LINE Notify', description: 'Push order alerts to LINE', icon: MessageCircle, ownerOnly: true },
   { key: 'system', label: 'System', description: 'Version, integrations', icon: Info },
 ];
 
@@ -163,7 +160,6 @@ export default function SettingsPage() {
             {section === 'categories' && canEditStore && <CategoriesManager />}
             {section === 'promotions' && canEditStore && <PromotionsManager />}
             {section === 'goals' && canEditStore && <StoreSettingsForm sections={['goals']} />}
-            {section === 'line' && canEditStore && <StoreSettingsForm sections={['line']} />}
             {section === 'system' && <SystemSection />}
             {!canEditStore && SECTIONS.find((s) => s.key === section)?.ownerOnly && (
               <Card>

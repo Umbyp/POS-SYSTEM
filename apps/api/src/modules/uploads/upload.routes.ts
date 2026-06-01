@@ -11,7 +11,7 @@
  * or the product is deleted — running a periodic cleanup is recommended once
  * the store has been live for a while.
  */
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import multer from 'multer';
 import sharp from 'sharp';
 import { promises as fs } from 'fs';
@@ -63,7 +63,8 @@ router.use(authMiddleware);
 router.post(
   '/product-image',
   rbac('OWNER', 'ADMIN'),
-  upload.single('image'),
+  // Cast: multer@2 ships Express-5-aligned handler types; runtime is Express 4
+  upload.single('image') as unknown as RequestHandler,
   async (req, res, next) => {
     try {
       if (!req.file) {

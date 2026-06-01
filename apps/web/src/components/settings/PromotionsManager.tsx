@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Edit3, Trash2, Tag, Power, Calendar, Clock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -31,6 +31,42 @@ const SCOPE_LABEL: Record<string, string> = {
 };
 
 const DOW_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const EMPTY_FORM = {
+  name: '',
+  code: '',
+  type: 'PERCENT_OFF',
+  scope: 'ALL_ORDER',
+  value: '',
+  buyQty: '',
+  getQty: '',
+  minSpend: '',
+  daysOfWeek: [] as number[],
+  hourStart: '',
+  hourEnd: '',
+  memberOnly: false,
+  usageLimit: '',
+};
+
+// Map a saved promotion into the form shape (nulls -> '', keeps 0 values).
+function promoToForm(p: any) {
+  if (!p) return { ...EMPTY_FORM };
+  return {
+    name: p.name ?? '',
+    code: p.code ?? '',
+    type: p.type ?? 'PERCENT_OFF',
+    scope: p.scope ?? 'ALL_ORDER',
+    value: p.value ?? '',
+    buyQty: p.buyQty ?? '',
+    getQty: p.getQty ?? '',
+    minSpend: p.minSpend ?? '',
+    daysOfWeek: p.daysOfWeek ?? [],
+    hourStart: p.hourStart ?? '',
+    hourEnd: p.hourEnd ?? '',
+    memberOnly: p.memberOnly ?? false,
+    usageLimit: p.usageLimit ?? '',
+  };
+}
 
 export function PromotionsManager() {
   const qc = useQueryClient();
@@ -191,26 +227,13 @@ function PromotionDialog({
   const qc = useQueryClient();
   const isEdit = !!editing;
 
-  const [form, setForm] = useState<any>(() => ({
-    name: editing?.name || '',
-    code: editing?.code || '',
-    type: editing?.type || 'PERCENT_OFF',
-    scope: editing?.scope || 'ALL_ORDER',
-    value: editing?.value || '',
-    buyQty: editing?.buyQty || '',
-    getQty: editing?.getQty || '',
-    minSpend: editing?.minSpend || '',
-    daysOfWeek: editing?.daysOfWeek || [],
-    hourStart: editing?.hourStart ?? '',
-    hourEnd: editing?.hourEnd ?? '',
-    memberOnly: editing?.memberOnly || false,
-    usageLimit: editing?.usageLimit || '',
-  }));
+  const [form, setForm] = useState<any>(() => promoToForm(editing));
 
-  // reset form when editing changes
-  useState(() => {
-    if (editing) setForm(editing);
-  });
+  // Re-sync the form every time the dialog opens — populate from the promotion
+  // being edited, or reset to a blank form when creating a new one.
+  useEffect(() => {
+    if (open) setForm(promoToForm(editing));
+  }, [open, editing]);
 
   const save = useMutation({
     mutationFn: (payload: any) =>

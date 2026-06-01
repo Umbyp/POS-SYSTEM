@@ -12,6 +12,7 @@ export function useOfflineQueue() {
     if (!db) return;
 
     const refresh = async () => {
+      if (!db) return;
       const count = await db.pendingOrders.count();
       setPending(count);
     };

@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Loader2, Save, QrCode, MessageCircle, ExternalLink, CheckCircle2, Target } from 'lucide-react';
+import { Loader2, Save, QrCode, Target } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { detectPromptPayType, formatPromptPayId } from '@/lib/promptpay';
 
-export type StoreSettingsSection = 'store' | 'tax' | 'promptpay' | 'goals' | 'line';
+export type StoreSettingsSection = 'store' | 'tax' | 'promptpay' | 'goals';
 
 interface StoreSettingsFormProps {
   /** When provided, only renders these section cards. Otherwise renders everything. */
@@ -41,7 +41,6 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
     promptpayId: '',
     invoicePrefix: 'INV',
     branchCode: '00000',
-    lineNotifyToken: '',
     dailyTarget: '0',
     monthlyTarget: '0',
   });
@@ -61,7 +60,6 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
         promptpayId: store.promptpayId || '',
         invoicePrefix: store.invoicePrefix || 'INV',
         branchCode: store.branchCode || '00000',
-        lineNotifyToken: store.lineNotifyToken || '',
         dailyTarget: String(store.dailyTarget || 0),
         monthlyTarget: String(store.monthlyTarget || 0),
       });
@@ -94,28 +92,9 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
       promptpayId: form.promptpayId || null,
       invoicePrefix: form.invoicePrefix || null,
       branchCode: form.branchCode || null,
-      lineNotifyToken: form.lineNotifyToken || null,
       dailyTarget: Number(form.dailyTarget) || 0,
       monthlyTarget: Number(form.monthlyTarget) || 0,
     });
-  };
-
-  const [testingLine, setTestingLine] = useState(false);
-  const testLine = async () => {
-    if (!form.lineNotifyToken) {
-      toast.error('Please enter a token first');
-      return;
-    }
-    setTestingLine(true);
-    try {
-      const { data } = await api.post('/notifications/line/test', { token: form.lineNotifyToken });
-      if (data.ok) toast.success(data.message);
-      else toast.error(data.message);
-    } catch (e: any) {
-      toast.error(e.response?.data?.error || 'Test failed');
-    } finally {
-      setTestingLine(false);
-    }
   };
 
   const ppType = form.promptpayId ? detectPromptPayType(form.promptpayId) : null;
@@ -309,69 +288,6 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               />
             </div>
           </div>
-        </CardContent>
-      </Card>
-      )}
-
-      {show('line') && (
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <span className="flex items-center gap-2">
-              <MessageCircle className="w-5 h-5 text-success" /> LINE Notify
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div>
-            <Label className="mb-1.5 block">Access Token</Label>
-            <div className="flex gap-2">
-              <Input
-                type="password"
-                value={form.lineNotifyToken}
-                onChange={(e) => setForm({ ...form, lineNotifyToken: e.target.value })}
-                placeholder="LINE Notify access token (Bearer)"
-                className="font-mono"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={testLine}
-                disabled={testingLine || !form.lineNotifyToken}
-              >
-                {testingLine ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-1" /> Test
-                  </>
-                )}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1.5">
-              Get a free token at{' '}
-              <a
-                href="https://notify-bot.line.me/my/"
-                target="_blank"
-                className="text-primary hover:underline inline-flex items-center gap-0.5"
-                rel="noopener"
-              >
-                notify-bot.line.me <ExternalLink className="w-3 h-3" />
-              </a>{' '}
-              → "Generate token" → choose your chat room
-            </p>
-          </div>
-          {form.lineNotifyToken && (
-            <div className="bg-success/10 border border-success/30 rounded-lg p-3 text-xs space-y-1">
-              <div className="font-medium text-success">
-                ✅ The system will send LINE notifications when:
-              </div>
-              <ul className="space-y-0.5 text-muted-foreground list-disc list-inside">
-                <li>A new order is placed (with total, payment method, items)</li>
-                <li>/api/notifications/line/daily-summary is called (daily summary)</li>
-              </ul>
-            </div>
-          )}
         </CardContent>
       </Card>
       )}
