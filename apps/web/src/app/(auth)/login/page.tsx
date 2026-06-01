@@ -100,13 +100,13 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'เข้าสู่ระบบ'}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign in'}
             </Button>
           </form>
 
           <div className="my-6 flex items-center gap-3">
             <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">หรือ</span>
+            <span className="text-xs text-muted-foreground">or</span>
             <div className="flex-1 h-px bg-border" />
           </div>
 
@@ -116,14 +116,14 @@ export default function LoginPage() {
             </div>
           ) : (
             <p className="text-xs text-center text-muted-foreground">
-              Google Login: ยังไม่ได้ตั้งค่า GOOGLE_CLIENT_ID
+              Google Login: GOOGLE_CLIENT_ID not configured
             </p>
           )}
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            ยังไม่มีบัญชี?{' '}
+            No account yet?{' '}
             <Link href="/register" className="text-primary hover:underline">
-              สมัครใหม่
+              Sign up
             </Link>
           </p>
         </div>

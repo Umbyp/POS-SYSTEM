@@ -40,19 +40,19 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
       api.post('/customers', payload).then((r) => r.data),
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ['customers'] });
-      toast.success(`เพิ่ม "${c.name}" แล้ว`);
+      toast.success(`Added "${c.name}"`);
       onSelect({ id: c.id, name: c.name, phone: c.phone, points: c.points });
       onClose();
       setForm({ name: '', phone: '', email: '', taxId: '' });
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'เพิ่มไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to add'),
   });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
-          <DialogTitle>เลือกลูกค้า</DialogTitle>
+          <DialogTitle>Select customer</DialogTitle>
         </DialogHeader>
 
         <div className="flex gap-1 p-1 bg-muted rounded-lg text-sm">
@@ -62,7 +62,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               tab === 'search' ? 'bg-card font-medium' : 'text-muted-foreground'
             }`}
           >
-            ค้นหา
+            Search
           </button>
           <button
             onClick={() => setTab('new')}
@@ -70,7 +70,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               tab === 'new' ? 'bg-card font-medium' : 'text-muted-foreground'
             }`}
           >
-            เพิ่มลูกค้าใหม่
+            New customer
           </button>
         </div>
 
@@ -81,7 +81,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               <Input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder="ชื่อ / เบอร์โทร / อีเมล..."
+                placeholder="Name / phone / email..."
                 className="pl-10"
                 autoFocus
               />
@@ -90,11 +90,11 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
             <div className="space-y-1.5 max-h-80 overflow-y-auto scrollbar-thin">
               {isLoading ? (
                 <div className="text-center py-6 text-muted-foreground text-sm">
-                  กำลังโหลด...
+                  Loading...
                 </div>
               ) : customers.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground text-sm">
-                  {q ? 'ไม่พบลูกค้า — ลองเพิ่มใหม่' : 'ยังไม่มีลูกค้า'}
+                  {q ? 'No customers found — try adding new' : 'No customers yet'}
                 </div>
               ) : (
                 customers.map((c: any) => (
@@ -120,7 +120,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
                               <Phone className="w-3 h-3" /> {c.phone}
                             </span>
                           )}
-                          <span>มา {c.visitCount} ครั้ง</span>
+                          <span>{c.visitCount} visit{c.visitCount !== 1 ? 's' : ''}</span>
                         </div>
                       </div>
                       {c.points > 0 && (
@@ -149,7 +149,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
             className="space-y-3"
           >
             <div>
-              <Label className="mb-1.5 block">ชื่อ-นามสกุล *</Label>
+              <Label className="mb-1.5 block">Full name *</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -158,7 +158,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">เบอร์โทร</Label>
+              <Label className="mb-1.5 block">Phone</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
@@ -166,7 +166,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">อีเมล</Label>
+              <Label className="mb-1.5 block">Email</Label>
               <Input
                 type="email"
                 value={form.email}
@@ -174,7 +174,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">เลขผู้เสียภาษี (ถ้ามี)</Label>
+              <Label className="mb-1.5 block">Tax ID (if any)</Label>
               <Input
                 value={form.taxId}
                 onChange={(e) => setForm({ ...form, taxId: e.target.value })}
@@ -186,7 +186,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <UserPlus className="w-4 h-4 mr-1" /> เพิ่ม + เลือก
+                  <UserPlus className="w-4 h-4 mr-1" /> Add + Select
                 </>
               )}
             </Button>

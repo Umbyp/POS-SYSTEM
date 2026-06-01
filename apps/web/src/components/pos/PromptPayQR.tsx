@@ -18,7 +18,7 @@ export function PromptPayQR({ promptpayId, amount, merchantName }: Props) {
 
   useEffect(() => {
     if (!promptpayId) {
-      setError('ยังไม่ได้ตั้งค่า PromptPay ID — ตั้งใน Settings');
+      setError('PromptPay ID not configured — set it in Settings');
       setLoading(false);
       return;
     }
@@ -73,8 +73,8 @@ export function PromptPayQR({ promptpayId, amount, merchantName }: Props) {
       {/* PromptPay logo + ID */}
       <div className="w-full flex items-center justify-between px-2 mb-2">
         <div className="text-[#003478] font-bold text-sm">
-          พร้อมเพย์<br />
-          <span className="text-[10px] font-normal">PromptPay</span>
+          PromptPay<br />
+          <span className="text-[10px] font-normal">พร้อมเพย์</span>
         </div>
         <div className="text-right text-xs text-gray-600">
           {merchantName && <div className="font-medium">{merchantName}</div>}
@@ -87,14 +87,14 @@ export function PromptPayQR({ promptpayId, amount, merchantName }: Props) {
 
       {/* Amount */}
       <div className="mt-3 text-center">
-        <div className="text-xs text-gray-500">จำนวนเงิน</div>
+        <div className="text-xs text-gray-500">Amount</div>
         <div className="text-2xl font-bold text-gray-900 tabular-nums">
           {formatCurrency(amount)}
         </div>
       </div>
 
       <p className="text-[10px] text-gray-500 mt-2 text-center px-2">
-        สแกนผ่าน Mobile Banking App ทุกธนาคาร
+        Scan with any Mobile Banking app
       </p>
     </div>
   );

@@ -2,23 +2,23 @@
  * ESC/POS Command Generator
  *
  * Use case 1: Web USB / Web Serial → printer (browser-side)
- * Use case 2: ส่ง bytes ไปให้ backend forward TCP socket ไปยัง network printer
+ * Use case 2: Send bytes to backend, which forwards via TCP socket to network printer
  *
  * Reference: ESC/POS Application Programming Guide (Epson, Star Micronics)
  *
- * วิธีใช้:
+ * Usage:
  *   const bytes = buildReceipt({ store, order });
- *   // ส่งไปยัง printer:
+ *   // Send to printer:
  *   //   - Web USB: device.transferOut(endpoint, bytes)
  *   //   - Web Serial: writer.write(bytes)
- *   //   - Backend TCP: socket.write(bytes) ไปยัง <printer_ip>:9100
+ *   //   - Backend TCP: socket.write(bytes) to <printer_ip>:9100
  */
 
 // Encoding for Thai (TIS-620 / CP874)
-// JavaScript ไม่ encode TIS-620 native — ต้อง map เอง
+// JavaScript does not encode TIS-620 natively — map manually
 const THAI_TIS620_MAP: Record<string, number> = {};
-// Thai consonants (ก-ฮ): U+0E01..U+0E2E → 0xA1..0xCE
-// สระและวรรณยุกต์: U+0E2F..U+0E5B → 0xCF..0xFB
+// Thai consonants: U+0E01..U+0E2E → 0xA1..0xCE
+// Vowels and tone marks: U+0E2F..U+0E5B → 0xCF..0xFB
 
 function tis620Byte(char: string): number {
   const code = char.charCodeAt(0);
@@ -68,7 +68,7 @@ class ESCPOSBuilder {
 
   setCharset(): this {
     // ESC t 21 - select code table TIS-620 (Thai)
-    // บางรุ่นใช้ 21 = TIS620, บางรุ่น 26 = TIS18
+    // Some models use 21 = TIS620, others 26 = TIS18
     return this.raw(0x1b, 0x74, 21);
   }
 
@@ -91,7 +91,7 @@ class ESCPOSBuilder {
     return this.line('--------------------------------');
   }
 
-  // คอลัมน์: ซ้าย + ขวา ใน 32 ตัวอักษร (สำหรับกระดาษ 80mm = 32-48 columns)
+  // Columns: left + right within 32 chars (for 80mm paper = 32-48 columns)
   twoCol(left: string, right: string, width = 32): this {
     const space = Math.max(1, width - left.length - right.length);
     return this.line(left + ' '.repeat(space) + right);
@@ -162,16 +162,16 @@ export function buildReceipt(store: ReceiptStore, order: ReceiptOrder): Uint8Arr
   b.align('center').bold(true).size(2, 2).line(store.name);
   b.size(1, 1).bold(false);
   if (store.address) b.line(store.address);
-  if (store.phone) b.line(`โทร. ${store.phone}`);
+  if (store.phone) b.line(`Tel. ${store.phone}`);
   if (store.taxId) b.line(`TAX ID: ${store.taxId}`);
   b.divider();
 
   // Order info
   b.align('left');
-  b.line(`เลขที่: ${order.orderNumber}`);
-  b.line(`วันที่: ${new Date(order.createdAt).toLocaleString('th-TH')}`);
-  if (order.cashier) b.line(`พนักงาน: ${order.cashier.name}`);
-  if (order.table) b.line(`โต๊ะ: ${order.table.number}`);
+  b.line(`No.: ${order.orderNumber}`);
+  b.line(`Date: ${new Date(order.createdAt).toLocaleString('en-US')}`);
+  if (order.cashier) b.line(`Cashier: ${order.cashier.name}`);
+  if (order.table) b.line(`Table: ${order.table.number}`);
   b.divider();
 
   // Items
@@ -185,31 +185,31 @@ export function buildReceipt(store: ReceiptStore, order: ReceiptOrder): Uint8Arr
   // Totals
   const rate = store.taxRate ?? 7;
   const inclusive = store.priceIncludesTax ?? true;
-  b.twoCol(`ยอดรวม${inclusive && Number(order.tax) > 0 ? ' (รวม VAT)' : ''}`, Number(order.subtotal).toFixed(2));
-  if (Number(order.discount) > 0) b.twoCol('ส่วนลด', `-${Number(order.discount).toFixed(2)}`);
+  b.twoCol(`Subtotal${inclusive && Number(order.tax) > 0 ? ' (incl. VAT)' : ''}`, Number(order.subtotal).toFixed(2));
+  if (Number(order.discount) > 0) b.twoCol('Discount', `-${Number(order.discount).toFixed(2)}`);
   if (Number(order.tax) > 0) {
-    const label = inclusive ? `VAT ${rate}% (รวมในราคา)` : `ภาษีมูลค่าเพิ่ม ${rate}%`;
+    const label = inclusive ? `VAT ${rate}% (incl.)` : `VAT ${rate}%`;
     b.twoCol(label, Number(order.tax).toFixed(2));
   }
-  b.bold(true).size(2, 1).twoCol('รวมทั้งสิ้น', Number(order.total).toFixed(2), 16);
+  b.bold(true).size(2, 1).twoCol('Total', Number(order.total).toFixed(2), 16);
   b.size(1, 1).bold(false);
   b.divider();
 
   // Payments
   for (const p of order.payments) {
     const label =
-      p.method === 'CASH' ? 'เงินสด'
-      : p.method === 'PROMPTPAY' ? 'พร้อมเพย์'
-      : p.method === 'CREDIT_CARD' ? 'บัตรเครดิต'
-      : 'โอนธนาคาร';
+      p.method === 'CASH' ? 'Cash'
+      : p.method === 'PROMPTPAY' ? 'PromptPay'
+      : p.method === 'CREDIT_CARD' ? 'Credit Card'
+      : 'Bank Transfer';
     b.twoCol(label, Number(p.amount).toFixed(2));
   }
 
   // Footer
   b.feed(1);
   b.align('center');
-  b.line('*** ขอบคุณที่ใช้บริการ ***');
-  b.line('Thank you');
+  b.line('*** Thank you ***');
+  b.line('Have a great day');
   b.feed(3);
 
   // Cut

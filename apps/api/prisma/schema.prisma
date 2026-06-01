@@ -57,7 +57,7 @@ model Store {
   invoicePrefix String?
   branchCode    String?
   createdAt     DateTime   @default(now())
-  lineNotifyToken String?
+  smsWebhookToken String?
   dailyTarget     Decimal  @default(0) @db.Decimal(12, 2)
   monthlyTarget   Decimal  @default(0) @db.Decimal(12, 2)
   members         StoreMember[]
@@ -315,11 +315,28 @@ model Table {
   id       String  @id @default(cuid())
   number   String
   capacity Int     @default(4)
+  size     String  @default("MEDIUM") // SMALL | MEDIUM | LARGE
   status   String  @default("AVAILABLE")
   qrCode   String? @unique
   storeId  String
   orders   Order[]
   store    Store   @relation(fields: [storeId], references: [id])
+}
+
+model PaymentNotification {
+  id              String   @id @default(cuid())
+  storeId         String
+  amount          Decimal  @db.Decimal(12, 2)
+  bank            String?
+  senderName      String?
+  rawMessage      String
+  matchedOrderId  String?
+  matched         Boolean  @default(false)
+  receivedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@index([storeId, receivedAt(sort: Desc)])
+  @@index([storeId, matched])
 }
 
 model Shift {

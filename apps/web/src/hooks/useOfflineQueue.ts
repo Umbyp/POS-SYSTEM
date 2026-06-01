@@ -12,6 +12,7 @@ export function useOfflineQueue() {
     if (!db) return;
 
     const refresh = async () => {
+      if (!db) return;
       const count = await db.pendingOrders.count();
       setPending(count);
     };
@@ -23,7 +24,7 @@ export function useOfflineQueue() {
         try {
           await api.post('/orders', item.payload);
           await db.pendingOrders.delete(item.id!);
-          toast.success(`ส่งออเดอร์ออฟไลน์สำเร็จ`);
+          toast.success(`Offline order synced`);
         } catch (err: any) {
           await db.pendingOrders.update(item.id!, {
             retries: (item.retries || 0) + 1,

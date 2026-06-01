@@ -19,7 +19,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 
 type Mode = 'PURCHASE' | 'WASTE' | 'COUNT';
 
@@ -32,24 +31,24 @@ interface Props {
 const MODES: { key: Mode; label: string; icon: any; color: string; desc: string }[] = [
   {
     key: 'PURCHASE',
-    label: 'รับเข้า',
+    label: 'Receive',
     icon: PackagePlus,
     color: 'border-success text-success bg-success/10',
-    desc: 'รับสินค้าเข้าใหม่จากร้านส่ง / supplier',
+    desc: 'Receive new stock from supplier',
   },
   {
     key: 'WASTE',
-    label: 'ลด/เสีย',
+    label: 'Waste/Loss',
     icon: TrendingDown,
     color: 'border-warning text-warning bg-warning/10',
-    desc: 'ของหาย / หมดอายุ / เสียหาย',
+    desc: 'Lost / expired / damaged',
   },
   {
     key: 'COUNT',
-    label: 'นับสต็อก',
+    label: 'Stock count',
     icon: ClipboardCheck,
     color: 'border-primary text-primary bg-primary/10',
-    desc: 'นับจริงและตั้งค่าสต็อกใหม่',
+    desc: 'Physical count, set new quantity',
   },
 ];
 
@@ -71,22 +70,22 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['inventory-movements'] });
-      toast.success('บันทึกการปรับสต็อกแล้ว');
+      toast.success('Stock adjustment saved');
       setQty('');
       setReason('');
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'ปรับสต็อกไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Stock adjustment failed'),
   });
 
   const handleSubmit = () => {
     const num = parseInt(qty);
     if (isNaN(num) || num < 0) {
-      toast.error('กรอกจำนวนให้ถูกต้อง');
+      toast.error('Please enter a valid quantity');
       return;
     }
     if (!reason.trim()) {
-      toast.error('กรุณาระบุเหตุผล');
+      toast.error('Please provide a reason');
       return;
     }
     if (mode === 'COUNT') {
@@ -96,14 +95,14 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     } else {
       // WASTE - negative
       if (num > item.quantity) {
-        toast.error(`ลดได้ไม่เกิน ${item.quantity}`);
+        toast.error(`Cannot reduce more than ${item.quantity}`);
         return;
       }
       adjust.mutate({ quantity: -num, reason, type: 'WASTE' });
     }
   };
 
-  // คำนวณผลลัพธ์ preview
+  // Calculate preview result
   const num = parseInt(qty) || 0;
   const newQty =
     mode === 'COUNT'
@@ -116,22 +115,19 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>ปรับสต็อก: {item?.product?.name}</DialogTitle>
+          <DialogTitle>Adjust stock: {item?.product?.name}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
-            <div className="text-xs text-muted-foreground">สต็อกปัจจุบัน</div>
+            <div className="text-xs text-muted-foreground">Current stock</div>
             <div className="text-2xl font-bold tabular-nums">{item?.quantity}</div>
           </div>
-          {item?.product?.isIngredient && (
-            <Badge variant="warning">วัตถุดิบ</Badge>
-          )}
         </div>
 
         {/* Mode select */}
         <div>
-          <Label className="mb-2 block">ประเภทการปรับ</Label>
+          <Label className="mb-2 block">Adjustment type</Label>
           <div className="grid grid-cols-3 gap-2">
             {MODES.map((m) => {
               const Icon = m.icon;
@@ -159,7 +155,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
         {/* Quantity input */}
         <div>
           <Label className="mb-1.5 block">
-            {mode === 'COUNT' ? 'นับได้จริง (จำนวนใหม่)' : 'จำนวน'}
+            {mode === 'COUNT' ? 'Counted quantity (new total)' : 'Quantity'}
           </Label>
           <Input
             type="number"
@@ -180,7 +176,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
                   : 'bg-success/10 text-success'
               }`}
             >
-              <span>หลังปรับ:</span>
+              <span>After:</span>
               <span className="font-bold tabular-nums">
                 {item?.quantity} →{' '}
                 <span
@@ -205,16 +201,16 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
 
         {/* Reason */}
         <div>
-          <Label className="mb-1.5 block">เหตุผล *</Label>
+          <Label className="mb-1.5 block">Reason *</Label>
           <Input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={
               mode === 'PURCHASE'
-                ? 'เช่น รับจากร้านส่ง XX วันที่...'
+                ? 'e.g. received from supplier XX on...'
                 : mode === 'WASTE'
-                ? 'เช่น หมดอายุ, ตกแตก, แมลงเข้า'
-                : 'เช่น นับสต็อกประจำเดือน'
+                ? 'e.g. expired, broken, pest damage'
+                : 'e.g. monthly stock count'
             }
             required
           />
@@ -222,7 +218,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
 
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            ยกเลิก
+            Cancel
           </Button>
           <Button
             className="flex-1"
@@ -232,7 +228,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
             {adjust.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              'บันทึก'
+              'Save'
             )}
           </Button>
         </div>

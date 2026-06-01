@@ -28,10 +28,10 @@ export default function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', form);
       setAuth(data.user, data.token);
-      toast.success('สมัครสมาชิกสำเร็จ');
+      toast.success('Account created');
       router.push('/pos');
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'สมัครไม่สำเร็จ');
+      toast.error(err.response?.data?.error || 'Sign-up failed');
     } finally {
       setLoading(false);
     }
@@ -41,14 +41,14 @@ export default function RegisterPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-md bg-card border border-border rounded-3xl p-8">
-        <h1 className="text-2xl font-bold text-center mb-2">สร้างร้านใหม่</h1>
+        <h1 className="text-2xl font-bold text-center mb-2">Create new store</h1>
         <p className="text-muted-foreground text-center text-sm mb-8">
-          เริ่มต้นใช้งาน POS ในไม่กี่นาที
+          Get started with POS in minutes
         </p>
 
         <form onSubmit={submit} className="space-y-4">
           <div>
-            <Label className="mb-2 block">ชื่อร้าน</Label>
+            <Label className="mb-2 block">Store name</Label>
             <Input
               value={form.storeName}
               onChange={(e) => setForm({ ...form, storeName: e.target.value })}
@@ -56,7 +56,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <Label className="mb-2 block">ชื่อ-นามสกุล</Label>
+            <Label className="mb-2 block">Full name</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -64,7 +64,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <Label className="mb-2 block">อีเมล</Label>
+            <Label className="mb-2 block">Email</Label>
             <Input
               type="email"
               value={form.email}
@@ -73,7 +73,7 @@ export default function RegisterPage() {
             />
           </div>
           <div>
-            <Label className="mb-2 block">รหัสผ่าน (อย่างน้อย 6 ตัว)</Label>
+            <Label className="mb-2 block">Password (at least 6 chars)</Label>
             <Input
               type="password"
               minLength={6}
@@ -84,13 +84,13 @@ export default function RegisterPage() {
           </div>
 
           <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'สมัครและสร้างร้าน'}
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Sign up and create store'}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          มีบัญชีแล้ว?{' '}
-          <Link href="/login" className="text-primary hover:underline">เข้าสู่ระบบ</Link>
+          Already have an account?{' '}
+          <Link href="/login" className="text-primary hover:underline">Sign in</Link>
         </p>
       </motion.div>
     </div>

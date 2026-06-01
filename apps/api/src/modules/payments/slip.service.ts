@@ -56,7 +56,7 @@ export async function verifySlip(payload: string): Promise<SlipData> {
     throw BadRequest(friendly);
   }
 
-  const body = await res.json();
+  const body: any = await res.json();
   const data = body.data;
   if (!data) throw BadRequest('ไม่พบข้อมูลสลิป');
 

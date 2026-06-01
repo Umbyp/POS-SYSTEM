@@ -30,19 +30,19 @@ const STATUS_VARIANT: Record<string, any> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'รอเตรียม',
-  PREPARING: 'กำลังเตรียม',
-  READY: 'พร้อมส่ง',
-  COMPLETED: 'เสร็จสิ้น',
-  CANCELLED: 'ยกเลิก',
-  REFUNDED: 'คืนเงิน',
+  PENDING: 'Pending',
+  PREPARING: 'Preparing',
+  READY: 'Ready',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  REFUNDED: 'Refunded',
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
-  CASH: 'เงินสด',
-  PROMPTPAY: 'พร้อมเพย์',
-  CREDIT_CARD: 'บัตรเครดิต',
-  BANK_TRANSFER: 'โอนธนาคาร',
+  CASH: 'Cash',
+  PROMPTPAY: 'PromptPay',
+  CREDIT_CARD: 'Credit Card',
+  BANK_TRANSFER: 'Bank Transfer',
 };
 
 export default function OrderDetailPage() {
@@ -58,7 +58,7 @@ export default function OrderDetailPage() {
 
   if (isLoading || !order) {
     return (
-      <div className="p-6 text-center text-muted-foreground">กำลังโหลด...</div>
+      <div className="p-6 text-center text-muted-foreground">Loading...</div>
     );
   }
 
@@ -78,7 +78,7 @@ export default function OrderDetailPage() {
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> กลับ
+            <ArrowLeft className="w-4 h-4 mr-1" /> Back
           </Button>
           <h2 className="text-lg sm:text-xl font-bold">{order.orderNumber}</h2>
           <Badge variant={STATUS_VARIANT[order.status]}>
@@ -91,11 +91,11 @@ export default function OrderDetailPage() {
             size="sm"
             onClick={() => window.open(`/orders/${order.id}/receipt`, '_blank')}
           >
-            <Printer className="w-4 h-4 mr-1" /> ใบเสร็จ
+            <Printer className="w-4 h-4 mr-1" /> Receipt
           </Button>
           {canRefund && (
             <Button variant="danger" size="sm" onClick={() => setRefundOpen(true)}>
-              <Undo2 className="w-4 h-4 mr-1" /> คืนเงิน
+              <Undo2 className="w-4 h-4 mr-1" /> Refund
             </Button>
           )}
         </div>
@@ -105,7 +105,7 @@ export default function OrderDetailPage() {
         {/* Items */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">รายการสินค้า</CardTitle>
+            <CardTitle className="text-base">Items</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -137,7 +137,7 @@ export default function OrderDetailPage() {
                         {refunded > 0 && (
                           <div className="mt-1 text-xs">
                             <Badge variant="warning" className="text-[10px]">
-                              คืนแล้ว {refunded}/{item.quantity}
+                              Refunded {refunded}/{item.quantity}
                             </Badge>
                             {item.refundReason && (
                               <span className="ml-2 italic text-muted-foreground">
@@ -170,39 +170,39 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <ReceiptIcon className="w-4 h-4" /> สรุปยอด
+                <ReceiptIcon className="w-4 h-4" /> Summary
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1.5 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>ยอดรวม</span>
+                <span>Subtotal</span>
                 <span className="tabular-nums">{formatCurrency(order.subtotal)}</span>
               </div>
               {Number(order.discount) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>ส่วนลด</span>
+                  <span>Discount</span>
                   <span className="tabular-nums">-{formatCurrency(order.discount)}</span>
                 </div>
               )}
               {Number(order.serviceCharge) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>ค่าบริการ</span>
+                  <span>Service charge</span>
                   <span className="tabular-nums">{formatCurrency(order.serviceCharge)}</span>
                 </div>
               )}
               {Number(order.tax) > 0 && (
                 <div className="flex justify-between text-xs text-muted-foreground/70">
-                  <span>VAT (รวมในราคา)</span>
+                  <span>VAT (incl.)</span>
                   <span className="tabular-nums">{formatCurrency(order.tax)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-                <span>รวมทั้งสิ้น</span>
+                <span>Total</span>
                 <span className="tabular-nums text-accent">{formatCurrency(order.total)}</span>
               </div>
               {totalRefunded > 0 && (
                 <div className="flex justify-between text-warning font-medium pt-2 border-t border-border">
-                  <span>คืนเงินแล้ว</span>
+                  <span>Refunded</span>
                   <span className="tabular-nums">-{formatCurrency(totalRefunded)}</span>
                 </div>
               )}
@@ -212,7 +212,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="w-4 h-4" /> ชำระเงิน
+                <Wallet className="w-4 h-4" /> Payment
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1.5 text-sm">
@@ -236,35 +236,35 @@ export default function OrderDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">ข้อมูล</CardTitle>
+              <CardTitle className="text-base">Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row icon={<Hash className="w-4 h-4" />} label="เลขที่" value={order.orderNumber} />
+              <Row icon={<Hash className="w-4 h-4" />} label="Number" value={order.orderNumber} />
               <Row
                 icon={<Calendar className="w-4 h-4" />}
-                label="วันที่"
+                label="Date"
                 value={formatDate(order.createdAt)}
               />
               <Row
                 icon={<User className="w-4 h-4" />}
-                label="พนักงาน"
+                label="Cashier"
                 value={order.cashier?.name || '-'}
               />
               {order.table && (
-                <Row label="โต๊ะ" value={`${order.table.number}`} />
+                <Row label="Table" value={`${order.table.number}`} />
               )}
               {order.customer && (
-                <Row label="ลูกค้า" value={order.customer.name} />
+                <Row label="Customer" value={order.customer.name} />
               )}
               {order.customerName && !order.customer && (
-                <Row label="ลูกค้า" value={order.customerName} />
+                <Row label="Customer" value={order.customerName} />
               )}
               {order.customerTaxId && (
-                <Row label="เลขผู้เสียภาษี" value={order.customerTaxId} />
+                <Row label="Tax ID" value={order.customerTaxId} />
               )}
               {order.notes && (
                 <div className="pt-2 border-t border-border">
-                  <div className="text-xs text-muted-foreground">หมายเหตุ</div>
+                  <div className="text-xs text-muted-foreground">Notes</div>
                   <div>{order.notes}</div>
                 </div>
               )}

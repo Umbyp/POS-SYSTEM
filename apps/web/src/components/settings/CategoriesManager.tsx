@@ -33,10 +33,10 @@ export function CategoriesManager() {
       api.post('/products/categories', payload).then((r) => r.data),
     onSuccess: () => {
       invalidate();
-      toast.success('เพิ่มหมวดหมู่แล้ว');
+      toast.success('Category added');
       reset();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'เพิ่มไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to add'),
   });
 
   const update = useMutation({
@@ -44,19 +44,19 @@ export function CategoriesManager() {
       api.patch(`/products/categories/${id}`, rest).then((r) => r.data),
     onSuccess: () => {
       invalidate();
-      toast.success('อัปเดตแล้ว');
+      toast.success('Updated');
       reset();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'อัปเดตไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Update failed'),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/products/categories/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success('ลบหมวดหมู่แล้ว');
+      toast.success('Category deleted');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'ลบไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Delete failed'),
   });
 
   const reset = () => {
@@ -73,7 +73,7 @@ export function CategoriesManager() {
 
   const save = () => {
     if (!form.name.trim()) {
-      toast.error('กรุณาใส่ชื่อหมวดหมู่');
+      toast.error('Please enter a category name');
       return;
     }
     if (editingId) {
@@ -91,12 +91,12 @@ export function CategoriesManager() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FolderTree className="w-5 h-5" /> หมวดหมู่สินค้า
+          <FolderTree className="w-5 h-5" /> Product categories
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {categories.length === 0 && !adding && (
-          <p className="text-sm text-muted-foreground py-2">ยังไม่มีหมวดหมู่</p>
+          <p className="text-sm text-muted-foreground py-2">No categories yet</p>
         )}
 
         {categories.map((c) =>
@@ -128,7 +128,7 @@ export function CategoriesManager() {
                   size="icon"
                   variant="ghost"
                   onClick={() => {
-                    if (confirm(`ลบหมวดหมู่ "${c.name}"?`)) remove.mutate(c.id);
+                    if (confirm(`Delete category "${c.name}"?`)) remove.mutate(c.id);
                   }}
                 >
                   <Trash2 className="w-4 h-4 text-danger" />
@@ -157,7 +157,7 @@ export function CategoriesManager() {
               setForm({ name: '', icon: '' });
             }}
           >
-            <Plus className="w-4 h-4 mr-1" /> เพิ่มหมวดหมู่
+            <Plus className="w-4 h-4 mr-1" /> Add category
           </Button>
         )}
       </CardContent>
@@ -190,7 +190,7 @@ function CategoryEditRow({
       <Input
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        placeholder="ชื่อหมวดหมู่"
+        placeholder="Category name"
         className="flex-1"
         autoFocus
         onKeyDown={(e) => {

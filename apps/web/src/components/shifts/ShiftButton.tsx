@@ -27,7 +27,7 @@ export function ShiftButton() {
   });
 
   if (activeShift) {
-    // กะเปิดอยู่ — แสดงปุ่มปิดกะ + นาฬิกา
+    // Shift open — show close-shift button + clock
     const startTime = formatTime(activeShift.startTime);
     return (
       <>
@@ -36,12 +36,12 @@ export function ShiftButton() {
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/30 text-success text-xs hover:bg-success/20 transition-colors"
         >
           <PlayCircle className="w-3.5 h-3.5" />
-          <span>กะเปิด · {startTime}</span>
+          <span>Shift open · {startTime}</span>
         </button>
         <button
           onClick={() => setOpenDialog(true)}
           className="sm:hidden p-2 rounded-lg bg-success/10 border border-success/30 text-success"
-          aria-label="จัดการกะ"
+          aria-label="Manage shift"
         >
           <PlayCircle className="w-4 h-4" />
         </button>
@@ -61,12 +61,12 @@ export function ShiftButton() {
         onClick={() => setOpenDialog(true)}
         className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-card-hover text-xs transition-colors"
       >
-        <PlayCircle className="w-3.5 h-3.5" /> เปิดกะ
+        <PlayCircle className="w-3.5 h-3.5" /> Open shift
       </button>
       <button
         onClick={() => setOpenDialog(true)}
         className="sm:hidden p-2 rounded-lg border border-border bg-card hover:bg-card-hover"
-        aria-label="เปิดกะ"
+        aria-label="Open shift"
       >
         <PlayCircle className="w-4 h-4" />
       </button>
@@ -94,12 +94,12 @@ function OpenShiftDialog({
     mutationFn: (cash: number) =>
       api.post('/employees/shifts/open', { openingCash: cash }).then((r) => r.data),
     onSuccess: () => {
-      toast.success('เปิดกะแล้ว');
+      toast.success('Shift opened');
       onOpened();
       onClose();
       setOpeningCash('0');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'เปิดกะไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to open shift'),
   });
 
   return (
@@ -107,7 +107,7 @@ function OpenShiftDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PlayCircle className="w-5 h-5 text-success" /> เปิดกะใหม่
+            <PlayCircle className="w-5 h-5 text-success" /> Open new shift
           </DialogTitle>
         </DialogHeader>
         <form
@@ -118,10 +118,10 @@ function OpenShiftDialog({
           className="space-y-3"
         >
           <p className="text-sm text-muted-foreground">
-            นับเงินสดในลิ้นชักก่อนเริ่มกะ เพื่อเช็คตอนปิดกะให้ตรง
+            Count cash in the drawer before starting the shift to reconcile when closing
           </p>
           <div>
-            <Label className="mb-1.5 block">เงินสดเริ่มต้น (บาท)</Label>
+            <Label className="mb-1.5 block">Opening cash (฿)</Label>
             <Input
               type="number"
               step="0.01"
@@ -134,10 +134,10 @@ function OpenShiftDialog({
           </div>
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button type="submit" variant="success" className="flex-1" disabled={mut.isPending}>
-              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'เปิดกะ'}
+              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Open shift'}
             </Button>
           </div>
         </form>
@@ -191,13 +191,13 @@ function CloseShiftDialog({
     mutationFn: (payload: any) =>
       api.post(`/employees/shifts/${shift.id}/close`, payload).then((r) => r.data),
     onSuccess: () => {
-      toast.success('ปิดกะเรียบร้อย');
+      toast.success('Shift closed');
       onClosed();
       onClose();
       setClosingCash('');
       setNotes('');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'ปิดกะไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to close shift'),
   });
 
   return (
@@ -205,30 +205,30 @@ function CloseShiftDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <StopCircle className="w-5 h-5 text-danger" /> ปิดกะ
+            <StopCircle className="w-5 h-5 text-danger" /> Close shift
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">เปิดกะเวลา</span>
+            <span className="text-muted-foreground">Opened at</span>
             <span className="font-medium">{formatTime(shift?.startTime)}</span>
           </div>
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">เงินสดเริ่มต้น</span>
+            <span className="text-muted-foreground">Opening cash</span>
             <span className="tabular-nums font-medium">
               {formatCurrency(shift?.openingCash || 0)}
             </span>
           </div>
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">ยอดขายระหว่างกะ ({summary?.orderCount || 0} ออเดอร์)</span>
+            <span className="text-muted-foreground">Sales during shift ({summary?.orderCount || 0} orders)</span>
             <span className="tabular-nums font-medium">
               {formatCurrency(summary?.totalSales || 0)}
             </span>
           </div>
           <div className="flex justify-between p-2 rounded bg-primary/10 border border-primary/30">
             <span className="font-medium flex items-center gap-1">
-              <Wallet className="w-3.5 h-3.5" /> เงินสดที่ควรมี
+              <Wallet className="w-3.5 h-3.5" /> Expected cash
             </span>
             <span className="tabular-nums font-bold text-primary">
               {formatCurrency(expectedCash)}
@@ -247,7 +247,7 @@ function CloseShiftDialog({
           className="space-y-3 mt-2"
         >
           <div>
-            <Label className="mb-1.5 block">นับเงินสดในลิ้นชักจริง</Label>
+            <Label className="mb-1.5 block">Actual counted cash</Label>
             <Input
               type="number"
               step="0.01"
@@ -269,29 +269,29 @@ function CloseShiftDialog({
                 }`}
               >
                 {Math.abs(diff) < 0.01
-                  ? '✅ ตรงพอดี'
+                  ? '✅ Exactly matches'
                   : diff > 0
-                  ? `⚠️ เกิน ${formatCurrency(diff)}`
-                  : `🔴 ขาด ${formatCurrency(-diff)}`}
+                  ? `⚠️ Over ${formatCurrency(diff)}`
+                  : `🔴 Short ${formatCurrency(-diff)}`}
               </div>
             )}
           </div>
           <div>
-            <Label className="mb-1.5 block">บันทึก (ไม่บังคับ)</Label>
+            <Label className="mb-1.5 block">Notes (optional)</Label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="เช่น มีเงินทอนผิดให้ลูกค้า..."
+              placeholder="e.g. gave wrong change to a customer..."
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
           </div>
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              ยกเลิก
+              Cancel
             </Button>
             <Button type="submit" variant="danger" className="flex-1" disabled={mut.isPending}>
-              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'ปิดกะ'}
+              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Close shift'}
             </Button>
           </div>
         </form>
