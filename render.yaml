@@ -11,7 +11,8 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    buildCommand: npm install && npm run build --workspace=apps/api
+    # npm ci = ติดตั้งตาม package-lock.json เป๊ะ ๆ (กัน npm อัป typescript เป็นเวอร์ชันใหม่กว่าที่ทดสอบไว้)
+    buildCommand: npm ci && npm run build --workspace=apps/api
     startCommand: npm run start --workspace=apps/api
     healthCheckPath: /health
     envVars:
