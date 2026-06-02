@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Receipt } from '@/components/pos/Receipt';
+import { PromptPayQR } from '@/components/pos/PromptPayQR';
 
 type Method = 'CASH' | 'PROMPTPAY';
 
@@ -93,6 +94,8 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const canPay =
     method === 'CASH'
       ? parseFloat(received || '0') >= total
+      : !stripeEnabled
+      ? true // โหมด QR พร้อมเพย์ตรง — แคชเชียร์กดยืนยันเองหลังลูกค้าจ่าย
       : ppStatus === 'paid' || !!reference.trim();
 
   // Confirm button: ซ่อนระหว่างขั้นตอน Stripe PromptPay (สร้าง QR / รอจ่าย / auto-submit)
@@ -363,10 +366,20 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
             {method === 'PROMPTPAY' && (
               <div className="space-y-3">
                 {!stripeEnabled ? (
-                  <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 text-sm">
-                    ⚠️ ยังไม่ได้ตั้งค่า Stripe — ใส่ <code className="font-mono">STRIPE_SECRET_KEY</code> ใน
-                    <strong> apps/api/.env</strong> หรือยืนยันการรับเงินด้วยตนเองด้านล่าง
-                  </div>
+                  // ยังไม่ได้เปิด Stripe (เช่น รอ Stripe live อนุมัติ) → ใช้ QR พร้อมเพย์ตรงของร้านชั่วคราว
+                  store?.promptpayId ? (
+                    <div className="space-y-2">
+                      <PromptPayQR promptpayId={store.promptpayId} amount={total} merchantName={store.name} />
+                      <p className="text-xs text-center text-muted-foreground">
+                        ให้ลูกค้าสแกนจ่ายเข้าบัญชีร้าน แล้วกด “Confirm payment” เมื่อได้รับเงิน (เช็คจากแอปธนาคาร/SMS)
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 text-sm">
+                      ⚠️ ยังไม่ได้ตั้ง <strong>PromptPay ID</strong> — ไปที่ <strong>Settings</strong> เพื่อตั้งค่าก่อน
+                      หรือยืนยันการรับเงินด้วยตนเองด้านล่าง
+                    </div>
+                  )
                 ) : ppStatus === 'idle' || ppStatus === 'error' ? (
                   <div className="text-center">
                     <Button onClick={generateQr} className="w-full" size="lg">
