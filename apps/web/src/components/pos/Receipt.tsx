@@ -13,11 +13,12 @@ interface Props {
   invoiceType?: 'abbreviated' | 'full';
 }
 
+// ไม่ใช้ emoji — เครื่องปริ้นความร้อน (thermal) ปริ้น emoji ไม่ออก (ขึ้นเป็นกล่อง)
 const PAYMENT_LABEL: Record<string, string> = {
-  CASH: '💵 Cash',
-  PROMPTPAY: '📱 PromptPay',
-  CREDIT_CARD: '💳 Credit Card',
-  BANK_TRANSFER: '🏦 Bank Transfer',
+  CASH: 'Cash / เงินสด',
+  PROMPTPAY: 'PromptPay / พร้อมเพย์',
+  CREDIT_CARD: 'Credit Card / บัตรเครดิต',
+  BANK_TRANSFER: 'Bank Transfer / โอน',
 };
 
 const TYPE_LABEL: Record<string, string> = {
