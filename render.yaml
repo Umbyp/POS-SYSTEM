@@ -11,8 +11,10 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    # npm ci = ติดตั้งตาม package-lock.json เป๊ะ ๆ (กัน npm อัป typescript เป็นเวอร์ชันใหม่กว่าที่ทดสอบไว้)
-    buildCommand: npm ci && npm run build --workspace=apps/api
+    # ใช้ npm install (ไม่ใช่ npm ci) เพื่อให้ resolve native binary ตาม platform ที่รัน
+    # — สำคัญสำหรับ sharp (ต้องการ linux-x64 binary บน Render) เพราะ lockfile ถูกสร้างจาก Windows
+    # version สำคัญ ๆ ถูก pin ไว้แล้ว (typescript 5.9.3 เป๊ะ, @types ^4) จึงยัง deterministic
+    buildCommand: npm install && npm run build --workspace=apps/api
     startCommand: npm run start --workspace=apps/api
     healthCheckPath: /health
     envVars:
