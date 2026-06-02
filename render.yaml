@@ -11,10 +11,11 @@ services:
     plan: free
     region: singapore
     rootDir: .
-    # ใช้ npm install (ไม่ใช่ npm ci) เพื่อให้ resolve native binary ตาม platform ที่รัน
-    # — สำคัญสำหรับ sharp (ต้องการ linux-x64 binary บน Render) เพราะ lockfile ถูกสร้างจาก Windows
-    # version สำคัญ ๆ ถูก pin ไว้แล้ว (typescript 5.9.3 เป๊ะ, @types ^4) จึงยัง deterministic
-    buildCommand: npm install && npm run build --workspace=apps/api
+    # ลบ lockfile ก่อนติดตั้ง: lockfile ถูกสร้างจาก Windows ทำให้ npm ไม่ลง native binary
+    # ของ sharp สำหรับ linux-x64 (bug ของ npm กับ optional deps ข้าม platform).
+    # การ resolve ใหม่บน Linux จะลง @img/sharp-linux-x64 ให้ถูกต้อง.
+    # version สำคัญถูก pin ใน package.json แล้ว (typescript 5.9.3 เป๊ะ, @types ^4) จึงยัง deterministic
+    buildCommand: rm -f package-lock.json && npm install && npm run build --workspace=apps/api
     startCommand: npm run start --workspace=apps/api
     healthCheckPath: /health
     envVars:
