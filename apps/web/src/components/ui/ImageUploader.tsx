@@ -1,7 +1,7 @@
 'use client';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, Image as ImageIcon, X, Loader2, Link as LinkIcon } from 'lucide-react';
+import { Camera, Image as ImageIcon, X, Loader2, Link as LinkIcon, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { resolveImageUrl } from '@/lib/imageUrl';
@@ -67,6 +67,10 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
   const preview = resolveImageUrl(value);
   const aspectClass = aspect === 'square' ? 'aspect-square' : 'aspect-video';
 
+  // Track image load failure so we show a clear fallback (instead of a blank box)
+  const [imgError, setImgError] = useState(false);
+  useEffect(() => setImgError(false), [preview]);
+
   return (
     <div className="space-y-2">
       <input
@@ -90,15 +94,31 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
           <div
             className={`${aspectClass} rounded-lg overflow-hidden border border-border bg-muted relative`}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={preview}
-              alt="Preview"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-            />
+            {imgError ? (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5 px-3 text-muted-foreground">
+                <ImageIcon className="w-8 h-8 opacity-40" />
+                <span className="text-xs font-medium">Preview couldn&apos;t load</span>
+                <a
+                  href={preview}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] text-primary underline break-all"
+                >
+                  Open image in new tab
+                </a>
+                <span className="text-[10px] text-muted-foreground/70">
+                  The image is uploaded &amp; saved — it will appear after you Save
+                </span>
+              </div>
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={preview}
+                alt="Preview"
+                className="w-full h-full object-cover"
+                onError={() => setImgError(true)}
+              />
+            )}
             {upload.isPending && (
               <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
                 <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -135,6 +155,16 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
               <ImageIcon className="w-4 h-4 mr-1" /> Choose file
             </Button>
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={clear}
+            disabled={upload.isPending || removeFile.isPending}
+            className="w-full mt-2 text-danger hover:text-danger border-danger/30 hover:bg-danger/5"
+          >
+            <Trash2 className="w-4 h-4 mr-1" /> Remove image
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
