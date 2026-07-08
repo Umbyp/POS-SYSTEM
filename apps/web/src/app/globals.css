@@ -3,15 +3,46 @@
 @tailwind utilities;
 
 @layer base {
+  /* ---------------------------------------------------------------------------
+   * Theme tokens. Neutrals are CSS variables (space-separated RGB channels so
+   * Tailwind's `/opacity` modifiers keep working via rgb(var(--x) / <alpha>)).
+   * Brand accent (orange), success/emerald etc. stay static across themes.
+   * ------------------------------------------------------------------------- */
   :root {
     color-scheme: light;
+    --background: 245 246 248; /* #F5F6F8 */
+    --card: 255 255 255;       /* #FFFFFF */
+    --card-hover: 249 250 251; /* #F9FAFB */
+    --muted: 243 244 246;      /* #F3F4F6 */
+    --muted-foreground: 107 114 128; /* #6B7280 */
+    --border: 229 231 235;     /* #E5E7EB */
+    --input: 255 255 255;      /* #FFFFFF */
+    --foreground: 17 24 39;    /* #111827 */
   }
+
+  .dark {
+    color-scheme: dark;
+    --background: 9 13 22;      /* #090d16 — slate-950 */
+    --card: 21 28 44;          /* #151c2c */
+    --card-hover: 30 39 60;    /* #1e273c */
+    --muted: 30 39 60;         /* #1e273c */
+    --muted-foreground: 148 158 178; /* soft slate */
+    --border: 42 53 79;        /* #2a354f — subtle */
+    --input: 30 39 60;         /* #1e273c */
+    --foreground: 237 240 247; /* near-white */
+  }
+
   html, body {
     @apply bg-background text-foreground;
     font-feature-settings: 'cv11', 'ss01', 'tnum';
     font-variation-settings: 'opsz' 32;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  /* Smooth the theme flip — only applied while toggling to avoid janky loads */
+  html.theme-transition,
+  html.theme-transition * {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.2s ease;
   }
   * {
     @apply border-border;
@@ -36,13 +67,36 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background: #9CA3AF;
   }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: #2f3b57;
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: #44547a;
+  }
 }
 
-/* Loading shimmer — light mode */
+/* Theme-aware elevation — plain black shadows vanish on dark surfaces, so the
+ * dark theme leans on a hairline ring + deeper shadow instead. `.dark .x` wins
+ * over Tailwind's `.x` on specificity. */
+.dark .shadow-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+.dark .shadow-card-hover {
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+.dark .shadow-pop {
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* Loading shimmer — theme-aware */
 .shimmer {
   background: linear-gradient(90deg, #F3F4F6 0%, #E5E7EB 50%, #F3F4F6 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
+}
+.dark .shimmer {
+  background: linear-gradient(90deg, #151c2c 0%, #1f2940 50%, #151c2c 100%);
+  background-size: 200% 100%;
 }
 
 @keyframes shimmer {
@@ -61,7 +115,7 @@
   animation: scan-line-vertical 2s ease-in-out infinite;
 }
 
-/* Print styles for reports */
+/* Print styles for reports — force light regardless of active theme */
 @media print {
   aside, header, .no-print { display: none !important; }
   body, html { background: white !important; color: black !important; }

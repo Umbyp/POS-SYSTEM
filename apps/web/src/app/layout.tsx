@@ -27,6 +27,15 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th" suppressHydrationWarning>
+      <head>
+        {/* Apply the saved theme before first paint to avoid a flash of the
+            wrong theme. Runs synchronously in <head>. Defaults to light. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${ibmThai.variable} font-sans antialiased`}
         suppressHydrationWarning

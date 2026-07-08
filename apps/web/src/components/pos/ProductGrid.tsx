@@ -31,9 +31,9 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {Array.from({ length: 12 }).map((_, i) => (
-          <div key={i} className="shimmer aspect-[3/4] rounded-xl" />
+          <div key={i} className="shimmer aspect-[3/4] rounded-2xl" />
         ))}
       </div>
     );
@@ -66,7 +66,7 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
     <>
       <motion.div
         layout
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
+        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
       >
         {products.map((p) => {
           const stock = p.inventory?.quantity ?? 0;
@@ -79,13 +79,13 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
             <motion.button
               key={p.id}
               layout
-              whileTap={{ scale: 0.97 }}
+              whileTap={{ scale: 0.96 }}
               disabled={outOfStock}
               onClick={() => handleClick(p)}
-              className="group relative bg-card rounded-xl shadow-card hover:shadow-card-hover border border-border hover:border-primary/30 p-2 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+              className="group relative bg-card rounded-2xl shadow-card hover:shadow-card-hover border border-border hover:border-primary/40 p-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 overflow-hidden"
             >
               {/* Image */}
-              <div className={`aspect-square rounded-lg mb-2 overflow-hidden bg-gradient-to-br ${gradient} relative`}>
+              <div className={`aspect-square rounded-xl mb-2.5 overflow-hidden bg-gradient-to-br ${gradient} relative`}>
                 {p.image ? (
                   <img
                     src={resolveImageUrl(p.image)}
@@ -120,7 +120,7 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
 
                 {/* Options chip — overlay top-left */}
                 {hasVariants && (
-                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-white/95 text-foreground text-[9px] font-semibold uppercase tracking-wider shadow-sm">
+                  <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-card/95 text-foreground text-[9px] font-semibold uppercase tracking-wider shadow-sm border border-border/60">
                     Options
                   </span>
                 )}

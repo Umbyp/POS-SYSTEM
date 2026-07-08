@@ -6,17 +6,20 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Light mode palette — RestroBit-inspired
-        background: '#F5F6F8',        // App background (very light gray)
-        card: '#FFFFFF',              // Cards (pure white)
-        'card-hover': '#F9FAFB',      // Hover state
+        // Neutrals are driven by CSS variables (see globals.css) so the whole
+        // app flips between the light "RestroBit" palette and the premium dark
+        // palette (#090d16 / #151c2c). Channels are space-separated RGB so the
+        // `/opacity` modifier (e.g. bg-card/70, border-primary/30) still works.
+        background: 'rgb(var(--background) / <alpha-value>)',
+        card: 'rgb(var(--card) / <alpha-value>)',
+        'card-hover': 'rgb(var(--card-hover) / <alpha-value>)',
         muted: {
-          DEFAULT: '#F3F4F6',
-          foreground: '#6B7280',      // Secondary text
+          DEFAULT: 'rgb(var(--muted) / <alpha-value>)',
+          foreground: 'rgb(var(--muted-foreground) / <alpha-value>)',
         },
-        border: '#E5E7EB',            // Soft borders
-        input: '#FFFFFF',
-        foreground: '#111827',        // Primary text (near black)
+        border: 'rgb(var(--border) / <alpha-value>)',
+        input: 'rgb(var(--input) / <alpha-value>)',
+        foreground: 'rgb(var(--foreground) / <alpha-value>)',
 
         // Primary — Orange (RestroBit signature)
         primary: {
