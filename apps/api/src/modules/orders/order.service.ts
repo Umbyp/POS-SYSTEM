@@ -317,7 +317,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     if (input.tableId) {
       updatedTable = await tx.table.update({
         where: { id: input.tableId },
-        data: { status: 'OCCUPIED' },
+        data: { status: 'OCCUPIED', occupiedAt: new Date() },
       });
     }
 
@@ -419,7 +419,7 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server) 
   if (order.tableId && (status === 'COMPLETED' || status === 'CANCELLED')) {
     const table = await prisma.table.update({
       where: { id: order.tableId },
-      data: { status: 'AVAILABLE' },
+      data: { status: 'AVAILABLE', occupiedAt: null },
     });
     io.to(`store:${order.storeId}`).emit('table:updated', table);
   }
@@ -468,7 +468,7 @@ export async function refund(id: string, userId: string, io: Server) {
     if (order.tableId) {
       freedTable = await tx.table.update({
         where: { id: order.tableId },
-        data: { status: 'AVAILABLE' },
+        data: { status: 'AVAILABLE', occupiedAt: null },
       });
     }
 
@@ -564,7 +564,7 @@ export async function refundItems(
     if (allRefunded && order.tableId) {
       const freed = await tx.table.update({
         where: { id: order.tableId },
-        data: { status: 'AVAILABLE' },
+        data: { status: 'AVAILABLE', occupiedAt: null },
       });
       io.to(`store:${order.storeId}`).emit('table:updated', freed);
     }
@@ -656,7 +656,7 @@ export async function parkOrder(input: ParkOrderInput, io: Server) {
     if (input.tableId) {
       const t = await tx.table.update({
         where: { id: input.tableId },
-        data: { status: 'OCCUPIED' },
+        data: { status: 'OCCUPIED', occupiedAt: new Date() },
       });
       io.to(`store:${input.storeId}`).emit('table:updated', t);
     }
@@ -703,7 +703,7 @@ export async function deleteParked(id: string, userId: string, io: Server) {
   });
 }
 
-async function generateOrderNumber(tx: any, storeId: string): Promise<string> {
+export async function generateOrderNumber(tx: any, storeId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);

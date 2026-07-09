@@ -10,6 +10,28 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { playBeep } from '@/lib/sounds';
 
+/**
+ * Group order items by when they were fired. Items created within ~2s of
+ * each other count as the same round (nested creates in one transaction
+ * share nearly the same timestamp); a bigger gap means a later addRound()
+ * call — i.e. the table ordered more after the ticket was already cooking.
+ */
+function groupByRound(items: any[]) {
+  const sorted = [...items].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+  const groups: { firedAt: string; items: any[] }[] = [];
+  for (const item of sorted) {
+    const last = groups[groups.length - 1];
+    if (last && new Date(item.createdAt).getTime() - new Date(last.firedAt).getTime() <= 2000) {
+      last.items.push(item);
+    } else {
+      groups.push({ firedAt: item.createdAt, items: [item] });
+    }
+  }
+  return groups;
+}
+
 export default function KDSPage() {
   const qc = useQueryClient();
   const [muted, setMuted] = useState(() => {
@@ -132,17 +154,29 @@ export default function KDSPage() {
                   </div>
 
                   <div className="space-y-2 mb-3 border-y border-border py-2">
-                    {o.items.map((item: any) => (
-                      <div key={item.id} className="flex gap-2">
-                        <span className="font-bold text-accent w-8 text-center">
-                          {item.quantity}×
-                        </span>
-                        <div className="flex-1">
-                          <div className="font-medium">{item.product.name}</div>
-                          {item.notes && (
-                            <div className="text-xs text-warning italic">↪ {item.notes}</div>
-                          )}
-                        </div>
+                    {groupByRound(o.items).map((round, i) => (
+                      <div
+                        key={round.firedAt}
+                        className={i > 0 ? 'pt-2 mt-1 border-t border-dashed border-accent/40' : undefined}
+                      >
+                        {i > 0 && (
+                          <div className="text-[10px] font-semibold text-accent uppercase tracking-wide mb-1">
+                            + เพิ่มรอบใหม่ · {Math.max(0, Math.floor((Date.now() - new Date(round.firedAt).getTime()) / 60000))} นาทีที่แล้ว
+                          </div>
+                        )}
+                        {round.items.map((item: any) => (
+                          <div key={item.id} className="flex gap-2">
+                            <span className="font-bold text-accent w-8 text-center">
+                              {item.quantity}×
+                            </span>
+                            <div className="flex-1">
+                              <div className="font-medium">{item.product.name}</div>
+                              {item.notes && (
+                                <div className="text-xs text-warning italic">↪ {item.notes}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>

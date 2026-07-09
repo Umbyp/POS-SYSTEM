@@ -225,7 +225,8 @@ model PurchaseOrder {
 
 model Order {
   id            String      @id @default(cuid())
-  orderNumber   String      @unique
+  orderNumber   String      // unique per store (see @@unique below), not globally —
+                            // two stores' "first order of the day" would otherwise collide
   storeId       String
   cashierId     String
   customerId    String?
@@ -255,6 +256,7 @@ model Order {
   items         OrderItem[]
   payments      Payment[]
 
+  @@unique([storeId, orderNumber])
   @@index([storeId, createdAt])
   @@index([status])
   @@index([customerId])
@@ -283,18 +285,19 @@ model Customer {
 }
 
 model OrderItem {
-  id           String  @id @default(cuid())
+  id           String   @id @default(cuid())
   orderId      String
   productId    String
   quantity     Int
-  refundedQty  Int     @default(0)
-  unitPrice    Decimal @db.Decimal(10, 2)
-  discount     Decimal @default(0) @db.Decimal(10, 2)
+  refundedQty  Int      @default(0)
+  unitPrice    Decimal  @db.Decimal(10, 2)
+  discount     Decimal  @default(0) @db.Decimal(10, 2)
   notes        String?
   variants     Json?
   refundReason String?
-  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product      Product @relation(fields: [productId], references: [id])
+  createdAt    DateTime @default(now()) // lets KDS tell "round 2 just fired" from the original order
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product  @relation(fields: [productId], references: [id])
 }
 
 model Payment {
@@ -316,7 +319,8 @@ model Table {
   number   String
   capacity Int     @default(4)
   size     String  @default("MEDIUM") // SMALL | MEDIUM | LARGE
-  status   String  @default("AVAILABLE")
+  status   String  @default("AVAILABLE") // AVAILABLE | RESERVED | OCCUPIED | BILLING | DIRTY
+  occupiedAt DateTime? // set when guests are seated; drives elapsed-time badge
   qrCode   String? @unique
   storeId  String
   orders   Order[]

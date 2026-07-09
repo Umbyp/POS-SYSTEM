@@ -34,8 +34,10 @@ interface CartState {
   promoCode: string;
   tableId?: string;
   type: OrderType;
+  gpFeePct: number; // delivery-platform commission % (e.g. LINE MAN ~30%)
   customerNote: string;
   customer?: CartCustomer;
+  openOrderId?: string; // server id of the table's running (open) bill, if any
 
   addItem: (item: Omit<CartItem, 'quantity'> & { quantity?: number }) => void;
   updateQty: (productId: string, qty: number) => void;
@@ -47,8 +49,11 @@ interface CartState {
   setPromoCode: (c: string) => void;
   setTable: (id?: string) => void;
   setType: (t: OrderType) => void;
+  setGpFeePct: (pct: number) => void;
+  setOpenOrder: (id?: string) => void;
   setCustomerNote: (n: string) => void;
   setCustomer: (c?: CartCustomer) => void;
+  clearItems: () => void;
   clear: () => void;
 
   subtotal: () => number;
@@ -63,6 +68,7 @@ export const useCart = create<CartState>()(
       pointsToRedeem: 0,
       promoCode: '',
       type: 'DINE_IN',
+      gpFeePct: 30,
       customerNote: '',
 
       addItem: (item) =>
@@ -105,10 +111,15 @@ export const useCart = create<CartState>()(
       setPromoCode: (c) => set({ promoCode: c }),
       setTable: (id) => set({ tableId: id }),
       setType: (t) => set({ type: t }),
+      setGpFeePct: (pct) => set({ gpFeePct: Math.min(100, Math.max(0, pct)) }),
+      setOpenOrder: (id) => set({ openOrderId: id }),
       setCustomerNote: (n) => set({ customerNote: n }),
       setCustomer: (c) =>
         // Reset points when changing customer
         set({ customer: c, pointsToRedeem: 0 }),
+
+      // Clear the current (unsent) round but keep the table/customer selection
+      clearItems: () => set({ items: [], discount: 0, promotion: undefined, promoCode: '' }),
 
       clear: () =>
         set({
@@ -120,6 +131,7 @@ export const useCart = create<CartState>()(
           tableId: undefined,
           customerNote: '',
           customer: undefined,
+          openOrderId: undefined,
         }),
 
       subtotal: () =>

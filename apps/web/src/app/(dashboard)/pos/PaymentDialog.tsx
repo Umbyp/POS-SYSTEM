@@ -5,8 +5,9 @@ import { Banknote, QrCode, CheckCircle2, Loader2, Printer, ArrowLeft, RefreshCw,
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCart } from '@/stores/cart.store';
-import { submitOrderWithFallback } from '@/hooks/useOfflineQueue';
+import { submitOrderWithFallback, submitSettleWithFallback } from '@/hooks/useOfflineQueue';
 import { formatCurrency } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { computePricing, DEFAULT_TAX_CONFIG } from '@/lib/pricing';
 import { playCashRegister } from '@/lib/sounds';
 import { api } from '@/lib/api';
@@ -22,11 +23,13 @@ import { Receipt } from '@/components/pos/Receipt';
 import { PromptPayQR } from '@/components/pos/PromptPayQR';
 
 type Method = 'CASH' | 'PROMPTPAY';
+// Extra split-tender lines can be any backend payment method — a card
+// terminal or bank transfer isn't wired up live like PromptPay, so those
+// just record the amount + an optional reference the cashier types in.
+type ExtraMethod = 'CASH' | 'PROMPTPAY' | 'CREDIT_CARD' | 'BANK_TRANSFER';
 
-const METHODS: { id: Method; label: string; icon: any; color: string }[] = [
-  { id: 'CASH', label: 'Cash', icon: Banknote, color: 'bg-success' },
-  { id: 'PROMPTPAY', label: 'PromptPay', icon: QrCode, color: 'bg-primary' },
-];
+const METHOD_ICON: Record<Method, any> = { CASH: Banknote, PROMPTPAY: QrCode };
+const METHOD_COLOR: Record<Method, string> = { CASH: 'bg-success', PROMPTPAY: 'bg-primary' };
 
 type PpStatus = 'idle' | 'creating' | 'waiting' | 'paid' | 'error';
 interface PpIntent {
@@ -40,6 +43,14 @@ interface PpIntent {
 export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const cart = useCart();
+  const t = useT();
+  const METHOD_LABEL: Record<Method, string> = { CASH: t('pay.cash'), PROMPTPAY: t('pay.promptpay') };
+  const EXTRA_METHOD_LABEL: Record<ExtraMethod, string> = {
+    CASH: t('pay.cash'),
+    PROMPTPAY: t('pay.promptpay'),
+    CREDIT_CARD: t('pay.creditCard'),
+    BANK_TRANSFER: t('pay.bankTransfer'),
+  };
 
   // Fetch store data (for receipt/tax config)
   const { data: store } = useQuery({
@@ -63,8 +74,23 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     serviceCharge: store?.serviceCharge ?? DEFAULT_TAX_CONFIG.serviceCharge,
   };
 
-  const sub = cart.subtotal();
-  const breakdown = computePricing(sub, cart.discount, cfg);
+  // Settle mode: paying an existing open (dine-in) bill instead of creating one.
+  // Items were already cleared from the cart when they were sent to the
+  // kitchen, so the subtotal must come from the server's running bill —
+  // cart.subtotal() would read as 0 here.
+  const settleId = cart.openOrderId;
+  const { data: settleOrder } = useQuery({
+    queryKey: ['settle-order', settleId],
+    queryFn: () => api.get(`/orders/${settleId}`).then((r) => r.data),
+    enabled: open && !!settleId,
+  });
+  const settleNotReady = !!settleId && !settleOrder;
+
+  const sub = settleId ? Number(settleOrder?.subtotal ?? 0) : cart.subtotal();
+  // 1 point = 1 baht, matching Cart.tsx's own redeem logic
+  const pointDiscount = cart.pointsToRedeem || 0;
+  const promoDiscount = cart.promotion?.discountAmount || 0;
+  const breakdown = computePricing(sub, cart.discount + pointDiscount + promoDiscount, cfg);
   const total = breakdown.total;
 
   const [method, setMethod] = useState<Method>('CASH');
@@ -74,6 +100,35 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<any>(null);
   const [showingReceipt, setShowingReceipt] = useState(false);
+
+  // Split tender — extra payment lines on top of the primary method below
+  // (e.g. ฿300 cash + remainder on a card). Each line records its own
+  // amount/reference; the primary CASH/PromptPay flow only has to cover
+  // whatever's left after these.
+  const [extraPayments, setExtraPayments] = useState<
+    { method: ExtraMethod; amount: string; reference: string }[]
+  >([]);
+  const addExtraPayment = () =>
+    setExtraPayments((p) => [...p, { method: 'CASH', amount: '', reference: '' }]);
+  const updateExtraPayment = (i: number, patch: Partial<{ method: ExtraMethod; amount: string; reference: string }>) =>
+    setExtraPayments((p) => p.map((line, idx) => (idx === i ? { ...line, ...patch } : line)));
+  const removeExtraPayment = (i: number) =>
+    setExtraPayments((p) => p.filter((_, idx) => idx !== i));
+  const extraTotal = extraPayments.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  // What the primary method still needs to cover, after split-tender lines
+  const remaining = Math.max(0, Math.round((total - extraTotal) * 100) / 100);
+
+  // Split evenly by N people — fills in (N-1) equal cash lines and leaves the
+  // last share to the primary method below, which also absorbs any rounding
+  // remainder (each share is rounded down so the shares never overpay).
+  const [splitCount, setSplitCount] = useState(2);
+  const applySplitEvenly = () => {
+    const n = Math.max(2, Math.min(20, splitCount));
+    const share = Math.floor((total / n) * 100) / 100;
+    setExtraPayments(
+      Array.from({ length: n - 1 }, () => ({ method: 'CASH' as ExtraMethod, amount: share.toFixed(2), reference: '' }))
+    );
+  };
 
   // Stripe PromptPay state
   const [ppIntent, setPpIntent] = useState<PpIntent | null>(null);
@@ -88,15 +143,18 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
   const change = useMemo(() => {
     const r = parseFloat(received || '0');
-    return method === 'CASH' ? Math.max(0, r - total) : 0;
-  }, [received, total, method]);
+    return method === 'CASH' ? Math.max(0, r - remaining) : 0;
+  }, [received, remaining, method]);
 
   const canPay =
-    method === 'CASH'
-      ? parseFloat(received || '0') >= total
+    !settleNotReady &&
+    (remaining <= 0
+      ? true // split-tender lines already cover the full bill
+      : method === 'CASH'
+      ? parseFloat(received || '0') >= remaining
       : !stripeEnabled
       ? true // โหมด QR พร้อมเพย์ตรง — แคชเชียร์กดยืนยันเองหลังลูกค้าจ่าย
-      : ppStatus === 'paid' || !!reference.trim();
+      : ppStatus === 'paid' || !!reference.trim());
 
   // Confirm button: ซ่อนระหว่างขั้นตอน Stripe PromptPay (สร้าง QR / รอจ่าย / auto-submit)
   // โชว์เฉพาะเงินสด, กรณี Stripe ปิด, หรือใส่เลขอ้างอิงเองเพื่อยืนยันด้วยมือ
@@ -108,7 +166,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     setPpStatus('creating');
     try {
       const r = await api.post('/payments/promptpay/intent', {
-        amount: Number(total.toFixed(2)),
+        amount: Number(remaining.toFixed(2)),
         orderRef: cart.tableId || undefined,
       });
       setPpIntent(r.data);
@@ -173,6 +231,57 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
             : reference || undefined
           : undefined;
 
+      // Split-tender lines first, then the primary method for whatever's left
+      // (skipped entirely if the extra lines already cover the full bill).
+      const payments: { method: string; amount: number; reference?: string }[] = extraPayments
+        .filter((p) => (parseFloat(p.amount) || 0) > 0)
+        .map((p) => ({ method: p.method, amount: parseFloat(p.amount), reference: p.reference || undefined }));
+      if (remaining > 0 || payments.length === 0) {
+        payments.push({
+          method,
+          amount: method === 'CASH' ? parseFloat(received || '0') : remaining,
+          reference: promptpayRef,
+        });
+      }
+
+      // Settle mode: pay an existing open bill (dine-in) — order already exists,
+      // items already fired. Queues for retry if the connection drops right
+      // at checkout, same safety net as the create-order flow below.
+      if (settleId) {
+        const settlePayload: any = {
+          payments,
+          discount: cart.discount,
+          pointsToRedeem: cart.pointsToRedeem || undefined,
+          customerId: cart.customer?.id,
+          promotionId: cart.promotion?.promotionId,
+          promotionDiscount: cart.promotion?.discountAmount,
+          promotionName: cart.promotion?.promotionName,
+        };
+        if (showCustomerInfo) {
+          settlePayload.customerName = customerName || undefined;
+          settlePayload.customerTaxId = customerTaxId || undefined;
+          settlePayload.customerAddress = customerAddress || undefined;
+        }
+
+        const result = await submitSettleWithFallback(settleId, settlePayload);
+
+        if (result.offline) {
+          toast.success(t('pay.offlineSaved'));
+          cart.clear();
+          onClose();
+          return;
+        }
+
+        setSuccess(result.data);
+        qc.invalidateQueries({ queryKey: ['orders'] });
+        qc.invalidateQueries({ queryKey: ['products'] });
+        qc.invalidateQueries({ queryKey: ['tables'] });
+        qc.invalidateQueries({ queryKey: ['open-bill'] });
+        playCashRegister();
+        cart.clear();
+        return;
+      }
+
       const payload: any = {
         type: cart.type,
         tableId: cart.tableId,
@@ -188,13 +297,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         promotionId: cart.promotion?.promotionId,
         promotionDiscount: cart.promotion?.discountAmount,
         promotionName: cart.promotion?.promotionName,
-        payments: [
-          {
-            method,
-            amount: method === 'CASH' ? parseFloat(received) : total,
-            reference: promptpayRef,
-          },
-        ],
+        payments,
         notes: cart.customerNote,
       };
 
@@ -207,7 +310,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
       const result = await submitOrderWithFallback(payload);
 
       if (result.offline) {
-        toast.success('Saved offline — will sync when online');
+        toast.success(t('pay.offlineSaved'));
         cart.clear();
         onClose();
       } else {
@@ -218,7 +321,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         cart.clear();
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Payment failed');
+      toast.error(err.response?.data?.error || t('pay.failed'));
       // ปล่อยให้แคชเชียร์ลองใหม่ได้ (กรณี auto-submit ล้มเหลว)
       autoSubmitted.current = false;
     } finally {
@@ -239,6 +342,8 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     setCustomerName('');
     setCustomerTaxId('');
     setCustomerAddress('');
+    setExtraPayments([]);
+    setSplitCount(2);
     onClose();
   };
 
@@ -253,11 +358,11 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                 <button
                   onClick={() => setShowingReceipt(false)}
                   className="p-1 rounded hover:bg-muted"
-                  aria-label="Back"
+                  aria-label={t('pay.back')}
                 >
                   <ArrowLeft className="w-4 h-4" />
                 </button>
-                Receipt
+                {t('pay.receiptTitle')}
               </DialogTitle>
             </DialogHeader>
 
@@ -267,10 +372,10 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
             <div className="flex gap-2 no-print sticky bottom-0 bg-card pt-2">
               <Button variant="outline" className="flex-1" onClick={close}>
-                Close
+                {t('pay.close')}
               </Button>
               <Button className="flex-1" onClick={() => window.print()}>
-                <Printer className="w-4 h-4 mr-1" /> Print
+                <Printer className="w-4 h-4 mr-1" /> {t('pay.print')}
               </Button>
             </div>
           </div>
@@ -281,56 +386,123 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
             className="text-center py-6"
           >
             <CheckCircle2 className="w-20 h-20 text-success mx-auto mb-4" />
-            <h3 className="text-2xl font-bold mb-2">Payment successful</h3>
-            <p className="text-muted-foreground mb-1">Order number</p>
+            <h3 className="text-2xl font-bold mb-2">{t('pay.success')}</h3>
+            <p className="text-muted-foreground mb-1">{t('pay.orderNumber')}</p>
             <p className="text-lg font-mono mb-4">{success.orderNumber}</p>
             <p className="text-3xl font-bold text-primary mb-6">
               {formatCurrency(success.total)}
             </p>
             <div className="flex gap-2">
               <Button variant="outline" className="flex-1" onClick={close}>
-                Close
+                {t('pay.close')}
               </Button>
               <Button className="flex-1" onClick={() => setShowingReceipt(true)}>
-                <Printer className="w-4 h-4 mr-1" /> View receipt
+                <Printer className="w-4 h-4 mr-1" /> {t('pay.viewReceipt')}
               </Button>
             </div>
             <button
               onClick={() => window.open(`/orders/${success.id}/receipt`, '_blank')}
               className="mt-3 text-xs text-muted-foreground hover:text-foreground underline"
             >
-              Open in new tab (for A4 / full invoice)
+              {t('pay.openFullInvoice')}
             </button>
           </motion.div>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>Payment</DialogTitle>
+              <DialogTitle>{t('pay.title')}</DialogTitle>
             </DialogHeader>
 
             <div className="bg-muted rounded-xl p-4 text-center">
-              <div className="text-sm text-muted-foreground">Amount due</div>
+              <div className="text-sm text-muted-foreground">{t('pay.amountDue')}</div>
               <div className="text-4xl font-bold text-accent tabular-nums">{formatCurrency(total)}</div>
+              {extraPayments.length > 0 && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  {t('pay.remaining')}:{' '}
+                  <span className="font-semibold text-foreground tabular-nums">{formatCurrency(remaining)}</span>
+                </div>
+              )}
             </div>
 
+            {/* Split evenly by N people — quick-fills the split-tender lines below */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-muted-foreground shrink-0">{t('pay.splitEvenly')}</span>
+              <Input
+                type="number" min={2} max={20} inputMode="numeric"
+                value={splitCount}
+                onChange={(e) => setSplitCount(parseInt(e.target.value) || 2)}
+                className="w-14 h-8 text-center tabular-nums"
+              />
+              <span className="text-xs text-muted-foreground shrink-0">{t('pay.people')}</span>
+              <Button type="button" variant="outline" size="sm" onClick={applySplitEvenly}>
+                {t('pay.splitApply')}
+              </Button>
+              {splitCount >= 2 && (
+                <span className="text-xs text-muted-foreground tabular-nums ml-auto">
+                  {formatCurrency(Math.floor((total / Math.max(2, Math.min(20, splitCount))) * 100) / 100)} {t('pay.perPerson')}
+                </span>
+              )}
+            </div>
+
+            {/* Split tender — extra payment lines on top of the primary method below */}
+            <div className="space-y-1.5">
+              {extraPayments.map((p, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <select
+                    value={p.method}
+                    onChange={(e) => updateExtraPayment(i, { method: e.target.value as ExtraMethod })}
+                    className="h-9 flex-1 bg-input border border-border rounded-md px-2 text-sm"
+                  >
+                    {(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER'] as ExtraMethod[]).map((m) => (
+                      <option key={m} value={m}>
+                        {EXTRA_METHOD_LABEL[m]}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    type="number" inputMode="decimal" placeholder="0.00"
+                    value={p.amount}
+                    onChange={(e) => updateExtraPayment(i, { amount: e.target.value })}
+                    className="w-24 h-9 text-right tabular-nums"
+                  />
+                  <button
+                    onClick={() => removeExtraPayment(i)}
+                    aria-label={t('pay.remove')}
+                    className="p-1.5 text-muted-foreground hover:text-danger shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+              <button onClick={addExtraPayment} className="text-xs text-primary hover:underline">
+                {t('pay.addPaymentLine')}
+              </button>
+            </div>
+
+            {remaining <= 0 ? (
+              <div className="p-4 bg-success/10 rounded-lg text-center text-sm font-medium text-success">
+                {t('pay.fullyPaid')}
+              </div>
+            ) : (
+              <>
             <div>
-              <label className="text-sm font-medium mb-2 block">Payment method</label>
+              <label className="text-sm font-medium mb-2 block">{t('pay.methodLabel')}</label>
               <div className="grid grid-cols-2 gap-2">
-                {METHODS.map((m) => {
-                  const Icon = m.icon;
-                  const active = method === m.id;
+                {(['CASH', 'PROMPTPAY'] as Method[]).map((m) => {
+                  const Icon = METHOD_ICON[m];
+                  const active = method === m;
                   return (
                     <button
-                      key={m.id}
-                      onClick={() => changeMethod(m.id)}
+                      key={m}
+                      onClick={() => changeMethod(m)}
                       className={`p-3 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${
                         active ? 'border-primary bg-primary/10' : 'border-border hover:border-muted-foreground'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-lg ${m.color}/20 flex items-center justify-center`}>
+                      <div className={`w-10 h-10 rounded-lg ${METHOD_COLOR[m]}/20 flex items-center justify-center`}>
                         <Icon className="w-5 h-5" />
                       </div>
-                      <span className="text-sm font-medium">{m.label}</span>
+                      <span className="text-sm font-medium">{METHOD_LABEL[m]}</span>
                     </button>
                   );
                 })}
@@ -340,22 +512,22 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
             {/* CASH */}
             {method === 'CASH' && (
               <div>
-                <label className="text-sm font-medium mb-2 block">Cash received</label>
+                <label className="text-sm font-medium mb-2 block">{t('pay.cashReceived')}</label>
                 <Input
                   type="number" inputMode="decimal" placeholder="0.00"
                   value={received} onChange={(e) => setReceived(e.target.value)}
                   className="text-2xl h-14 text-right tabular-nums"
                 />
                 <div className="grid grid-cols-4 gap-1 mt-2">
-                  {[100, 500, 1000, total].map((amt) => (
+                  {[100, 500, 1000, remaining].map((amt) => (
                     <Button key={amt} variant="outline" size="sm" onClick={() => setReceived(String(amt))}>
-                      {amt === total ? 'Exact' : `฿${amt}`}
+                      {amt === remaining ? t('pay.exact') : `฿${amt}`}
                     </Button>
                   ))}
                 </div>
-                {received && parseFloat(received) >= total && (
+                {received && parseFloat(received) >= remaining && (
                   <div className="mt-3 p-3 bg-success/10 rounded-lg text-center">
-                    <div className="text-sm text-muted-foreground">Change</div>
+                    <div className="text-sm text-muted-foreground">{t('pay.change')}</div>
                     <div className="text-2xl font-bold text-success">{formatCurrency(change)}</div>
                   </div>
                 )}
@@ -369,21 +541,21 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                   // ยังไม่ได้เปิด Stripe (เช่น รอ Stripe live อนุมัติ) → ใช้ QR พร้อมเพย์ตรงของร้านชั่วคราว
                   store?.promptpayId ? (
                     <div className="space-y-2">
-                      <PromptPayQR promptpayId={store.promptpayId} amount={total} merchantName={store.name} />
+                      <PromptPayQR promptpayId={store.promptpayId} amount={remaining} merchantName={store.name} />
                       <p className="text-xs text-center text-muted-foreground">
                         ให้ลูกค้าสแกนจ่ายเข้าบัญชีร้าน แล้วกด “Confirm payment” เมื่อได้รับเงิน (เช็คจากแอปธนาคาร/SMS)
                       </p>
                     </div>
                   ) : (
                     <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 text-sm">
-                      ⚠️ ยังไม่ได้ตั้ง <strong>PromptPay ID</strong> — ไปที่ <strong>Settings</strong> เพื่อตั้งค่าก่อน
+                      ⚠️ ยังไม่ได้ตั้ง <strong>PromptPay ID</strong> — ไปที่ <strong>{t('nav.settings')}</strong> เพื่อตั้งค่าก่อน
                       หรือยืนยันการรับเงินด้วยตนเองด้านล่าง
                     </div>
                   )
                 ) : ppStatus === 'idle' || ppStatus === 'error' ? (
                   <div className="text-center">
                     <Button onClick={generateQr} className="w-full" size="lg">
-                      <QrCode className="w-4 h-4 mr-2" /> สร้าง QR พร้อมเพย์ {formatCurrency(total)}
+                      <QrCode className="w-4 h-4 mr-2" /> สร้าง QR พร้อมเพย์ {formatCurrency(remaining)}
                     </Button>
                     {ppError && <p className="text-xs text-danger mt-2">{ppError}</p>}
                   </div>
@@ -415,7 +587,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                         </div>
                       )}
                       <p className="text-sm mt-2">
-                        ให้ลูกค้าสแกนเพื่อจ่าย <strong>{formatCurrency(total)}</strong>
+                        ให้ลูกค้าสแกนเพื่อจ่าย <strong>{formatCurrency(remaining)}</strong>
                       </p>
                     </div>
 
@@ -488,6 +660,8 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                 )}
               </div>
             )}
+              </>
+            )}
 
             {/* Customer info toggle */}
             <div>
@@ -495,23 +669,23 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                 onClick={() => setShowCustomerInfo(!showCustomerInfo)}
                 className="text-sm text-primary hover:underline"
               >
-                {showCustomerInfo ? '▼' : '▶'} Issue full tax invoice
+                {showCustomerInfo ? '▼' : '▶'} {t('pay.issueTaxInvoice')}
               </button>
               {showCustomerInfo && (
                 <div className="mt-2 space-y-2 p-3 bg-muted rounded-lg">
                   <Input
-                    placeholder="Customer / Company name"
+                    placeholder={t('pay.customerName')}
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                   />
                   <Input
-                    placeholder="Tax ID (13 digits)"
+                    placeholder={t('pay.taxId')}
                     value={customerTaxId}
                     onChange={(e) => setCustomerTaxId(e.target.value)}
                     maxLength={13}
                   />
                   <textarea
-                    placeholder="Address"
+                    placeholder={t('pay.address')}
                     value={customerAddress}
                     onChange={(e) => setCustomerAddress(e.target.value)}
                     className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm"
@@ -524,7 +698,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
             {/* Confirm — hidden during PromptPay auto-flow (handled automatically once paid) */}
             {showConfirm && (
               <Button size="xl" className="w-full" disabled={!canPay || loading} onClick={submit}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `Confirm payment ${formatCurrency(total)}`}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `${t('pay.confirmPayment')} ${formatCurrency(total)}`}
               </Button>
             )}
           </>

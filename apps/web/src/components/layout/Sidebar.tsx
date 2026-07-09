@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/stores/auth.store';
+import { useT } from '@/lib/i18n';
 
 // Analytics runs as a separate (read-only) app sharing the same database.
 // Owners/admins just click through — no setup, no second login flow.
@@ -30,18 +31,18 @@ const ANALYTICS_URL =
   process.env.NEXT_PUBLIC_ANALYTICS_URL || 'http://localhost:3001';
 
 const NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['OWNER', 'ADMIN'] },
-  { href: '/pos', label: 'POS', icon: ShoppingCart, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
-  { href: '/kds', label: 'Kitchen', icon: ChefHat, roles: ['OWNER', 'ADMIN', 'KITCHEN'] },
-  { href: '/tables', label: 'Tables', icon: Grid3X3, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
-  { href: '/orders', label: 'Orders', icon: Receipt, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
-  { href: '/products', label: 'Products', icon: Package, roles: ['OWNER', 'ADMIN'] },
-  { href: '/inventory', label: 'Inventory', icon: Boxes, roles: ['OWNER', 'ADMIN'] },
-  { href: '/customers', label: 'Customers', icon: UserCircle, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
-  { href: '/employees', label: 'Staff', icon: Users, roles: ['OWNER', 'ADMIN'] },
-  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['OWNER', 'ADMIN'] },
-  { href: '/activity', label: 'Activity', icon: History, roles: ['OWNER', 'ADMIN'] },
-  { href: '/settings', label: 'Settings', icon: Settings, roles: ['OWNER', 'ADMIN'] },
+  { href: '/dashboard', label: 'nav.dashboard', icon: LayoutDashboard, roles: ['OWNER', 'ADMIN'] },
+  { href: '/pos', label: 'nav.pos', icon: ShoppingCart, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  { href: '/kds', label: 'nav.kitchen', icon: ChefHat, roles: ['OWNER', 'ADMIN', 'KITCHEN'] },
+  { href: '/tables', label: 'nav.tables', icon: Grid3X3, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  { href: '/orders', label: 'nav.orders', icon: Receipt, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  { href: '/products', label: 'nav.products', icon: Package, roles: ['OWNER', 'ADMIN'] },
+  { href: '/inventory', label: 'nav.inventory', icon: Boxes, roles: ['OWNER', 'ADMIN'] },
+  { href: '/customers', label: 'nav.customers', icon: UserCircle, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  { href: '/employees', label: 'nav.staff', icon: Users, roles: ['OWNER', 'ADMIN'] },
+  { href: '/reports', label: 'nav.reports', icon: BarChart3, roles: ['OWNER', 'ADMIN'] },
+  { href: '/activity', label: 'nav.activity', icon: History, roles: ['OWNER', 'ADMIN'] },
+  { href: '/settings', label: 'nav.settings', icon: Settings, roles: ['OWNER', 'ADMIN'] },
 ];
 
 interface SidebarProps {
@@ -52,6 +53,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const t = useT();
 
   const items = NAV.filter((n) => !user?.role || n.roles.includes(user.role));
 
@@ -111,7 +113,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
               )}
             >
               <Icon className="w-4 h-4 shrink-0" />
-              <span>{item.label}</span>
+              <span>{t(item.label)}</span>
             </Link>
           );
         })}
@@ -125,9 +127,9 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
             <LineChart className="w-4 h-4 shrink-0" />
-            <span className="flex-1">Analytics</span>
+            <span className="flex-1">{t('nav.analytics')}</span>
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
-              ดูข้อมูล
+              ↗
             </span>
           </a>
         )}
@@ -142,7 +144,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-danger hover:bg-danger/5 transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          Sign out
+          {t('nav.logout')}
         </button>
       </div>
     </>

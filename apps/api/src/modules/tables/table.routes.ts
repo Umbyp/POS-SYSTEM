@@ -25,11 +25,33 @@ router.post('/', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+const TABLE_STATUSES = ['AVAILABLE', 'RESERVED', 'OCCUPIED', 'BILLING', 'DIRTY'] as const;
+
 router.patch('/:id/status', async (req, res, next) => {
   try {
+    const status = req.body.status;
+    if (!TABLE_STATUSES.includes(status)) {
+      return res.status(400).json({ error: 'Invalid table status' });
+    }
+
+    const current = await prisma.table.findUnique({ where: { id: req.params.id } });
+    const data: { status: string; occupiedAt?: Date | null } = { status };
+
+    // occupiedAt drives the elapsed-time badge:
+    // - set it when guests first sit down (fresh OCCUPIED, not a re-sync)
+    // - keep it through BILLING (still seated)
+    // - clear it once the table frees up or is being cleaned
+    if (status === 'OCCUPIED') {
+      if (current?.status !== 'OCCUPIED' && current?.status !== 'BILLING') {
+        data.occupiedAt = new Date();
+      }
+    } else if (status !== 'BILLING') {
+      data.occupiedAt = null;
+    }
+
     const table = await prisma.table.update({
       where: { id: req.params.id },
-      data: { status: req.body.status },
+      data,
     });
     const io = req.app.get('io');
     io.to(`store:${req.user!.storeId}`).emit('table:updated', table);

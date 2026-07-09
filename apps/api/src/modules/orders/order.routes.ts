@@ -6,6 +6,7 @@ import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
 import * as service from './order.service';
+import * as tabService from './order-tab.service';
 import { BadRequest } from '../../utils/errors';
 
 const router = Router();
@@ -97,6 +98,69 @@ router.delete('/parked/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res,
   } catch (e) { next(e); }
 });
 
+// ===== Open tab (dine-in running bill) =====
+const tabItems = z.array(z.object({
+  productId: z.string(),
+  quantity: z.number().int().positive(),
+  notes: z.string().optional(),
+  discount: z.number().nonnegative().optional(),
+  variants: z.array(z.object({ name: z.string(), priceDelta: z.number() })).optional(),
+})).min(1);
+
+const openTabSchema = z.object({
+  tableId: z.string().optional(),
+  customerId: z.string().optional(),
+  type: z.enum(['DINE_IN', 'TAKEAWAY', 'DELIVERY']).default('DINE_IN'),
+  items: tabItems,
+  discount: z.number().nonnegative().optional(),
+  notes: z.string().optional(),
+});
+
+const roundSchema = z.object({ items: tabItems });
+
+const settleSchema = z.object({
+  payments: z.array(z.object({
+    method: z.enum(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER']),
+    amount: z.number().nonnegative(),
+    reference: z.string().optional(),
+  })).min(1),
+  discount: z.number().nonnegative().optional(),
+  pointsToRedeem: z.number().int().nonnegative().optional(),
+  customerId: z.string().optional(),
+  promotionId: z.string().optional(),
+  promotionDiscount: z.number().nonnegative().optional(),
+  promotionName: z.string().optional(),
+  customerName: z.string().optional(),
+  customerTaxId: z.string().optional(),
+  customerAddress: z.string().optional(),
+});
+
+// Open a new bill and fire round 1 to the kitchen
+router.post('/open', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(openTabSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const order = await tabService.openTab(
+      { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id },
+      io
+    );
+    res.status(201).json(order);
+  } catch (e) { next(e); }
+});
+
+// List all open bills for the store
+router.get('/open', async (req, res, next) => {
+  try {
+    res.json(await tabService.listOpen(req.user!.storeId));
+  } catch (e) { next(e); }
+});
+
+// The open bill for a specific table (or null)
+router.get('/open/by-table/:tableId', async (req, res, next) => {
+  try {
+    res.json(await tabService.getOpenByTable(req.user!.storeId, req.params.tableId));
+  } catch (e) { next(e); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     res.json(await service.list(req.user!.storeId, req.query));
@@ -113,6 +177,62 @@ router.patch('/:id/status', rbac('OWNER', 'ADMIN', 'CASHIER', 'KITCHEN'), async 
   try {
     const io = req.app.get('io');
     res.json(await service.updateStatus(req.params.id, req.body.status, io));
+  } catch (e) { next(e); }
+});
+
+// Append another round to an open bill and fire it to the kitchen
+router.post('/:id/items', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(roundSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const order = await tabService.addRound(
+      req.params.id,
+      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items },
+      io
+    );
+    res.json(order);
+  } catch (e) { next(e); }
+});
+
+// Void (remove) some/all of an item's qty from an unpaid open bill — restocks
+// and shrinks the bill total, unlike the post-payment /refund-items route.
+const voidItemSchema = z.object({
+  qty: z.number().int().positive(),
+  reason: z.string().min(1),
+});
+
+router.post(
+  '/:id/items/:itemId/void',
+  rbac('OWNER', 'ADMIN', 'CASHIER'),
+  validate(voidItemSchema),
+  async (req, res, next) => {
+    try {
+      const io = req.app.get('io');
+      const order = await tabService.voidItem(
+        req.params.id,
+        {
+          storeId: req.user!.storeId,
+          cashierId: req.user!.id,
+          orderItemId: req.params.itemId,
+          qty: req.body.qty,
+          reason: req.body.reason,
+        },
+        io
+      );
+      res.json(order);
+    } catch (e) { next(e); }
+  }
+);
+
+// Take payment on an open bill → complete + free table
+router.post('/:id/settle', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(settleSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const order = await tabService.settleTab(
+      req.params.id,
+      { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id },
+      io
+    );
+    res.json(order);
   } catch (e) { next(e); }
 });
 

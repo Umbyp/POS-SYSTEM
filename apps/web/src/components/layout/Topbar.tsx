@@ -5,6 +5,7 @@ import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { ShiftButton } from '@/components/shifts/ShiftButton';
 import { StoreSwitcher } from '@/components/layout/StoreSwitcher';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
+import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { getMuted, setMuted, playCashRegister } from '@/lib/sounds';
 import { useAuth } from '@/stores/auth.store';
 
@@ -64,6 +65,8 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         <StoreSwitcher />
 
         <ShiftButton />
+
+        <LanguageToggle />
 
         <ThemeToggle />
 

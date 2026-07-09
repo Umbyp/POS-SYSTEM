@@ -1,16 +1,18 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, Plus, X, ShoppingBag, Trash2, UserPlus, Sparkles, PauseCircle, Loader2, Tag } from 'lucide-react';
+import { Minus, Plus, X, ShoppingBag, Trash2, UserPlus, Sparkles, Tag, Bike, ChevronDown, Send, Loader2, Ban } from 'lucide-react';
 import { useCart } from '@/stores/cart.store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 import { computePricing, DEFAULT_TAX_CONFIG } from '@/lib/pricing';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { CustomerPicker } from '@/components/customers/CustomerPicker';
+import { VoidItemDialog } from '@/components/pos/VoidItemDialog';
 
 export function Cart({ onCheckout }: { onCheckout: () => void }) {
   const {
@@ -22,48 +24,81 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     type,
     tableId,
     customer,
+    gpFeePct,
     setType,
+    setGpFeePct,
     setTable,
     setDiscount,
     setPointsToRedeem,
     setPromotion,
     setPromoCode,
     setCustomer,
+    openOrderId,
+    setOpenOrder,
     updateQty,
     removeItem,
+    clearItems,
     clear,
     subtotal,
   } = useCart();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [advOpen, setAdvOpen] = useState(false); // discounts & promotions section
+  const t = useT();
   const qc = useQueryClient();
 
-  const park = useMutation({
-    mutationFn: (payload: any) => api.post('/orders/park', payload).then((r) => r.data),
-    onSuccess: () => {
-      toast.success('Order parked');
-      qc.invalidateQueries({ queryKey: ['parked-orders'] });
-      qc.invalidateQueries({ queryKey: ['parked-count'] });
-      qc.invalidateQueries({ queryKey: ['tables'] });
-      clear();
-    },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to park order'),
+  // Restaurant "open tab": for dine-in with a table, the bill lives on the
+  // server and builds up over rounds. Fetch the table's running bill.
+  const isDineInTable = type === 'DINE_IN' && !!tableId;
+  const { data: openBill } = useQuery({
+    queryKey: ['open-bill', tableId],
+    queryFn: () => api.get(`/orders/open/by-table/${tableId}`).then((r) => r.data),
+    enabled: isDineInTable,
+    refetchOnWindowFocus: true,
   });
+  // Keep the store's openOrderId in sync so PaymentDialog knows to settle vs create.
+  useEffect(() => {
+    setOpenOrder(isDineInTable ? openBill?.id : undefined);
+  }, [isDineInTable, openBill?.id, setOpenOrder]);
 
-  const handlePark = () => {
-    if (items.length === 0) return;
-    park.mutate({
-      type,
-      tableId,
-      customerId: customer?.id,
-      items: items.map((i) => ({
+  const send = useMutation({
+    mutationFn: () => {
+      const payloadItems = items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
         notes: i.notes,
         variants: i.variants,
-      })),
-      discount,
-    });
-  };
+      }));
+      if (openBill?.id) {
+        return api.post(`/orders/${openBill.id}/items`, { items: payloadItems }).then((r) => r.data);
+      }
+      return api
+        .post('/orders/open', { tableId, type, customerId: customer?.id, items: payloadItems })
+        .then((r) => r.data);
+    },
+    onSuccess: () => {
+      toast.success(t('cart.sentToKitchen'));
+      clearItems();
+      qc.invalidateQueries({ queryKey: ['open-bill', tableId] });
+      qc.invalidateQueries({ queryKey: ['tables'] });
+      qc.invalidateQueries({ queryKey: ['kds-orders'] });
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || t('cart.sendFailed')),
+  });
+
+  // Void an already-fired item on the running bill (mistaken order, comp, etc.)
+  const [voidingItem, setVoidingItem] = useState<{ id: string; name: string; maxQty: number } | null>(null);
+  const voidItem = useMutation({
+    mutationFn: ({ qty, reason }: { qty: number; reason: string }) =>
+      api
+        .post(`/orders/${openBill.id}/items/${voidingItem!.id}/void`, { qty, reason })
+        .then((r) => r.data),
+    onSuccess: () => {
+      toast.success(t('void.success'));
+      setVoidingItem(null);
+      qc.invalidateQueries({ queryKey: ['open-bill', tableId] });
+    },
+    onError: (e: any) => toast.error(e.response?.data?.error || t('void.failed')),
+  });
 
   const { data: tables = [] } = useQuery({
     queryKey: ['tables'],
@@ -86,6 +121,11 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   const pointDiscount = pointsToRedeem; // 1pt = 1 baht
   const promoDiscount = promotion?.discountAmount || 0;
   const breakdown = computePricing(sub, discount + pointDiscount + promoDiscount, cfg);
+
+  // Delivery P&L — platform commission (GP fee) eats into the bill, so the
+  // owner sees their true take-home the moment they pick the Delivery channel.
+  const gpFee = type === 'DELIVERY' ? breakdown.total * (gpFeePct / 100) : 0;
+  const netProfit = breakdown.total - gpFee;
 
   // Auto-apply promotion when cart/customer/code changes
   const { data: products = [] } = useQuery({
@@ -181,26 +221,94 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           onClick={() => setPickerOpen(true)}
           className="mb-3 w-full h-10 lg:h-auto lg:py-2 px-3 rounded-md border border-dashed border-border hover:border-primary hover:bg-card-hover text-sm lg:text-xs text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
         >
-          + Select customer
+          {t('cart.selectCustomer')}
         </button>
       )}
 
       {/* Order type — flat tabs */}
       <div className="grid grid-cols-3 gap-1 mb-3 text-sm lg:text-xs border border-border rounded-md p-0.5">
-        {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((t) => (
+        {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((tt) => (
           <button
-            key={t}
-            onClick={() => setType(t)}
+            key={tt}
+            onClick={() => setType(tt)}
             className={`py-2.5 lg:py-1.5 rounded-sm transition-colors touch-manipulation ${
-              type === t
+              type === tt
                 ? 'bg-foreground text-background font-medium'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
-            {t === 'DINE_IN' ? 'Dine-in' : t === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'}
+            {tt === 'DINE_IN' ? t('cart.dineIn') : tt === 'TAKEAWAY' ? t('cart.takeaway') : t('cart.delivery')}
           </button>
         ))}
       </div>
+
+      {/* Delivery net profit — GP fee visualizer (O-VERSE style).
+          When Delivery is picked, show the platform commission and the real
+          take-home so the owner sees actual earnings instantly. */}
+      <AnimatePresence>
+        {type === 'DELIVERY' && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="mb-3 rounded-xl border border-primary/30 bg-primary/[0.04] p-3">
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                  <Bike className="w-3.5 h-3.5 text-primary" />
+                  {t('cart.deliveryNetProfit')}
+                </span>
+                <div className="flex items-center gap-1">
+                  {[25, 30, 35].map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => setGpFeePct(p)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium tabular-nums transition-colors ${
+                        gpFeePct === p
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-card border border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      {p}%
+                    </button>
+                  ))}
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      inputMode="decimal"
+                      value={gpFeePct || ''}
+                      onChange={(e) => setGpFeePct(Number(e.target.value) || 0)}
+                      className="w-12 h-6 bg-card border border-border rounded pl-1.5 pr-4 text-right tabular-nums text-[11px]"
+                      aria-label="GP fee percent"
+                    />
+                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{t('cart.revenue')}</span>
+                  <span className="tabular-nums">{formatCurrency(breakdown.total)}</span>
+                </div>
+                <div className="flex justify-between text-danger">
+                  <span>{t('cart.gpFee')} ({gpFeePct}%)</span>
+                  <span className="tabular-nums">-{formatCurrency(gpFee)}</span>
+                </div>
+                <div className="flex justify-between font-semibold pt-1 mt-1 border-t border-primary/20">
+                  <span className="text-foreground">{t('cart.netProfit')}</span>
+                  <span className="tabular-nums text-success">{formatCurrency(netProfit)}</span>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Table select */}
       {type === 'DINE_IN' && (() => {
@@ -215,30 +323,78 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
               onChange={(e) => setTable(e.target.value || undefined)}
               className="w-full h-11 lg:h-9 bg-card border border-border rounded-lg px-3 text-base lg:text-sm touch-manipulation"
             >
-              <option value="">Select table (optional)</option>
-              {selectable.map((t: any) => (
-                <option key={t.id} value={t.id}>
-                  Table {t.number} · {t.capacity} seats
-                  {t.status === 'RESERVED' ? ' · (Reserved)' : ''}
-                  {t.status === 'OCCUPIED' ? ' · (Occupied)' : ''}
+              <option value="">{t('cart.selectTable')}</option>
+              {selectable.map((tb: any) => (
+                <option key={tb.id} value={tb.id}>
+                  {t('cart.tableWord')} {tb.number} · {tb.capacity} {t('cart.seats')}
+                  {tb.status === 'RESERVED' ? ` · (${t('cart.reserved')})` : ''}
+                  {tb.status === 'OCCUPIED' ? ` · (${t('cart.occupied')})` : ''}
                 </option>
               ))}
             </select>
             {hiddenCount > 0 && (
               <div className="text-[10px] text-muted-foreground mt-1 px-1">
-                {hiddenCount} occupied table{hiddenCount !== 1 ? 's' : ''} hidden
+                {hiddenCount} {t('cart.tablesHidden')}
               </div>
             )}
           </div>
         );
       })()}
 
+      {/* Running bill — items already sent to the kitchen for this table */}
+      {isDineInTable && openBill && openBill.items?.length > 0 && (
+        <div className="mb-2 rounded-lg border border-border bg-muted/40 p-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              {t('cart.runningBill')}
+            </span>
+            <span className="text-[11px] text-muted-foreground tabular-nums">{openBill.orderNumber}</span>
+          </div>
+          <div className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin">
+            {openBill.items.map((it: any) => {
+              const remainingQty = it.quantity - (it.refundedQty || 0);
+              if (remainingQty <= 0) return null; // fully voided — nothing left to show
+              return (
+                <div key={it.id} className="flex justify-between items-center text-xs">
+                  <span className="truncate pr-2">
+                    <span className="text-muted-foreground tabular-nums">{remainingQty}×</span>{' '}
+                    {it.product?.name || 'สินค้า'}
+                  </span>
+                  <span className="flex items-center gap-1.5 shrink-0">
+                    <span className="tabular-nums">{formatCurrency(Number(it.unitPrice) * remainingQty)}</span>
+                    <button
+                      onClick={() =>
+                        setVoidingItem({ id: it.id, name: it.product?.name || 'สินค้า', maxQty: remainingQty })
+                      }
+                      className="p-1 -m-1 text-muted-foreground/60 hover:text-danger touch-manipulation"
+                      title={t('void.title')}
+                    >
+                      <Ban className="w-3 h-3" />
+                    </button>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-sm font-semibold mt-1.5 pt-1.5 border-t border-border">
+            <span>{t('cart.total')}</span>
+            <span className="tabular-nums text-primary">{formatCurrency(openBill.total)}</span>
+          </div>
+        </div>
+      )}
+
+      {isDineInTable && openBill && items.length > 0 && (
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+          {t('cart.newRound')}
+        </div>
+      )}
+
       {/* Items — min-h-0 lets this scroll inside a flex parent (otherwise children push it taller than the container) */}
       <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin -mx-2 px-2 space-y-2">
         <AnimatePresence>
           {items.length === 0 ? (
             <div className="text-center text-muted-foreground py-12 text-sm">
-              No items in cart yet
+              {t('cart.empty')}
             </div>
           ) : (
             items.map((item) => (
@@ -299,23 +455,10 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
       {/* Summary */}
       <div className="border-t border-border pt-3 mt-3 space-y-1.5 text-sm">
         <div className="flex justify-between text-muted-foreground">
-          <span>Subtotal</span>
+          <span>{t('cart.subtotal')}</span>
           <span className="tabular-nums">{formatCurrency(sub)}</span>
         </div>
-        <div className="flex items-center justify-between text-muted-foreground">
-          <span>Discount</span>
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            value={discount || ''}
-            onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-            className="w-24 h-9 lg:h-7 bg-input border border-border rounded px-2 text-right tabular-nums text-base lg:text-sm"
-            placeholder="0"
-          />
-        </div>
-
-        {/* Promotion auto-applied */}
+        {/* Promotion auto-applied — always visible */}
         {promotion && (
           <div className="flex items-center justify-between text-success text-xs">
             <span className="truncate">{promotion.promotionName}</span>
@@ -325,127 +468,205 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           </div>
         )}
 
-        {/* Promo code input */}
-        <div className="flex items-center gap-1">
-          <input
-            value={promoCode}
-            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-            placeholder="Promo code (optional)"
-            className="flex-1 h-9 lg:h-7 bg-card border border-border rounded px-2 font-mono uppercase text-sm lg:text-xs"
-          />
-        </div>
-
-        {/* Redeem points */}
-        {customer && (customer.points ?? 0) > 0 && (
-          <div className="bg-primary/5 border border-primary/30 rounded-lg p-2 -mx-1">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span className="font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-primary" />
-                Redeem points (you have {customer.points} pts)
-              </span>
-              {pointsToRedeem > 0 && (
-                <button
-                  onClick={() => setPointsToRedeem(0)}
-                  className="text-[10px] text-muted-foreground hover:text-foreground"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={Math.min(customer.points!, Math.floor(sub - discount))}
-                value={pointsToRedeem || ''}
-                onChange={(e) => {
-                  const maxRedeem = Math.min(
-                    customer.points!,
-                    Math.max(0, Math.floor(sub - discount))
-                  );
-                  setPointsToRedeem(
-                    Math.min(maxRedeem, Math.max(0, parseInt(e.target.value) || 0))
-                  );
-                }}
-                className="flex-1 h-8 bg-card border border-border rounded px-2 text-right tabular-nums text-sm"
-                placeholder="0"
-              />
-              <button
-                onClick={() => {
-                  const maxRedeem = Math.min(
-                    customer.points!,
-                    Math.max(0, Math.floor(sub - discount))
-                  );
-                  setPointsToRedeem(maxRedeem);
-                }}
-                className="text-[10px] px-2 py-1 rounded bg-primary/15 text-primary font-medium hover:bg-primary/25"
-              >
-                Use max
-              </button>
-            </div>
-            {pointsToRedeem > 0 && (
-              <div className="text-[10px] text-primary mt-1">
-                -{formatCurrency(pointDiscount)} · {customer.points! - pointsToRedeem} pts remaining
-              </div>
+        {/* Discounts & promotions — collapsed by default to keep the cart clean */}
+        <button
+          type="button"
+          onClick={() => setAdvOpen((v) => !v)}
+          className="flex items-center justify-between w-full text-xs text-muted-foreground hover:text-foreground py-1 touch-manipulation"
+        >
+          <span className="flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5" />
+            {t('cart.discountsPromos')}
+            {(discount > 0 || pointsToRedeem > 0 || promoCode) && !advOpen && (
+              <span className="w-1.5 h-1.5 rounded-full bg-primary" title="Applied" />
             )}
+          </span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${advOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Collapsed: still show applied manual discount / points so totals stay clear */}
+        {!advOpen && discount > 0 && (
+          <div className="flex justify-between text-muted-foreground text-xs">
+            <span>{t('cart.discount')}</span>
+            <span className="tabular-nums">-{formatCurrency(discount)}</span>
           </div>
         )}
+        {!advOpen && pointsToRedeem > 0 && (
+          <div className="flex justify-between text-primary text-xs">
+            <span>{t('cart.pointsRedeemed')}</span>
+            <span className="tabular-nums">-{formatCurrency(pointDiscount)}</span>
+          </div>
+        )}
+
+        <AnimatePresence initial={false}>
+          {advOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden space-y-1.5"
+            >
+              {/* Discount input */}
+              <div className="flex items-center justify-between text-muted-foreground pt-1">
+                <span>{t('cart.discount')}</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  value={discount || ''}
+                  onChange={(e) => setDiscount(Number(e.target.value) || 0)}
+                  className="w-24 h-9 lg:h-7 bg-input border border-border rounded px-2 text-right tabular-nums text-base lg:text-sm"
+                  placeholder="0"
+                />
+              </div>
+
+              {/* Promo code input */}
+              <div className="flex items-center gap-1">
+                <input
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                  placeholder={t('cart.promoPlaceholder')}
+                  className="flex-1 h-9 lg:h-7 bg-card border border-border rounded px-2 font-mono uppercase text-sm lg:text-xs"
+                />
+              </div>
+
+              {/* Redeem points */}
+              {customer && (customer.points ?? 0) > 0 && (
+                <div className="bg-primary/5 border border-primary/30 rounded-lg p-2 -mx-1">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-medium flex items-center gap-1">
+                      <Sparkles className="w-3 h-3 text-primary" />
+                      {t('cart.redeemPoints')} ({t('cart.pointsYouHave')} {customer.points} {t('cart.points')})
+                    </span>
+                    {pointsToRedeem > 0 && (
+                      <button
+                        onClick={() => setPointsToRedeem(0)}
+                        className="text-[10px] text-muted-foreground hover:text-foreground"
+                      >
+                        {t('cart.clear')}
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      max={Math.min(customer.points!, Math.floor(sub - discount))}
+                      value={pointsToRedeem || ''}
+                      onChange={(e) => {
+                        const maxRedeem = Math.min(
+                          customer.points!,
+                          Math.max(0, Math.floor(sub - discount))
+                        );
+                        setPointsToRedeem(
+                          Math.min(maxRedeem, Math.max(0, parseInt(e.target.value) || 0))
+                        );
+                      }}
+                      className="flex-1 h-8 bg-card border border-border rounded px-2 text-right tabular-nums text-sm"
+                      placeholder="0"
+                    />
+                    <button
+                      onClick={() => {
+                        const maxRedeem = Math.min(
+                          customer.points!,
+                          Math.max(0, Math.floor(sub - discount))
+                        );
+                        setPointsToRedeem(maxRedeem);
+                      }}
+                      className="text-[10px] px-2 py-1 rounded bg-primary/15 text-primary font-medium hover:bg-primary/25"
+                    >
+                      {t('cart.useMax')}
+                    </button>
+                  </div>
+                  {pointsToRedeem > 0 && (
+                    <div className="text-[10px] text-primary mt-1">
+                      -{formatCurrency(pointDiscount)} · {customer.points! - pointsToRedeem} {t('cart.pointsRemaining')}
+                    </div>
+                  )}
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {breakdown.serviceCharge > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>Service charge ({cfg.serviceCharge}%)</span>
+            <span>{t('cart.serviceCharge')} ({cfg.serviceCharge}%)</span>
             <span className="tabular-nums">{formatCurrency(breakdown.serviceCharge)}</span>
           </div>
         )}
         {/* VAT-exclusive */}
         {!cfg.priceIncludesTax && cfg.taxRate > 0 && (
           <div className="flex justify-between text-muted-foreground">
-            <span>VAT ({cfg.taxRate}%)</span>
+            <span>{t('cart.vat')} ({cfg.taxRate}%)</span>
             <span className="tabular-nums">{formatCurrency(breakdown.tax)}</span>
           </div>
         )}
         <div className="flex justify-between text-lg font-bold pt-2 mt-1 border-t border-border">
-          <span>Total</span>
+          <span>{t('cart.total')}</span>
           <span className="tabular-nums text-primary">{formatCurrency(breakdown.total)}</span>
         </div>
         {cfg.priceIncludesTax && cfg.taxRate > 0 && breakdown.tax > 0 && (
           <div className="flex justify-between text-[10px] text-muted-foreground/60">
-            <span>(incl. VAT {cfg.taxRate}%)</span>
+            <span>({t('cart.inclVat')} {cfg.taxRate}%)</span>
             <span className="tabular-nums">{formatCurrency(breakdown.tax)}</span>
           </div>
         )}
       </div>
 
-      {/* Action buttons — sticky to the bottom of the cart container so
-          they're always visible on iPad/mobile bottom sheet */}
-      <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-border lg:border-0 lg:pt-0 shrink-0">
-        <Button
-          variant="outline"
-          disabled={items.length === 0 || park.isPending}
-          onClick={handlePark}
-          className="col-span-1 h-12 lg:h-10 touch-manipulation"
-        >
-          {park.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <>
-              <PauseCircle className="w-4 h-4 mr-1" /> Park
-            </>
-          )}
-        </Button>
-        <Button
-          size="lg"
-          className="col-span-2 h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
-          disabled={items.length === 0}
-          onClick={onCheckout}
-        >
-          Pay {formatCurrency(breakdown.total)}
-        </Button>
+      {/* Action buttons — sticky to the bottom of the cart container */}
+      <div className="mt-3 pt-3 border-t border-border lg:border-0 lg:pt-0 shrink-0">
+        {isDineInTable ? (
+          // Restaurant flow: send rounds to the kitchen, settle the bill at the end
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="h-12 lg:h-10 font-semibold touch-manipulation"
+              disabled={items.length === 0 || send.isPending}
+              onClick={() => send.mutate()}
+            >
+              {send.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-1.5" /> {t('cart.sendKitchen')}
+                </>
+              )}
+            </Button>
+            <Button
+              size="lg"
+              className="h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
+              disabled={!openBill || items.length > 0}
+              title={items.length > 0 ? t('cart.sendFirst') : undefined}
+              onClick={onCheckout}
+            >
+              {t('cart.pay')} {openBill ? formatCurrency(openBill.total) : ''}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            size="lg"
+            className="w-full h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
+            disabled={items.length === 0}
+            onClick={onCheckout}
+          >
+            {t('cart.pay')} {formatCurrency(breakdown.total)}
+          </Button>
+        )}
       </div>
 
       <CustomerPicker
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={setCustomer}
+      />
+
+      <VoidItemDialog
+        item={voidingItem}
+        loading={voidItem.isPending}
+        onClose={() => setVoidingItem(null)}
+        onConfirm={(qty, reason) => voidItem.mutate({ qty, reason })}
       />
     </div>
   );

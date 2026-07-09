@@ -2,10 +2,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, X, Clock, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Check, Clock, Pencil, Trash2, Users, Receipt, Sparkles, CalendarClock } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
-import { Badge } from '@/components/ui/badge';
+import { useCart } from '@/stores/cart.store';
+import { useT } from '@/lib/i18n';
 import {
   Dialog,
   DialogContent,
@@ -16,40 +18,111 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type Status = 'AVAILABLE' | 'OCCUPIED' | 'RESERVED';
+type Status = 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'BILLING' | 'DIRTY';
 type Size = 'SMALL' | 'MEDIUM' | 'LARGE';
 
+// Ordered for the status dialog / legend
+const STATUSES: Status[] = ['AVAILABLE', 'RESERVED', 'OCCUPIED', 'BILLING', 'DIRTY'];
+
+// Bolder fills/borders than a subtle tint so status reads at a glance across
+// a busy floor — only AVAILABLE stays calm/neutral (it's the "nothing to do"
+// state; coloring it too would drown out the tables that actually need attention).
 const STATUS_COLOR: Record<Status, string> = {
-  AVAILABLE: 'bg-card border-border hover:border-success/60 text-foreground',
-  OCCUPIED: 'bg-danger/10 border-danger/60 text-danger',
-  RESERVED: 'bg-warning/10 border-warning/60 text-warning',
+  AVAILABLE: 'bg-card border-border hover:border-emerald-500/60 text-foreground',
+  RESERVED: 'bg-sky-500/20 border-sky-500 text-sky-700 dark:text-sky-300',
+  OCCUPIED: 'bg-indigo-500/20 border-indigo-500 text-indigo-700 dark:text-indigo-300',
+  BILLING: 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300',
+  DIRTY: 'bg-rose-500/20 border-rose-500 text-rose-700 dark:text-rose-300',
+};
+
+// Small dot color for legend/summary
+const STATUS_DOT: Record<Status, string> = {
+  AVAILABLE: 'bg-emerald-500',
+  RESERVED: 'bg-sky-500',
+  OCCUPIED: 'bg-indigo-500',
+  BILLING: 'bg-amber-500',
+  DIRTY: 'bg-rose-500',
 };
 
 const STATUS_LABEL: Record<Status, string> = {
   AVAILABLE: 'Available',
-  OCCUPIED: 'Occupied',
   RESERVED: 'Reserved',
+  OCCUPIED: 'Occupied',
+  BILLING: 'Billing',
+  DIRTY: 'Cleaning',
+};
+
+const STATUS_DESC: Record<Status, string> = {
+  AVAILABLE: 'Open for customers',
+  RESERVED: 'Booked in advance',
+  OCCUPIED: 'Guests are seated',
+  BILLING: 'Payment in progress',
+  DIRTY: 'Needs cleaning',
 };
 
 const STATUS_ICON: Record<Status, any> = {
   AVAILABLE: Check,
-  OCCUPIED: X,
-  RESERVED: Clock,
+  RESERVED: CalendarClock,
+  OCCUPIED: Users,
+  BILLING: Receipt,
+  DIRTY: Sparkles,
 };
 
+// Statuses that count as "in use" (a guest occupies the table)
+const IN_USE: Status[] = ['OCCUPIED', 'BILLING'];
+
+/** Compact elapsed label since a guest sat down, e.g. "8m", "1h05m". */
+function formatElapsed(occupiedAt?: string | null, nowMs?: number): string | null {
+  if (!occupiedAt) return null;
+  const start = new Date(occupiedAt).getTime();
+  if (Number.isNaN(start)) return null;
+  const mins = Math.max(0, Math.floor(((nowMs ?? Date.now()) - start) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h${String(m).padStart(2, '0')}m`;
+}
+
+// Table size is conveyed by the label text, not by decorative color — one calm
+// neutral chip for all sizes (practitioner look, not a rainbow).
+const SIZE_BADGE = 'bg-muted text-muted-foreground border-border';
 const SIZE_META: Record<Size, { label: string; badge: string; defaultCapacity: number }> = {
-  SMALL: { label: 'Small', badge: 'bg-sky-100 text-sky-700 border-sky-200', defaultCapacity: 2 },
-  MEDIUM: { label: 'Medium', badge: 'bg-amber-100 text-amber-700 border-amber-200', defaultCapacity: 4 },
-  LARGE: { label: 'Large', badge: 'bg-violet-100 text-violet-700 border-violet-200', defaultCapacity: 8 },
+  SMALL: { label: 'Small', badge: SIZE_BADGE, defaultCapacity: 2 },
+  MEDIUM: { label: 'Medium', badge: SIZE_BADGE, defaultCapacity: 4 },
+  LARGE: { label: 'Large', badge: SIZE_BADGE, defaultCapacity: 8 },
 };
 
 export default function TablesPage() {
   const qc = useQueryClient();
+  const t = useT();
+  const router = useRouter();
+  const cartTableId = useCart((s) => s.tableId);
+  const setCartTable = useCart((s) => s.setTable);
+  const setCartType = useCart((s) => s.setType);
+  const clearCart = useCart((s) => s.clear);
+
+  // Jump to the POS with this table selected → its running bill loads there.
+  // Switching to a *different* table must wipe any leftover discount/points/
+  // customer from whatever was in the cart before — otherwise a discount
+  // applied to one table's bill could silently carry over to the next.
+  const goToBill = (tableId: string) => {
+    if (cartTableId !== tableId) clearCart();
+    setCartType('DINE_IN');
+    setCartTable(tableId);
+    router.push('/pos');
+  };
   const [showOccupied, setShowOccupied] = useState(false);
   const [sizeFilter, setSizeFilter] = useState<Size | 'ALL'>('ALL');
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editTable, setEditTable] = useState<any>(null);
+
+  // Tick every 30s so elapsed-time badges stay fresh without refetching
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
 
   const { data: tables = [], isLoading } = useQuery({
     queryKey: ['tables'],
@@ -73,17 +146,20 @@ export default function TablesPage() {
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['tables'] }),
     onSuccess: (_d, { status }) => {
-      const labels = { AVAILABLE: 'Available', OCCUPIED: 'Occupied', RESERVED: 'Reserved' };
-      toast.success(`Status changed to "${labels[status]}"`);
+      toast.success(t(`tables.status.${status}`, STATUS_LABEL[status]));
       setSelectedTable(null);
     },
   });
 
   const counts = useMemo(() => {
-    const c = { AVAILABLE: 0, OCCUPIED: 0, RESERVED: 0 };
-    for (const t of tables as any[]) c[t.status as Status]++;
+    const c: Record<Status, number> = { AVAILABLE: 0, RESERVED: 0, OCCUPIED: 0, BILLING: 0, DIRTY: 0 };
+    for (const t of tables as any[]) {
+      const s = t.status as Status;
+      if (c[s] !== undefined) c[s]++;
+    }
     return c;
   }, [tables]);
+  const inUseCount = counts.OCCUPIED + counts.BILLING;
 
   const sizeCounts = useMemo(() => {
     const c: Record<Size, number> = { SMALL: 0, MEDIUM: 0, LARGE: 0 };
@@ -96,7 +172,7 @@ export default function TablesPage() {
 
   const visibleTables = useMemo(() => {
     return (tables as any[]).filter((t) => {
-      if (!showOccupied && t.status === 'OCCUPIED') return false;
+      if (!showOccupied && IN_USE.includes(t.status as Status)) return false;
       if (sizeFilter !== 'ALL' && (t.size || 'MEDIUM') !== sizeFilter) return false;
       return true;
     });
@@ -106,20 +182,16 @@ export default function TablesPage() {
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Tables</h2>
-          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-success" />
-              <span className="tabular-nums">{counts.AVAILABLE} Available</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-warning" />
-              <span className="tabular-nums">{counts.RESERVED} Reserved</span>
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-danger" />
-              <span className="tabular-nums">{counts.OCCUPIED} Occupied</span>
-            </span>
+          <h2 className="text-xl font-semibold tracking-tight">{t('tables.title')}</h2>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-xs text-muted-foreground">
+            {STATUSES.map((s) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT[s]}`} />
+                <span className="tabular-nums">
+                  {counts[s]} {t(`tables.status.${s}`, STATUS_LABEL[s])}
+                </span>
+              </span>
+            ))}
           </div>
         </div>
 
@@ -128,10 +200,10 @@ export default function TablesPage() {
             onClick={() => setShowOccupied((v) => !v)}
             className="px-3 py-1.5 rounded-md border border-border bg-card hover:bg-card-hover text-sm transition-colors"
           >
-            {showOccupied ? 'Hide occupied' : 'Show occupied'}
+            {showOccupied ? t('tables.hideOccupied') : t('tables.showOccupied')}
           </button>
           <Button onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Add table
+            <Plus className="w-4 h-4 mr-1" /> {t('tables.addTable')}
           </Button>
         </div>
       </div>
@@ -177,20 +249,20 @@ export default function TablesPage() {
       ) : visibleTables.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <p className="text-sm">
-            {tables.length === 0 ? 'No tables yet' : 'No tables match the current filter'}
+            {tables.length === 0 ? t('tables.noTables') : t('tables.noMatch')}
           </p>
           {tables.length === 0 ? (
             <Button className="mt-3" onClick={() => setAddOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Add first table
+              <Plus className="w-4 h-4 mr-1" /> {t('tables.addFirst')}
             </Button>
           ) : (
             !showOccupied &&
-            counts.OCCUPIED > 0 && (
+            inUseCount > 0 && (
               <button
                 onClick={() => setShowOccupied(true)}
                 className="mt-3 text-xs text-primary hover:underline"
               >
-                Show occupied tables ({counts.OCCUPIED})
+                {t('tables.showOccupied')} ({inUseCount})
               </button>
             )
           )}
@@ -198,36 +270,43 @@ export default function TablesPage() {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
           <AnimatePresence mode="popLayout">
-            {visibleTables.map((t: any) => {
-              const size = (t.size || 'MEDIUM') as Size;
-              const sizeMeta = SIZE_META[size];
+            {visibleTables.map((t2: any) => {
+              const status = t2.status as Status;
+              const seated = IN_USE.includes(status);
+              const elapsed = seated ? formatElapsed(t2.occupiedAt, nowMs) : null;
               return (
                 <motion.button
-                  key={t.id}
+                  key={t2.id}
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.15 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setSelectedTable(t)}
-                  className={`aspect-square rounded-lg border p-3 flex flex-col items-center justify-center transition-colors touch-manipulation relative ${
-                    STATUS_COLOR[t.status as Status]
+                  onClick={() => setSelectedTable(t2)}
+                  aria-label={`${t('cart.tableWord')} ${t2.number}, ${t2.capacity} ${t('tables.seats')}, ${t(
+                    `tables.status.${status}`,
+                    STATUS_LABEL[status]
+                  )}${elapsed ? `, ${t('tables.seated')} ${elapsed}` : ''}`}
+                  className={`aspect-square rounded-xl border-2 p-2 flex flex-col items-center justify-center transition-colors touch-manipulation relative ${
+                    STATUS_COLOR[status]
                   }`}
                 >
-                  <span
-                    className={`absolute top-1.5 left-1.5 text-[9px] font-medium px-1.5 py-0.5 rounded border ${sizeMeta.badge}`}
-                  >
-                    {sizeMeta.label}
+                  <span className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-background/60 backdrop-blur-sm tabular-nums">
+                    <Users className="w-2.5 h-2.5" />
+                    {t2.capacity}
                   </span>
-                  <div className="text-2xl sm:text-3xl font-semibold leading-none tabular-nums tracking-tight mt-2">
-                    {t.number}
+                  {elapsed && (
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-background/60 backdrop-blur-sm tabular-nums">
+                      <Clock className="w-2.5 h-2.5" />
+                      {elapsed}
+                    </span>
+                  )}
+                  <div className="text-3xl sm:text-4xl font-bold leading-none tabular-nums tracking-tight">
+                    {t2.number}
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-                    {t.capacity} seats
-                  </div>
-                  <div className="text-[10px] uppercase tracking-wider mt-2 opacity-80">
-                    {STATUS_LABEL[t.status as Status]}
+                  <div className="text-[10px] uppercase tracking-wider mt-1.5 font-semibold opacity-90">
+                    {t(`tables.status.${status}`, STATUS_LABEL[status])}
                   </div>
                 </motion.button>
               );
@@ -243,7 +322,7 @@ export default function TablesPage() {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  Table {selectedTable.number}
+                  {t('cart.tableWord')} {selectedTable.number}
                   <span
                     className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${
                       SIZE_META[(selectedTable.size || 'MEDIUM') as Size].badge
@@ -253,22 +332,25 @@ export default function TablesPage() {
                   </span>
                 </DialogTitle>
               </DialogHeader>
-              <p className="text-sm text-muted-foreground">
-                Current status:{' '}
-                <Badge
-                  variant={
-                    selectedTable.status === 'AVAILABLE'
-                      ? 'success'
-                      : selectedTable.status === 'OCCUPIED'
-                      ? 'danger'
-                      : 'warning'
-                  }
+              <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
+                {t('tables.currentStatus')}{' '}
+                <span
+                  className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    STATUS_COLOR[selectedTable.status as Status]
+                  }`}
                 >
-                  {STATUS_LABEL[selectedTable.status as Status]}
-                </Badge>
+                  {t(`tables.status.${selectedTable.status}`, STATUS_LABEL[selectedTable.status as Status])}
+                </span>
+                {IN_USE.includes(selectedTable.status as Status) &&
+                  formatElapsed(selectedTable.occupiedAt, nowMs) && (
+                    <span className="inline-flex items-center gap-1 text-xs tabular-nums">
+                      <Clock className="w-3 h-3" />
+                      {t('tables.seated')} {formatElapsed(selectedTable.occupiedAt, nowMs)}
+                    </span>
+                  )}
               </p>
               <div className="grid grid-cols-1 gap-2 mt-2">
-                {(['AVAILABLE', 'RESERVED', 'OCCUPIED'] as Status[]).map((s) => {
+                {STATUSES.map((s) => {
                   const Icon = STATUS_ICON[s];
                   const active = selectedTable.status === s;
                   return (
@@ -284,17 +366,22 @@ export default function TablesPage() {
                     >
                       <Icon className="w-5 h-5 shrink-0" />
                       <div>
-                        <div className="font-medium">{STATUS_LABEL[s]}</div>
-                        <div className="text-xs opacity-75">
-                          {s === 'AVAILABLE' && 'Open for customers'}
-                          {s === 'RESERVED' && 'Reserved by customer'}
-                          {s === 'OCCUPIED' && 'Customer is seated'}
-                        </div>
+                        <div className="font-medium">{t(`tables.status.${s}`, STATUS_LABEL[s])}</div>
+                        <div className="text-xs opacity-75">{t(`tables.desc.${s}`, STATUS_DESC[s])}</div>
                       </div>
                     </button>
                   );
                 })}
               </div>
+              <Button
+                className="w-full mt-1"
+                onClick={() => goToBill(selectedTable.id)}
+              >
+                <Receipt className="w-4 h-4 mr-1.5" />
+                {IN_USE.includes(selectedTable.status as Status)
+                  ? t('tables.goToBill')
+                  : t('tables.openBill')}
+              </Button>
               <div className="flex gap-2 mt-2 pt-2 border-t border-border">
                 <Button
                   variant="outline"
@@ -305,7 +392,7 @@ export default function TablesPage() {
                     setSelectedTable(null);
                   }}
                 >
-                  <Pencil className="w-3.5 h-3.5 mr-1" /> Edit table
+                  <Pencil className="w-3.5 h-3.5 mr-1" /> {t('tables.editTable')}
                 </Button>
               </div>
             </>
