@@ -44,4 +44,18 @@ export function initSocket(io: Server) {
       }
     });
   });
+
+  // Self-order (QR ordering) — also unauthenticated, same reasoning as
+  // /display: a customer's own phone has no staff login. It can only join a
+  // room for the one request it just submitted, to hear whether staff
+  // approved or rejected it (see self-order.service.ts); it cannot read or
+  // write anything else.
+  io.of('/self-order').on('connection', (socket) => {
+    socket.on('join', (payload: { requestId?: string }) => {
+      const requestId = payload?.requestId;
+      if (typeof requestId === 'string' && requestId) {
+        socket.join(`req:${requestId}`);
+      }
+    });
+  });
 }

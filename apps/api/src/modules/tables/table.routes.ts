@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { prisma } from '../../config/prisma';
@@ -74,6 +75,41 @@ router.patch('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
     const io = req.app.get('io');
     io.to(`store:${req.user!.storeId}`).emit('table:updated', table);
     res.json(table);
+  } catch (e) { next(e); }
+});
+
+// Self-order QR link — lazily generate the table's opaque token on first
+// request so existing tables (created before this feature) still work.
+router.get('/:id/qr', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
+  try {
+    let table = await prisma.table.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (!table) return res.status(404).json({ error: 'Table not found' });
+
+    if (!table.qrCode) {
+      table = await prisma.table.update({
+        where: { id: table.id },
+        data: { qrCode: crypto.randomBytes(9).toString('base64url') },
+      });
+    }
+    res.json({ qrCode: table.qrCode });
+  } catch (e) { next(e); }
+});
+
+// Issue a fresh token, invalidating any previously printed/shared QR/link.
+router.post('/:id/qr/regenerate', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
+  try {
+    const existing = await prisma.table.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (!existing) return res.status(404).json({ error: 'Table not found' });
+
+    const table = await prisma.table.update({
+      where: { id: existing.id },
+      data: { qrCode: crypto.randomBytes(9).toString('base64url') },
+    });
+    res.json({ qrCode: table.qrCode });
   } catch (e) { next(e); }
 });
 

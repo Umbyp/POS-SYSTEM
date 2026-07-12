@@ -2,7 +2,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Check, Clock, Pencil, Trash2, Users, Receipt, Sparkles, CalendarClock } from 'lucide-react';
+import { Plus, Check, Clock, Pencil, Trash2, Users, Receipt, Sparkles, CalendarClock, QrCode } from 'lucide-react';
+import { TableQrDialog } from '@/components/tables/TableQrDialog';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -86,10 +87,10 @@ function formatElapsed(occupiedAt?: string | null, nowMs?: number): string | nul
 // Table size is conveyed by the label text, not by decorative color — one calm
 // neutral chip for all sizes (practitioner look, not a rainbow).
 const SIZE_BADGE = 'bg-muted text-muted-foreground border-border';
-const SIZE_META: Record<Size, { label: string; badge: string; defaultCapacity: number }> = {
-  SMALL: { label: 'Small', badge: SIZE_BADGE, defaultCapacity: 2 },
-  MEDIUM: { label: 'Medium', badge: SIZE_BADGE, defaultCapacity: 4 },
-  LARGE: { label: 'Large', badge: SIZE_BADGE, defaultCapacity: 8 },
+const SIZE_META: Record<Size, { labelKey: string; badge: string; defaultCapacity: number }> = {
+  SMALL: { labelKey: 'tablesPage.size.SMALL', badge: SIZE_BADGE, defaultCapacity: 2 },
+  MEDIUM: { labelKey: 'tablesPage.size.MEDIUM', badge: SIZE_BADGE, defaultCapacity: 4 },
+  LARGE: { labelKey: 'tablesPage.size.LARGE', badge: SIZE_BADGE, defaultCapacity: 8 },
 };
 
 export default function TablesPage() {
@@ -116,6 +117,7 @@ export default function TablesPage() {
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [editTable, setEditTable] = useState<any>(null);
+  const [qrTable, setQrTable] = useState<any>(null);
 
   // Tick every 30s so elapsed-time badges stay fresh without refetching
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -142,7 +144,7 @@ export default function TablesPage() {
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.previous) qc.setQueryData(['tables'], ctx.previous);
-      toast.error('Update failed');
+      toast.error(t('tablesPage.updateFailed'));
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['tables'] }),
     onSuccess: (_d, { status }) => {
@@ -218,7 +220,7 @@ export default function TablesPage() {
               : 'bg-card border border-border text-muted-foreground hover:text-foreground'
           }`}
         >
-          All ({tables.length})
+          {t('pos.all')} ({tables.length})
         </button>
         {(['SMALL', 'MEDIUM', 'LARGE'] as Size[]).map((s) => {
           const meta = SIZE_META[s];
@@ -234,7 +236,7 @@ export default function TablesPage() {
                   : 'bg-card border-border text-muted-foreground hover:text-foreground'
               }`}
             >
-              {meta.label} ({count})
+              {t(meta.labelKey)} ({count})
             </button>
           );
         })}
@@ -328,7 +330,7 @@ export default function TablesPage() {
                       SIZE_META[(selectedTable.size || 'MEDIUM') as Size].badge
                     }`}
                   >
-                    {SIZE_META[(selectedTable.size || 'MEDIUM') as Size].label}
+                    {t(SIZE_META[(selectedTable.size || 'MEDIUM') as Size].labelKey)}
                   </span>
                 </DialogTitle>
               </DialogHeader>
@@ -394,6 +396,17 @@ export default function TablesPage() {
                 >
                   <Pencil className="w-3.5 h-3.5 mr-1" /> {t('tables.editTable')}
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => {
+                    setQrTable(selectedTable);
+                    setSelectedTable(null);
+                  }}
+                >
+                  <QrCode className="w-3.5 h-3.5 mr-1" /> {t('tableQr.buttonLabel')}
+                </Button>
               </div>
             </>
           )}
@@ -402,11 +415,13 @@ export default function TablesPage() {
 
       <AddTableDialog open={addOpen} onClose={() => setAddOpen(false)} />
       <EditTableDialog table={editTable} onClose={() => setEditTable(null)} />
+      <TableQrDialog table={qrTable} onClose={() => setQrTable(null)} />
     </div>
   );
 }
 
 function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const qc = useQueryClient();
   const [form, setForm] = useState({ number: '', capacity: '4', size: 'MEDIUM' as Size });
 
@@ -414,11 +429,11 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
     mutationFn: (payload: any) => api.post('/tables', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tables'] });
-      toast.success('Table added');
+      toast.success(t('tablesPage.added'));
       setForm({ number: '', capacity: '4', size: 'MEDIUM' });
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to add table'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('tablesPage.addFailed')),
   });
 
   // Auto-suggest capacity based on size
@@ -430,7 +445,7 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add new table</DialogTitle>
+          <DialogTitle>{t('tablesPage.addNew')}</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -444,18 +459,18 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
           className="space-y-3"
         >
           <div>
-            <Label className="mb-1.5 block">Table number / name *</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.numberLabel')}</Label>
             <Input
               value={form.number}
               onChange={(e) => setForm({ ...form, number: e.target.value })}
-              placeholder="e.g. 1, A1, VIP-1"
+              placeholder={t('tablesPage.numberPlaceholder')}
               required
               autoFocus
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Size</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.sizeLabel')}</Label>
             <div className="grid grid-cols-3 gap-2">
               {(['SMALL', 'MEDIUM', 'LARGE'] as Size[]).map((s) => {
                 const meta = SIZE_META[s];
@@ -471,9 +486,9 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
                         : 'border-border hover:border-muted-foreground bg-card'
                     }`}
                   >
-                    {meta.label}
+                    {t(meta.labelKey)}
                     <div className="text-[10px] opacity-70 mt-0.5">
-                      ~{meta.defaultCapacity} seats
+                      {t('tablesPage.seatsApprox')}{meta.defaultCapacity} {t('tablesPage.seatsWord')}
                     </div>
                   </button>
                 );
@@ -482,7 +497,7 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Seats *</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.seatsLabel')}</Label>
             <Input
               type="number"
               min="1"
@@ -495,10 +510,10 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
 
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={create.isPending}>
-              Add table
+              {t('tablesPage.addButton')}
             </Button>
           </div>
         </form>
@@ -508,6 +523,7 @@ function AddTableDialog({ open, onClose }: { open: boolean; onClose: () => void 
 }
 
 function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }) {
+  const t = useT();
   const qc = useQueryClient();
   const [form, setForm] = useState({ number: '', capacity: '4', size: 'MEDIUM' as Size });
 
@@ -526,20 +542,20 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
     mutationFn: (payload: any) => api.patch(`/tables/${table.id}`, payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tables'] });
-      toast.success('Table updated');
+      toast.success(t('tablesPage.updated'));
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Update failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('tablesPage.updateFailed')),
   });
 
   const remove = useMutation({
     mutationFn: () => api.delete(`/tables/${table.id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tables'] });
-      toast.success('Table deleted');
+      toast.success(t('tablesPage.deleted'));
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Delete failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('tablesPage.deleteFailed')),
   });
 
   if (!table) return null;
@@ -548,7 +564,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
     <Dialog open={!!table} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Edit table {table.number}</DialogTitle>
+          <DialogTitle>{t('tables.editTable')} {table.number}</DialogTitle>
         </DialogHeader>
         <form
           onSubmit={(e) => {
@@ -562,7 +578,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
           className="space-y-3"
         >
           <div>
-            <Label className="mb-1.5 block">Table number / name *</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.numberLabel')}</Label>
             <Input
               value={form.number}
               onChange={(e) => setForm({ ...form, number: e.target.value })}
@@ -571,7 +587,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Size</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.sizeLabel')}</Label>
             <div className="grid grid-cols-3 gap-2">
               {(['SMALL', 'MEDIUM', 'LARGE'] as Size[]).map((s) => {
                 const meta = SIZE_META[s];
@@ -587,7 +603,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
                         : 'border-border hover:border-muted-foreground bg-card'
                     }`}
                   >
-                    {meta.label}
+                    {t(meta.labelKey)}
                   </button>
                 );
               })}
@@ -595,7 +611,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Seats *</Label>
+            <Label className="mb-1.5 block">{t('tablesPage.seatsLabel')}</Label>
             <Input
               type="number"
               min="1"
@@ -612,7 +628,7 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
               variant="outline"
               size="sm"
               onClick={() => {
-                if (confirm(`Delete table ${table.number}?`)) remove.mutate();
+                if (confirm(`${t('tablesPage.confirmDelete')} ${table.number}?`)) remove.mutate();
               }}
               disabled={remove.isPending}
               className="text-danger hover:text-danger"
@@ -620,10 +636,10 @@ function EditTableDialog({ table, onClose }: { table: any; onClose: () => void }
               <Trash2 className="w-4 h-4" />
             </Button>
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={update.isPending}>
-              Save
+              {t('common.save')}
             </Button>
           </div>
         </form>
