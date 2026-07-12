@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { CustomerPicker } from '@/components/customers/CustomerPicker';
 import { VoidItemDialog } from '@/components/pos/VoidItemDialog';
+import { sendToCustomerDisplay } from '@/lib/customerDisplay';
 
 export function Cart({ onCheckout }: { onCheckout: () => void }) {
   const {
@@ -126,6 +127,24 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   // owner sees their true take-home the moment they pick the Delivery channel.
   const gpFee = type === 'DELIVERY' ? breakdown.total * (gpFeePct / 100) : 0;
   const netProfit = breakdown.total - gpFee;
+
+  // Mirror the current (unsent) round to the customer-facing display, if one
+  // is open. Scoped to the active cart only — once items are sent to the
+  // kitchen for an open table bill, this goes back to idle (the checkout QR
+  // still works for that flow; only the live line-item mirror doesn't apply).
+  useEffect(() => {
+    if (items.length === 0) {
+      sendToCustomerDisplay({ type: 'idle' });
+    } else {
+      sendToCustomerDisplay({
+        type: 'cart',
+        storeName: store?.name,
+        items: items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
+        subtotal: sub,
+        total: breakdown.total,
+      });
+    }
+  }, [items, sub, breakdown.total, store?.name]);
 
   // Auto-apply promotion when cart/customer/code changes
   const { data: products = [] } = useQuery({

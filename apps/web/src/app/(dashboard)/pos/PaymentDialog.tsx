@@ -8,6 +8,7 @@ import { useCart } from '@/stores/cart.store';
 import { submitOrderWithFallback, submitSettleWithFallback } from '@/hooks/useOfflineQueue';
 import { formatCurrency } from '@/lib/format';
 import { useT } from '@/lib/i18n';
+import { sendToCustomerDisplay } from '@/lib/customerDisplay';
 import { computePricing, DEFAULT_TAX_CONFIG } from '@/lib/pricing';
 import { playCashRegister } from '@/lib/sounds';
 import { api } from '@/lib/api';
@@ -160,6 +161,23 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   // โชว์เฉพาะเงินสด, กรณี Stripe ปิด, หรือใส่เลขอ้างอิงเองเพื่อยืนยันด้วยมือ
   const showConfirm = method === 'CASH' || !stripeEnabled || !!reference.trim();
 
+  // Revert the customer display back to the live cart (or idle, in settle
+  // mode where there's no local item list) — used whenever a QR is
+  // cancelled/left without completing payment.
+  const broadcastCurrentCart = () => {
+    if (settleId) {
+      sendToCustomerDisplay({ type: 'idle' });
+    } else {
+      sendToCustomerDisplay({
+        type: 'cart',
+        storeName: store?.name,
+        items: cart.items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
+        subtotal: sub,
+        total,
+      });
+    }
+  };
+
   // ---- Stripe PromptPay: generate QR ----
   const generateQr = async () => {
     setPpError('');
@@ -184,12 +202,41 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     setPpIntent(null);
     setPpStatus('idle');
     setPpError('');
+    broadcastCurrentCart();
   };
 
   const changeMethod = (m: Method) => {
     if (m !== 'PROMPTPAY') resetPromptPay();
     setMethod(m);
   };
+
+  // ---- Mirror the PromptPay QR to the customer display ----
+  // Direct-merchant QR (no Stripe) renders immediately — no button press needed.
+  useEffect(() => {
+    if (method === 'PROMPTPAY' && !stripeEnabled && store?.promptpayId && remaining > 0) {
+      sendToCustomerDisplay({
+        type: 'qr',
+        amount: remaining,
+        promptpayId: store.promptpayId,
+        merchantName: store.name,
+      });
+    }
+  }, [method, stripeEnabled, store?.promptpayId, store?.name, remaining]);
+
+  // Stripe-hosted QR — mirror once the intent is created.
+  useEffect(() => {
+    if (method === 'PROMPTPAY' && stripeEnabled && ppIntent && (ppStatus === 'waiting' || ppStatus === 'paid')) {
+      sendToCustomerDisplay({ type: 'qr', amount: remaining, qrImageUrl: ppIntent.qrImageUrl });
+    }
+  }, [method, stripeEnabled, ppIntent, ppStatus, remaining]);
+
+  // Payment confirmed — show the thank-you screen on the customer display.
+  useEffect(() => {
+    if (success) {
+      sendToCustomerDisplay({ type: 'success', total: Number(success.total), orderNumber: success.orderNumber });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [success]);
 
   // ---- Poll Stripe for payment status while waiting ----
   useEffect(() => {

@@ -1,5 +1,5 @@
 'use client';
-import { Menu, Volume2, VolumeX, Bell } from 'lucide-react';
+import { Menu, Volume2, VolumeX, Bell, Monitor } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { ShiftButton } from '@/components/shifts/ShiftButton';
@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { getMuted, setMuted, playCashRegister } from '@/lib/sounds';
 import { useAuth } from '@/stores/auth.store';
+import { useT } from '@/lib/i18n';
 
 interface TopbarProps {
   title?: string;
@@ -17,6 +18,7 @@ interface TopbarProps {
 export function Topbar({ title, onMenuClick }: TopbarProps) {
   const { pending, online } = useOfflineQueue();
   const { user } = useAuth();
+  const t = useT();
   const [now, setNow] = useState('');
   const [paymentMuted, setPaymentMuted] = useState(() => getMuted('payment-muted'));
 
@@ -25,6 +27,17 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
     setPaymentMuted(next);
     setMuted(next, 'payment-muted');
     if (!next) playCashRegister(true);
+  };
+
+  // Opens as a separate window (not just a tab) so the cashier can drag it
+  // onto a second, customer-facing monitor. Same browser only — it's driven
+  // by BroadcastChannel, not a server connection.
+  const openCustomerDisplay = () => {
+    window.open(
+      '/customer-display',
+      'pos-customer-display',
+      'width=900,height=700,menubar=no,toolbar=no,location=no,status=no'
+    );
   };
 
   useEffect(() => {
@@ -65,6 +78,14 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         <StoreSwitcher />
 
         <ShiftButton />
+
+        <button
+          onClick={openCustomerDisplay}
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+          title={t('pay.openCustomerDisplay')}
+        >
+          <Monitor className="w-4 h-4" />
+        </button>
 
         <LanguageToggle />
 
