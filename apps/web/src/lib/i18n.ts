@@ -173,11 +173,19 @@ const DICT: Record<string, Entry> = {
   'pay.offlineSaved': { th: 'บันทึกออฟไลน์ไว้แล้ว — จะซิงค์เมื่อออนไลน์', en: 'Saved offline — will sync when online' },
   'pay.failed': { th: 'ชำระเงินไม่สำเร็จ', en: 'Payment failed' },
   'pay.openCustomerDisplay': { th: 'เปิดจอลูกค้า', en: 'Open customer display' },
+  'pay.copyDisplayLink': { th: 'คัดลอกลิงก์จอลูกค้า (เครื่องอื่น)', en: 'Copy display link (other device)' },
+  'pay.linkCopied': { th: 'คัดลอกลิงก์แล้ว', en: 'Link copied' },
+  'pay.linkCopiedLocalhostHint': {
+    th: 'คัดลอกลิงก์แล้ว — ถ้าเปิดจากเครื่องอื่น ให้เปลี่ยน localhost เป็น IP ของเครื่องนี้ในวง WiFi เดียวกัน',
+    en: 'Link copied — if opening on another device, replace "localhost" with this machine\'s IP on the same network',
+  },
+  'pay.copyLinkFailed': { th: 'คัดลอกลิงก์ไม่สำเร็จ', en: 'Failed to copy link' },
 
   // Customer-facing display
   'display.welcome': { th: 'ยินดีต้อนรับ', en: 'Welcome' },
   'display.idleHint': { th: 'รายการสั่งซื้อของคุณจะแสดงที่นี่', en: 'Your order will appear here' },
   'display.yourOrder': { th: 'รายการของคุณ', en: 'Your order' },
+  'display.items': { th: 'รายการ', en: 'items' },
   'display.total': { th: 'ยอดรวม', en: 'Total' },
   'display.scanToPay': { th: 'สแกนเพื่อชำระเงิน', en: 'Scan to pay' },
   'display.thankYou': { th: 'ขอบคุณที่ใช้บริการ', en: 'Thank you for your order' },

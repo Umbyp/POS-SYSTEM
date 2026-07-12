@@ -30,4 +30,18 @@ export function initSocket(io: Server) {
       logger.info({ userId: user.id }, 'Socket disconnected');
     });
   });
+
+  // Customer-facing display — deliberately unauthenticated (no JWT) so a
+  // kiosk tablet/second screen can open a store-specific link without
+  // needing a staff login. It can only *receive* broadcasts relayed via the
+  // authenticated POST /display/broadcast endpoint (see display.routes.ts);
+  // there is no way to read or write store data through this socket.
+  io.of('/display').on('connection', (socket) => {
+    socket.on('join', (payload: { storeId?: string }) => {
+      const storeId = payload?.storeId;
+      if (typeof storeId === 'string' && storeId) {
+        socket.join(`store:${storeId}:display`);
+      }
+    });
+  });
 }

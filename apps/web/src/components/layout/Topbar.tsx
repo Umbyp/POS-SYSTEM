@@ -1,6 +1,7 @@
 'use client';
-import { Menu, Volume2, VolumeX, Bell, Monitor } from 'lucide-react';
+import { Menu, Volume2, VolumeX, Bell, Monitor, Link2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
 import { ShiftButton } from '@/components/shifts/ShiftButton';
 import { StoreSwitcher } from '@/components/layout/StoreSwitcher';
@@ -30,14 +31,32 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   };
 
   // Opens as a separate window (not just a tab) so the cashier can drag it
-  // onto a second, customer-facing monitor. Same browser only — it's driven
-  // by BroadcastChannel, not a server connection.
+  // onto a second, customer-facing monitor. Includes ?store= so it also
+  // connects over the network — same-machine mode still works instantly via
+  // BroadcastChannel regardless.
+  const displayUrl = () => `/customer-display${user?.storeId ? `?store=${user.storeId}` : ''}`;
+
   const openCustomerDisplay = () => {
     window.open(
-      '/customer-display',
+      displayUrl(),
       'pos-customer-display',
       'width=900,height=700,menubar=no,toolbar=no,location=no,status=no'
     );
+  };
+
+  // For a display on a *separate* device (tablet/phone on the same network)
+  // — the browser can't detect this machine's LAN IP itself, so if the POS
+  // is currently open via "localhost" the copied link needs manual editing.
+  const copyDisplayLink = async () => {
+    const url = `${window.location.origin}${displayUrl()}`;
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      toast.error(t('pay.copyLinkFailed'));
+      return;
+    }
+    const isLocalhost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+    toast.success(isLocalhost ? t('pay.linkCopiedLocalhostHint') : t('pay.linkCopied'));
   };
 
   useEffect(() => {
@@ -85,6 +104,14 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
           title={t('pay.openCustomerDisplay')}
         >
           <Monitor className="w-4 h-4" />
+        </button>
+
+        <button
+          onClick={copyDisplayLink}
+          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+          title={t('pay.copyDisplayLink')}
+        >
+          <Link2 className="w-4 h-4" />
         </button>
 
         <LanguageToggle />
