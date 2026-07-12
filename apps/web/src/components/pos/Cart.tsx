@@ -141,6 +141,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         storeName: store?.name,
         items: items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
         subtotal: sub,
+        discount: breakdown.discount,
         total: breakdown.total,
       });
     }

@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n';
 
 type Phase =
   | { kind: 'idle' }
-  | { kind: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; total: number }
+  | { kind: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; discount?: number; total: number }
   | { kind: 'qr'; amount: number; qrImageUrl?: string | null; promptpayId?: string; merchantName?: string }
   | { kind: 'success'; total: number; orderNumber: string };
 
@@ -77,13 +77,9 @@ export default function CustomerDisplayPage() {
             transition={{ duration: 0.4 }}
             className="text-center"
           >
-            <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-              className="inline-flex mb-6 sm:mb-8"
-            >
+            <div className="inline-flex mb-6 sm:mb-8">
               <Store className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 text-primary" />
-            </motion.div>
+            </div>
             <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-2 sm:mb-3 tracking-tight">
               {t('display.welcome')}
             </h1>
@@ -144,11 +140,23 @@ export default function CustomerDisplayPage() {
                   ))}
                 </AnimatePresence>
               </div>
-              <div className="border-t border-border mt-4 sm:mt-6 pt-4 sm:pt-6 flex justify-between items-center">
-                <span className="text-lg sm:text-2xl xl:text-3xl font-semibold">{t('display.total')}</span>
-                <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-primary tabular-nums">
-                  {formatCurrency(phase.total)}
-                </span>
+              <div className="border-t border-border mt-4 sm:mt-6 pt-3 sm:pt-4 space-y-1 sm:space-y-1.5">
+                <div className="flex justify-between items-center text-muted-foreground text-sm sm:text-base xl:text-lg">
+                  <span>{t('cart.subtotal')}</span>
+                  <span className="tabular-nums">{formatCurrency(phase.subtotal)}</span>
+                </div>
+                {!!phase.discount && phase.discount > 0 && (
+                  <div className="flex justify-between items-center text-primary text-sm sm:text-base xl:text-lg">
+                    <span>{t('cart.discount')}</span>
+                    <span className="tabular-nums">-{formatCurrency(phase.discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 sm:pt-3">
+                  <span className="text-lg sm:text-2xl xl:text-3xl font-semibold">{t('display.total')}</span>
+                  <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-primary tabular-nums">
+                    {formatCurrency(phase.total)}
+                  </span>
+                </div>
               </div>
             </div>
           </motion.div>

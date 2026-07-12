@@ -173,6 +173,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         storeName: store?.name,
         items: cart.items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
         subtotal: sub,
+        discount: breakdown.discount,
         total,
       });
     }

@@ -28,7 +28,7 @@ export interface CartLineMsg {
 
 export type CustomerDisplayMessage =
   | { type: 'idle' }
-  | { type: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; total: number }
+  | { type: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; discount?: number; total: number }
   | {
       type: 'qr';
       amount: number;
