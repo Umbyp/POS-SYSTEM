@@ -16,16 +16,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatDate } from '@/lib/format';
 import { StockAdjustDialog } from '@/components/inventory/StockAdjustDialog';
+import { useT } from '@/lib/i18n';
 
-const TYPE_META: Record<string, { label: string; color: string }> = {
-  PURCHASE: { label: 'Received', color: 'text-success' },
-  SALE: { label: 'Sold', color: 'text-muted-foreground' },
-  RETURN: { label: 'Return', color: 'text-warning' },
-  ADJUSTMENT: { label: 'Adjustment', color: 'text-primary' },
-  WASTE: { label: 'Waste/Loss', color: 'text-danger' },
+const TYPE_META: Record<string, { labelKey: string; color: string }> = {
+  PURCHASE: { labelKey: 'inventoryPage.type.PURCHASE', color: 'text-success' },
+  SALE: { labelKey: 'inventoryPage.type.SALE', color: 'text-muted-foreground' },
+  RETURN: { labelKey: 'inventoryPage.type.RETURN', color: 'text-warning' },
+  ADJUSTMENT: { labelKey: 'inventoryPage.type.ADJUSTMENT', color: 'text-primary' },
+  WASTE: { labelKey: 'inventoryPage.type.WASTE', color: 'text-danger' },
 };
 
 export default function InventoryPage() {
+  const t = useT();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<'all' | 'low'>('all');
   const [adjusting, setAdjusting] = useState<any>(null);
@@ -54,19 +56,19 @@ export default function InventoryPage() {
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin space-y-5">
       {/* KPIs — flat */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Total SKUs" value={inventory.length} />
+        <Kpi label={t('inventoryPage.totalSkus')} value={inventory.length} />
         <Kpi
-          label="Low stock"
+          label={t('inventoryPage.lowStock')}
           value={lowStock.length}
           tone={lowStock.length > 0 ? 'warning' : 'default'}
         />
         <Kpi
-          label="Out of stock"
+          label={t('inventoryPage.outOfStock')}
           value={outOfStock.length}
           tone={outOfStock.length > 0 ? 'warning' : 'default'}
         />
         <Kpi
-          label="Total units"
+          label={t('inventoryPage.totalUnits')}
           value={inventory.reduce((s: number, i: any) => s + i.quantity, 0)}
         />
       </div>
@@ -76,7 +78,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search product / SKU..."
+            placeholder={t('inventoryPage.searchPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             className="pl-10"
@@ -85,8 +87,8 @@ export default function InventoryPage() {
         <div className="flex border border-border rounded-md p-0.5 text-xs">
           {(
             [
-              { k: 'all', label: 'All' },
-              { k: 'low', label: `Low stock (${lowStock.length})` },
+              { k: 'all', label: t('pos.all') },
+              { k: 'low', label: `${t('inventoryPage.lowStock')} (${lowStock.length})` },
             ] as const
           ).map((f) => (
             <button
@@ -106,7 +108,7 @@ export default function InventoryPage() {
 
       {/* Inventory list */}
       <div>
-        <h3 className="font-semibold mb-3">Inventory items ({filtered.length})</h3>
+        <h3 className="font-semibold mb-3">{t('inventoryPage.itemsTitle')} ({filtered.length})</h3>
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 5 }).map((_, i) => (
@@ -116,7 +118,7 @@ export default function InventoryPage() {
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
             <Boxes className="w-10 h-10 mb-2 opacity-30" />
-            <p className="text-sm">No items found</p>
+            <p className="text-sm">{t('inventoryPage.noneFound')}</p>
           </div>
         ) : (
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -124,11 +126,11 @@ export default function InventoryPage() {
             <table className="w-full text-sm hidden md:table">
               <thead className="bg-muted text-left">
                 <tr>
-                  <th className="p-3">Product</th>
-                  <th className="p-3 text-right">In stock</th>
-                  <th className="p-3 text-right">Min</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3 text-right w-32">Adjust</th>
+                  <th className="p-3">{t('inventoryPage.colProduct')}</th>
+                  <th className="p-3 text-right">{t('inventoryPage.colInStock')}</th>
+                  <th className="p-3 text-right">{t('inventoryPage.colMin')}</th>
+                  <th className="p-3">{t('inventoryPage.colStatus')}</th>
+                  <th className="p-3 text-right w-32">{t('inventoryPage.colAdjust')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -150,16 +152,16 @@ export default function InventoryPage() {
                       </td>
                       <td className="p-3">
                         {i.quantity === 0 ? (
-                          <Badge variant="danger">Out</Badge>
+                          <Badge variant="danger">{t('inventoryPage.statusOut')}</Badge>
                         ) : low ? (
-                          <Badge variant="warning">Low</Badge>
+                          <Badge variant="warning">{t('inventoryPage.statusLow')}</Badge>
                         ) : (
-                          <Badge variant="success">Normal</Badge>
+                          <Badge variant="success">{t('inventoryPage.statusNormal')}</Badge>
                         )}
                       </td>
                       <td className="p-3 text-right">
                         <Button size="sm" variant="outline" onClick={() => setAdjusting(i)}>
-                          <Edit3 className="w-3.5 h-3.5 mr-1" /> Adjust
+                          <Edit3 className="w-3.5 h-3.5 mr-1" /> {t('inventoryPage.adjust')}
                         </Button>
                       </td>
                     </tr>
@@ -179,23 +181,23 @@ export default function InventoryPage() {
                         <div className="font-medium truncate">{i.product.name}</div>
                         <div className="flex gap-1 flex-wrap mt-0.5">
                           {i.quantity === 0 ? (
-                            <Badge variant="danger" className="text-[10px]">Out</Badge>
+                            <Badge variant="danger" className="text-[10px]">{t('inventoryPage.statusOut')}</Badge>
                           ) : low ? (
-                            <Badge variant="warning" className="text-[10px]">Low</Badge>
+                            <Badge variant="warning" className="text-[10px]">{t('inventoryPage.statusLow')}</Badge>
                           ) : (
-                            <Badge variant="success" className="text-[10px]">Normal</Badge>
+                            <Badge variant="success" className="text-[10px]">{t('inventoryPage.statusNormal')}</Badge>
                           )}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-2xl font-bold tabular-nums">{i.quantity}</div>
                         <div className="text-[10px] text-muted-foreground">
-                          Min {i.lowStockAt}
+                          {t('inventoryPage.minShort')} {i.lowStockAt}
                         </div>
                       </div>
                     </div>
                     <Button size="sm" variant="outline" className="w-full" onClick={() => setAdjusting(i)}>
-                      <Edit3 className="w-3.5 h-3.5 mr-1" /> Adjust stock
+                      <Edit3 className="w-3.5 h-3.5 mr-1" /> {t('inventoryPage.adjustStock')}
                     </Button>
                   </div>
                 );
@@ -207,16 +209,17 @@ export default function InventoryPage() {
 
       {/* Recent movements */}
       <div>
-        <h3 className="font-semibold mb-3">Recent movements</h3>
+        <h3 className="font-semibold mb-3">{t('inventoryPage.recentMovements')}</h3>
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
           {movements.length === 0 ? (
             <p className="text-sm text-muted-foreground p-6 text-center">
-              No movements yet
+              {t('inventoryPage.noMovements')}
             </p>
           ) : (
             <div className="divide-y divide-border max-h-96 overflow-y-auto scrollbar-thin">
               {movements.slice(0, 30).map((m: any) => {
-                const meta = TYPE_META[m.type] || { label: m.type, color: '' };
+                const meta = TYPE_META[m.type];
+                const label = meta ? t(meta.labelKey) : m.type;
                 return (
                   <div
                     key={m.id}
@@ -225,7 +228,7 @@ export default function InventoryPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <Badge variant="default" className="text-[10px]">
-                          {meta.label}
+                          {label}
                         </Badge>
                         <span className="font-medium text-sm truncate">
                           {m.inventory?.product?.name}

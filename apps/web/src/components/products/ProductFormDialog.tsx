@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ImageUploader } from '@/components/ui/ImageUploader';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   open: boolean;
@@ -58,6 +59,7 @@ const EMPTY: FormState = {
 };
 
 export function ProductFormDialog({ open, onClose, productId }: Props) {
+  const t = useT();
   const qc = useQueryClient();
   const [form, setForm] = useState<FormState>(EMPTY);
 
@@ -105,11 +107,11 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] });
-      toast.success(productId ? 'Product updated' : 'Product added');
+      toast.success(productId ? t('productForm.updated') : t('productForm.added'));
       onClose();
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || 'Failed to save');
+      toast.error(err.response?.data?.error || t('productForm.saveFailed'));
     },
   });
 
@@ -143,7 +145,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
-          <DialogTitle>{productId ? 'Edit product' : 'Add new product'}</DialogTitle>
+          <DialogTitle>{productId ? t('productForm.editTitle') : t('productForm.addTitle')}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={submit} className="space-y-4">

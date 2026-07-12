@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { detectPromptPayType, formatPromptPayId } from '@/lib/promptpay';
+import { useT } from '@/lib/i18n';
 
 export type StoreSettingsSection = 'store' | 'tax' | 'promptpay' | 'goals';
 
@@ -20,6 +21,7 @@ interface StoreSettingsFormProps {
 }
 
 export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFormProps = {}) {
+  const t = useT();
   const qc = useQueryClient();
   const show = (key: StoreSettingsSection) => !sections || sections.includes(key);
 
@@ -70,10 +72,10 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
     mutationFn: (payload: any) => api.patch('/stores/me', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['store-me'] });
-      toast.success('Settings saved');
+      toast.success(t('storeSettings.saved'));
     },
     onError: (err: any) => {
-      toast.error(err.response?.data?.error || 'Failed to save');
+      toast.error(err.response?.data?.error || t('storeSettings.saveFailed'));
     },
   });
 
@@ -108,11 +110,11 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
       {show('store') && (
       <Card>
         <CardHeader>
-          <CardTitle>Store information</CardTitle>
+          <CardTitle>{t('storeSettings.storeInfo')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">Store name *</Label>
+            <Label className="mb-1.5 block">{t('storeSettings.storeName')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -120,7 +122,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
             />
           </div>
           <div>
-            <Label className="mb-1.5 block">Address</Label>
+            <Label className="mb-1.5 block">{t('storeSettings.address')}</Label>
             <textarea
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
@@ -130,14 +132,14 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">Phone</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.phone')}</Label>
               <Input
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Logo URL</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.logoUrl')}</Label>
               <Input
                 value={form.logo}
                 onChange={(e) => setForm({ ...form, logo: e.target.value })}
@@ -152,12 +154,12 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
       {show('tax') && (
       <Card>
         <CardHeader>
-          <CardTitle>Tax & invoicing</CardTitle>
+          <CardTitle>{t('storeSettings.taxInvoicing')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">Tax ID (13 digits)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.taxId')}</Label>
               <Input
                 value={form.taxId}
                 onChange={(e) => setForm({ ...form, taxId: e.target.value })}
@@ -165,7 +167,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Branch code (5 digits)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.branchCode')}</Label>
               <Input
                 value={form.branchCode}
                 onChange={(e) => setForm({ ...form, branchCode: e.target.value })}
@@ -176,7 +178,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <Label className="mb-1.5 block">VAT (%)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.vat')}</Label>
               <Input
                 type="number" step="0.01" min="0" max="100"
                 value={form.taxRate}
@@ -184,7 +186,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Service Charge (%)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.serviceCharge')}</Label>
               <Input
                 type="number" step="0.01" min="0" max="100"
                 value={form.serviceCharge}
@@ -192,7 +194,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Invoice Prefix</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.invoicePrefix')}</Label>
               <Input
                 value={form.invoicePrefix}
                 onChange={(e) => setForm({ ...form, invoicePrefix: e.target.value })}
@@ -208,11 +210,9 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               className="mt-0.5 w-4 h-4 accent-primary"
             />
             <div className="flex-1">
-              <div className="text-sm font-medium">Prices include VAT</div>
-              <div className="text-xs text-muted-foreground mt-0.5">
-                On: Your set prices already include VAT. The system extracts VAT for receipts (no double charge)
-                <br />
-                Off: Prices do not include VAT — the system adds VAT on top of the total
+              <div className="text-sm font-medium">{t('storeSettings.priceIncludesVat')}</div>
+              <div className="text-xs text-muted-foreground mt-0.5 whitespace-pre-line">
+                {t('storeSettings.priceIncludesVatHint')}
               </div>
             </div>
           </label>
@@ -225,26 +225,26 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
         <CardHeader>
           <CardTitle>
             <span className="flex items-center gap-2">
-              <QrCode className="w-5 h-5" /> PromptPay for receiving payments
+              <QrCode className="w-5 h-5" /> {t('storeSettings.promptpayTitle')}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">PromptPay ID</Label>
+            <Label className="mb-1.5 block">{t('storeSettings.promptpayId')}</Label>
             <Input
               value={form.promptpayId}
               onChange={(e) => setForm({ ...form, promptpayId: e.target.value })}
-              placeholder="Mobile (10) / National ID (13) / eWallet (15)"
+              placeholder={t('storeSettings.promptpayPlaceholder')}
             />
             <p className="text-xs text-muted-foreground mt-1.5">
-              {ppType === 'MOBILE' && `📱 Mobile: ${formatPromptPayId(form.promptpayId)}`}
-              {ppType === 'NATIONAL_ID' && `🆔 National ID: ${formatPromptPayId(form.promptpayId)}`}
-              {ppType === 'EWALLET' && `💳 eWallet ID`}
+              {ppType === 'MOBILE' && `${t('storeSettings.promptpayMobile')}: ${formatPromptPayId(form.promptpayId)}`}
+              {ppType === 'NATIONAL_ID' && `${t('storeSettings.promptpayNationalId')}: ${formatPromptPayId(form.promptpayId)}`}
+              {ppType === 'EWALLET' && t('storeSettings.promptpayEwallet')}
               {form.promptpayId && !ppType && (
-                <span className="text-danger">⚠️ Invalid format (must be 10, 13, or 15 digits)</span>
+                <span className="text-danger">{t('storeSettings.promptpayInvalid')}</span>
               )}
-              {!form.promptpayId && 'Enter your number to generate a QR for automatic payment'}
+              {!form.promptpayId && t('storeSettings.promptpayHint')}
             </p>
           </div>
         </CardContent>
@@ -256,17 +256,17 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
         <CardHeader>
           <CardTitle>
             <span className="flex items-center gap-2">
-              <Target className="w-5 h-5 text-warning" /> Sales goals
+              <Target className="w-5 h-5 text-warning" /> {t('storeSettings.goalsTitle')}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-xs text-muted-foreground">
-            Set targets to see progress on the Dashboard (0 = no target)
+            {t('storeSettings.goalsHint')}
           </p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">Daily target (฿)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.dailyTarget')}</Label>
               <Input
                 type="number"
                 min="0"
@@ -277,7 +277,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">Monthly target (฿)</Label>
+              <Label className="mb-1.5 block">{t('storeSettings.monthlyTarget')}</Label>
               <Input
                 type="number"
                 min="0"
@@ -299,7 +299,7 @@ export function StoreSettingsForm({ sections, hideSaveButton }: StoreSettingsFor
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <>
-                <Save className="w-4 h-4 mr-1" /> Save settings
+                <Save className="w-4 h-4 mr-1" /> {t('storeSettings.saveButton')}
               </>
             )}
           </Button>

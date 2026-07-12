@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/format';
 import { AddEmployeeDialog } from '@/components/employees/AddEmployeeDialog';
 import { useAuth } from '@/stores/auth.store';
+import { useT } from '@/lib/i18n';
 
 const ROLE_VARIANT: Record<string, any> = {
   OWNER: 'accent',
@@ -17,14 +18,15 @@ const ROLE_VARIANT: Record<string, any> = {
   KITCHEN: 'warning',
 };
 
-const ROLE_LABEL: Record<string, string> = {
-  OWNER: 'Owner',
-  ADMIN: 'Admin',
-  CASHIER: 'Cashier',
-  KITCHEN: 'Kitchen',
+const ROLE_LABEL_KEY: Record<string, string> = {
+  OWNER: 'employee.role.owner',
+  ADMIN: 'employee.role.admin',
+  CASHIER: 'employee.role.cashier',
+  KITCHEN: 'employee.role.kitchen',
 };
 
 export default function EmployeesPage() {
+  const t = useT();
   const qc = useQueryClient();
   const { user: me } = useAuth();
   const [addOpen, setAddOpen] = useState(false);
@@ -39,17 +41,17 @@ export default function EmployeesPage() {
       api.patch(`/employees/${id}`, { isActive }).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] });
-      toast.success('Status updated');
+      toast.success(t('employeesPage.statusUpdated'));
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Update failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('employeesPage.updateFailed')),
   });
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">
       <div className="flex items-center justify-between mb-4 gap-2">
-        <h2 className="text-lg sm:text-xl font-bold">Staff ({employees.length})</h2>
+        <h2 className="text-lg sm:text-xl font-bold">{t('nav.staff')} ({employees.length})</h2>
         <Button onClick={() => setAddOpen(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Add staff
+          <Plus className="w-4 h-4 mr-1" /> {t('employee.add')}
         </Button>
       </div>
 
@@ -62,9 +64,9 @@ export default function EmployeesPage() {
       ) : employees.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <Users className="w-12 h-12 mb-3 opacity-30" />
-          <p className="mb-3">No staff yet</p>
+          <p className="mb-3">{t('employeesPage.none')}</p>
           <Button onClick={() => setAddOpen(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Add first staff member
+            <Plus className="w-4 h-4 mr-1" /> {t('employeesPage.addFirst')}
           </Button>
         </div>
       ) : (
@@ -74,12 +76,12 @@ export default function EmployeesPage() {
             <table className="w-full text-sm">
               <thead className="bg-muted text-left">
                 <tr>
-                  <th className="p-3">Name</th>
-                  <th className="p-3">Email</th>
-                  <th className="p-3">Role</th>
-                  <th className="p-3 text-right">Orders</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Joined</th>
+                  <th className="p-3">{t('employeesPage.colName')}</th>
+                  <th className="p-3">{t('employeesPage.colEmail')}</th>
+                  <th className="p-3">{t('employeesPage.colRole')}</th>
+                  <th className="p-3 text-right">{t('employeesPage.colOrders')}</th>
+                  <th className="p-3">{t('employeesPage.colStatus')}</th>
+                  <th className="p-3">{t('employeesPage.colJoined')}</th>
                   <th className="p-3 w-12"></th>
                 </tr>
               </thead>
@@ -94,21 +96,21 @@ export default function EmployeesPage() {
                         <span>
                           {u.name}
                           {u.id === me?.id && (
-                            <span className="text-xs text-muted-foreground ml-1">(you)</span>
+                            <span className="text-xs text-muted-foreground ml-1">{t('employeesPage.you')}</span>
                           )}
                         </span>
                       </div>
                     </td>
                     <td className="p-3 text-muted-foreground">{u.email}</td>
                     <td className="p-3">
-                      <Badge variant={ROLE_VARIANT[u.role]}>{ROLE_LABEL[u.role] || u.role}</Badge>
+                      <Badge variant={ROLE_VARIANT[u.role]}>{t(ROLE_LABEL_KEY[u.role], u.role)}</Badge>
                     </td>
                     <td className="p-3 text-right tabular-nums">{u._count?.orders || 0}</td>
                     <td className="p-3">
                       {u.isActive ? (
-                        <Badge variant="success">Active</Badge>
+                        <Badge variant="success">{t('employeesPage.active')}</Badge>
                       ) : (
-                        <Badge variant="danger">Inactive</Badge>
+                        <Badge variant="danger">{t('employeesPage.inactive')}</Badge>
                       )}
                     </td>
                     <td className="p-3 text-muted-foreground text-xs">{formatDate(u.createdAt)}</td>
@@ -117,7 +119,7 @@ export default function EmployeesPage() {
                         <button
                           onClick={() => toggleActive.mutate({ id: u.id, isActive: !u.isActive })}
                           className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                          title={u.isActive ? 'Deactivate' : 'Activate'}
+                          title={u.isActive ? t('employeesPage.deactivate') : t('employeesPage.activate')}
                         >
                           <Power className="w-4 h-4" />
                         </button>
@@ -141,21 +143,21 @@ export default function EmployeesPage() {
                     <div className="font-medium truncate">
                       {u.name}
                       {u.id === me?.id && (
-                        <span className="text-xs text-muted-foreground ml-1">(you)</span>
+                        <span className="text-xs text-muted-foreground ml-1">{t('employeesPage.you')}</span>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground truncate">{u.email}</div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       <Badge variant={ROLE_VARIANT[u.role]} className="text-[10px]">
-                        {ROLE_LABEL[u.role] || u.role}
+                        {t(ROLE_LABEL_KEY[u.role], u.role)}
                       </Badge>
                       {u.isActive ? (
-                        <Badge variant="success" className="text-[10px]">Active</Badge>
+                        <Badge variant="success" className="text-[10px]">{t('employeesPage.active')}</Badge>
                       ) : (
-                        <Badge variant="danger" className="text-[10px]">Inactive</Badge>
+                        <Badge variant="danger" className="text-[10px]">{t('employeesPage.inactive')}</Badge>
                       )}
                       <Badge variant="default" className="text-[10px]">
-                        {u._count?.orders || 0} orders
+                        {u._count?.orders || 0} {t('shift.ordersWord')}
                       </Badge>
                     </div>
                   </div>

@@ -15,8 +15,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n';
 
 export function ShiftButton() {
+  const t = useT();
   const qc = useQueryClient();
   const [openDialog, setOpenDialog] = useState(false);
 
@@ -36,12 +38,12 @@ export function ShiftButton() {
           className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-success/10 border border-success/30 text-success text-xs hover:bg-success/20 transition-colors"
         >
           <PlayCircle className="w-3.5 h-3.5" />
-          <span>Shift open · {startTime}</span>
+          <span>{t('shift.openLabel')} · {startTime}</span>
         </button>
         <button
           onClick={() => setOpenDialog(true)}
           className="sm:hidden p-2 rounded-lg bg-success/10 border border-success/30 text-success"
-          aria-label="Manage shift"
+          aria-label={t('shift.manage')}
         >
           <PlayCircle className="w-4 h-4" />
         </button>
@@ -61,12 +63,12 @@ export function ShiftButton() {
         onClick={() => setOpenDialog(true)}
         className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-card-hover text-xs transition-colors"
       >
-        <PlayCircle className="w-3.5 h-3.5" /> Open shift
+        <PlayCircle className="w-3.5 h-3.5" /> {t('shift.open')}
       </button>
       <button
         onClick={() => setOpenDialog(true)}
         className="sm:hidden p-2 rounded-lg border border-border bg-card hover:bg-card-hover"
-        aria-label="Open shift"
+        aria-label={t('shift.open')}
       >
         <PlayCircle className="w-4 h-4" />
       </button>
@@ -88,18 +90,19 @@ function OpenShiftDialog({
   onClose: () => void;
   onOpened: () => void;
 }) {
+  const t = useT();
   const [openingCash, setOpeningCash] = useState('0');
 
   const mut = useMutation({
     mutationFn: (cash: number) =>
       api.post('/employees/shifts/open', { openingCash: cash }).then((r) => r.data),
     onSuccess: () => {
-      toast.success('Shift opened');
+      toast.success(t('shift.opened'));
       onOpened();
       onClose();
       setOpeningCash('0');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to open shift'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('shift.openFailed')),
   });
 
   return (
@@ -107,7 +110,7 @@ function OpenShiftDialog({
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <PlayCircle className="w-5 h-5 text-success" /> Open new shift
+            <PlayCircle className="w-5 h-5 text-success" /> {t('shift.openNew')}
           </DialogTitle>
         </DialogHeader>
         <form
@@ -118,10 +121,10 @@ function OpenShiftDialog({
           className="space-y-3"
         >
           <p className="text-sm text-muted-foreground">
-            Count cash in the drawer before starting the shift to reconcile when closing
+            {t('shift.openHint')}
           </p>
           <div>
-            <Label className="mb-1.5 block">Opening cash (฿)</Label>
+            <Label className="mb-1.5 block">{t('shift.openingCash')}</Label>
             <Input
               type="number"
               step="0.01"
@@ -134,10 +137,10 @@ function OpenShiftDialog({
           </div>
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="success" className="flex-1" disabled={mut.isPending}>
-              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Open shift'}
+              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('shift.open')}
             </Button>
           </div>
         </form>
@@ -157,6 +160,7 @@ function CloseShiftDialog({
   shift: any;
   onClosed: () => void;
 }) {
+  const t = useT();
   const [closingCash, setClosingCash] = useState('');
   const [notes, setNotes] = useState('');
 
@@ -191,13 +195,13 @@ function CloseShiftDialog({
     mutationFn: (payload: any) =>
       api.post(`/employees/shifts/${shift.id}/close`, payload).then((r) => r.data),
     onSuccess: () => {
-      toast.success('Shift closed');
+      toast.success(t('shift.closed'));
       onClosed();
       onClose();
       setClosingCash('');
       setNotes('');
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to close shift'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('shift.closeFailed')),
   });
 
   return (
@@ -205,30 +209,30 @@ function CloseShiftDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <StopCircle className="w-5 h-5 text-danger" /> Close shift
+            <StopCircle className="w-5 h-5 text-danger" /> {t('shift.close')}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-2 text-sm">
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">Opened at</span>
+            <span className="text-muted-foreground">{t('shift.openedAt')}</span>
             <span className="font-medium">{formatTime(shift?.startTime)}</span>
           </div>
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">Opening cash</span>
+            <span className="text-muted-foreground">{t('shift.openingCash')}</span>
             <span className="tabular-nums font-medium">
               {formatCurrency(shift?.openingCash || 0)}
             </span>
           </div>
           <div className="flex justify-between p-2 rounded bg-muted">
-            <span className="text-muted-foreground">Sales during shift ({summary?.orderCount || 0} orders)</span>
+            <span className="text-muted-foreground">{t('shift.salesDuring')} ({summary?.orderCount || 0} {t('shift.ordersWord')})</span>
             <span className="tabular-nums font-medium">
               {formatCurrency(summary?.totalSales || 0)}
             </span>
           </div>
           <div className="flex justify-between p-2 rounded bg-primary/10 border border-primary/30">
             <span className="font-medium flex items-center gap-1">
-              <Wallet className="w-3.5 h-3.5" /> Expected cash
+              <Wallet className="w-3.5 h-3.5" /> {t('shift.expectedCash')}
             </span>
             <span className="tabular-nums font-bold text-primary">
               {formatCurrency(expectedCash)}
@@ -247,7 +251,7 @@ function CloseShiftDialog({
           className="space-y-3 mt-2"
         >
           <div>
-            <Label className="mb-1.5 block">Actual counted cash</Label>
+            <Label className="mb-1.5 block">{t('shift.actualCash')}</Label>
             <Input
               type="number"
               step="0.01"
@@ -269,29 +273,29 @@ function CloseShiftDialog({
                 }`}
               >
                 {Math.abs(diff) < 0.01
-                  ? '✅ Exactly matches'
+                  ? t('shift.matchExact')
                   : diff > 0
-                  ? `⚠️ Over ${formatCurrency(diff)}`
-                  : `🔴 Short ${formatCurrency(-diff)}`}
+                  ? `⚠️ ${t('shift.over')} ${formatCurrency(diff)}`
+                  : `🔴 ${t('shift.short')} ${formatCurrency(-diff)}`}
               </div>
             )}
           </div>
           <div>
-            <Label className="mb-1.5 block">Notes (optional)</Label>
+            <Label className="mb-1.5 block">{t('shift.notesOptional')}</Label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. gave wrong change to a customer..."
+              placeholder={t('shift.notesPlaceholder')}
               className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm"
               rows={2}
             />
           </div>
           <div className="flex gap-2 pt-2">
             <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button type="submit" variant="danger" className="flex-1" disabled={mut.isPending}>
-              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Close shift'}
+              {mut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('shift.close')}
             </Button>
           </div>
         </form>

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useT } from '@/lib/i18n';
 
 interface Category {
   id: string;
@@ -16,6 +17,7 @@ interface Category {
 }
 
 export function CategoriesManager() {
+  const t = useT();
   const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -33,10 +35,10 @@ export function CategoriesManager() {
       api.post('/products/categories', payload).then((r) => r.data),
     onSuccess: () => {
       invalidate();
-      toast.success('Category added');
+      toast.success(t('categories.added'));
       reset();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to add'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('categories.addFailed')),
   });
 
   const update = useMutation({
@@ -44,19 +46,19 @@ export function CategoriesManager() {
       api.patch(`/products/categories/${id}`, rest).then((r) => r.data),
     onSuccess: () => {
       invalidate();
-      toast.success('Updated');
+      toast.success(t('categories.updated'));
       reset();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Update failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('categories.updateFailed')),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/products/categories/${id}`),
     onSuccess: () => {
       invalidate();
-      toast.success('Category deleted');
+      toast.success(t('categories.deleted'));
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Delete failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('categories.deleteFailed')),
   });
 
   const reset = () => {
@@ -73,7 +75,7 @@ export function CategoriesManager() {
 
   const save = () => {
     if (!form.name.trim()) {
-      toast.error('Please enter a category name');
+      toast.error(t('categories.nameRequired'));
       return;
     }
     if (editingId) {
@@ -91,12 +93,12 @@ export function CategoriesManager() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FolderTree className="w-5 h-5" /> Product categories
+          <FolderTree className="w-5 h-5" /> {t('categories.pageTitle')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2">
         {categories.length === 0 && !adding && (
-          <p className="text-sm text-muted-foreground py-2">No categories yet</p>
+          <p className="text-sm text-muted-foreground py-2">{t('categories.empty')}</p>
         )}
 
         {categories.map((c) =>
@@ -128,7 +130,7 @@ export function CategoriesManager() {
                   size="icon"
                   variant="ghost"
                   onClick={() => {
-                    if (confirm(`Delete category "${c.name}"?`)) remove.mutate(c.id);
+                    if (confirm(`${t('categories.confirmDelete')} "${c.name}"?`)) remove.mutate(c.id);
                   }}
                 >
                   <Trash2 className="w-4 h-4 text-danger" />
@@ -157,7 +159,7 @@ export function CategoriesManager() {
               setForm({ name: '', icon: '' });
             }}
           >
-            <Plus className="w-4 h-4 mr-1" /> Add category
+            <Plus className="w-4 h-4 mr-1" /> {t('categories.add')}
           </Button>
         )}
       </CardContent>
@@ -178,6 +180,7 @@ function CategoryEditRow({
   onCancel: () => void;
   loading: boolean;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center gap-2 p-2 rounded-lg border-2 border-primary bg-primary/5">
       <Input
@@ -190,7 +193,7 @@ function CategoryEditRow({
       <Input
         value={form.name}
         onChange={(e) => setForm({ ...form, name: e.target.value })}
-        placeholder="Category name"
+        placeholder={t('categories.namePlaceholder')}
         className="flex-1"
         autoFocus
         onKeyDown={(e) => {

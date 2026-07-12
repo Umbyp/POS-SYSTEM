@@ -21,6 +21,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useT } from '@/lib/i18n';
 
 const SUGGESTED_CATEGORIES = [
   { name: 'Drinks', icon: '☕' },
@@ -37,6 +38,7 @@ interface Props {
 }
 
 export function OnboardingWizard({ open, onClose }: Props) {
+  const t = useT();
   const qc = useQueryClient();
   const [step, setStep] = useState(0);
 
@@ -155,11 +157,11 @@ export function OnboardingWizard({ open, onClose }: Props) {
       }
     },
     onSuccess: () => {
-      toast.success('🎉 Setup complete!');
+      toast.success(t('onboarding.setupComplete'));
       qc.invalidateQueries();
       setStep(4);
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Something went wrong'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('onboarding.somethingWrong')),
   });
 
   const STEPS = [
@@ -224,7 +226,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 0: Store */}
         {step === 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">👋 Welcome to POS System</h2>
+            <h2 className="text-lg font-bold">{t('onboarding.welcome')}</h2>
             <p className="text-sm text-muted-foreground">
               Set up your store in 4 easy steps
             </p>
@@ -281,7 +283,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 1: Categories */}
         {step === 1 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">📁 Product categories</h2>
+            <h2 className="text-lg font-bold">{t('onboarding.categories')}</h2>
             <p className="text-sm text-muted-foreground">
               Select categories to use (you can add/edit them later)
             </p>
@@ -320,7 +322,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 2: Products */}
         {step === 2 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">📦 Add products</h2>
+            <h2 className="text-lg font-bold">{t('onboarding.addProducts')}</h2>
             <p className="text-sm text-muted-foreground">
               Add some starter products (optional — you can add more later in /products)
             </p>
@@ -403,7 +405,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
         {/* Step 3: Tables */}
         {step === 3 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-bold">🪑 Tables</h2>
+            <h2 className="text-lg font-bold">{t('onboarding.tables')}</h2>
             <p className="text-sm text-muted-foreground">
               Auto-create tables (set to 0 for takeaway/online-only stores)
             </p>
@@ -441,7 +443,7 @@ export function OnboardingWizard({ open, onClose }: Props) {
             <div className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center mx-auto">
               <Sparkles className="w-10 h-10 text-success" />
             </div>
-            <h2 className="text-xl font-bold">🎉 Ready to open shop!</h2>
+            <h2 className="text-xl font-bold">{t('onboarding.readyToOpen')}</h2>
             <p className="text-sm text-muted-foreground">
               Setup complete — you can start selling now
             </p>

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { useT } from '@/lib/i18n';
 
 const STATUS_VARIANT: Record<string, any> = {
   PENDING: 'warning',
@@ -18,6 +19,7 @@ const STATUS_VARIANT: Record<string, any> = {
 };
 
 export default function OrdersPage() {
+  const t = useT();
   const router = useRouter();
   const { data, isLoading } = useQuery({
     queryKey: ['orders'],
@@ -27,7 +29,7 @@ export default function OrdersPage() {
 
   return (
     <div className="p-6 h-full overflow-y-auto scrollbar-thin">
-      <h2 className="text-xl font-bold mb-4">All orders</h2>
+      <h2 className="text-xl font-bold mb-4">{t('orders.title')}</h2>
 
       {isLoading ? (
         <div className="space-y-2">
@@ -38,7 +40,7 @@ export default function OrdersPage() {
       ) : !data?.data?.length ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <ReceiptIcon className="w-12 h-12 mb-3 opacity-30" />
-          <p>No orders yet</p>
+          <p>{t('orders.empty')}</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -55,17 +57,17 @@ export default function OrdersPage() {
                   <div>
                     <div className="font-mono text-sm text-muted-foreground">{o.orderNumber}</div>
                     <div className="font-medium">
-                      {o.items.length} items · {formatDate(o.createdAt)}
+                      {o.items.length} {t('display.items')} · {formatDate(o.createdAt)}
                     </div>
                     <div className="text-xs text-muted-foreground mt-1">
-                      By {o.cashier?.name} ·{' '}
-                      {o.type === 'DINE_IN' ? 'Dine-in' : o.type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'}
-                      {o.table && ` · Table ${o.table.number}`}
+                      {t('orders.by')} {o.cashier?.name} ·{' '}
+                      {o.type === 'DINE_IN' ? t('cart.dineIn') : o.type === 'TAKEAWAY' ? t('cart.takeaway') : t('cart.delivery')}
+                      {o.table && ` · ${t('cart.tableWord')} ${o.table.number}`}
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant={STATUS_VARIANT[o.status]}>{o.status}</Badge>
+                  <Badge variant={STATUS_VARIANT[o.status]}>{t(`orders.status.${o.status}`, o.status)}</Badge>
                   <div className="text-lg font-bold text-accent tabular-nums">
                     {formatCurrency(o.total)}
                   </div>
@@ -73,13 +75,13 @@ export default function OrdersPage() {
                     variant="outline" size="sm"
                     onClick={() => router.push(`/orders/${o.id}`)}
                   >
-                    <Eye className="w-4 h-4 mr-1" /> Details
+                    <Eye className="w-4 h-4 mr-1" /> {t('orders.details')}
                   </Button>
                   <Button
                     size="sm"
                     onClick={() => window.open(`/orders/${o.id}/receipt`, '_blank')}
                   >
-                    <Printer className="w-4 h-4 mr-1" /> Receipt
+                    <Printer className="w-4 h-4 mr-1" /> {t('orders.receipt')}
                   </Button>
                 </div>
               </div>

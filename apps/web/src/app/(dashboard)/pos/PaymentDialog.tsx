@@ -699,7 +699,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                     {showManual && (
                       <Input
                         className="mt-2"
-                        placeholder="เลขอ้างอิง / เลขสลิป (ข้ามการตรวจสอบ Stripe)"
+                        placeholder={t('pay.refPlaceholder')}
                         value={reference}
                         onChange={(e) => setReference(e.target.value)}
                       />

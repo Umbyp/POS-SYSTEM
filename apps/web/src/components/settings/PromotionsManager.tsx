@@ -16,21 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-
-const TYPE_LABEL: Record<string, string> = {
-  PERCENT_OFF: '% off',
-  FIXED_OFF: 'Amount off',
-  BUY_X_GET_Y: 'Buy & get',
-  FIXED_PRICE: 'Fixed price',
-};
-
-const SCOPE_LABEL: Record<string, string> = {
-  ALL_ORDER: 'Whole order',
-  CATEGORY: 'Category only',
-  PRODUCT: 'Product only',
-};
-
-const DOW_LABEL = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+import { useT } from '@/lib/i18n';
 
 const EMPTY_FORM = {
   name: '',
@@ -69,6 +55,7 @@ function promoToForm(p: any) {
 }
 
 export function PromotionsManager() {
+  const t = useT();
   const qc = useQueryClient();
   const [editing, setEditing] = useState<any>(null);
   const [creating, setCreating] = useState(false);
@@ -82,7 +69,7 @@ export function PromotionsManager() {
     mutationFn: (id: string) => api.delete(`/promotions/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promotions'] });
-      toast.success('Promotion deleted');
+      toast.success(t('promo.deleted'));
     },
   });
 
@@ -97,17 +84,17 @@ export function PromotionsManager() {
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
-            <Tag className="w-5 h-5" /> Promotions
+            <Tag className="w-5 h-5" /> {t('promo.title')}
           </span>
           <Button size="sm" onClick={() => setCreating(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Add promo
+            <Plus className="w-4 h-4 mr-1" /> {t('promo.add')}
           </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
         {promos.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
-            No promotions yet
+            {t('promo.empty')}
           </p>
         ) : (
           <div className="space-y-2">
@@ -123,37 +110,37 @@ export function PromotionsManager() {
                     <div className="flex items-center gap-2 flex-wrap mb-1">
                       <span className="font-medium truncate">{p.name}</span>
                       <Badge variant="accent" className="text-[10px]">
-                        {TYPE_LABEL[p.type]}
+                        {t(`promo.type.${p.type}`, p.type)}
                       </Badge>
                       <Badge variant="default" className="text-[10px]">
-                        {SCOPE_LABEL[p.scope]}
+                        {t(`promo.scope.${p.scope}`, p.scope)}
                       </Badge>
                       {p.code && (
                         <Badge variant="warning" className="text-[10px] font-mono">
-                          CODE: {p.code}
+                          {t('promo.code')}: {p.code}
                         </Badge>
                       )}
                       {p.memberOnly && (
                         <Badge variant="success" className="text-[10px]">
-                          Members only
+                          {t('promo.membersOnly')}
                         </Badge>
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center flex-wrap gap-x-3 gap-y-0.5">
                       <span>
-                        Value: <strong>{p.value}</strong>
+                        {t('promo.value')}: <strong>{p.value}</strong>
                         {p.type === 'PERCENT_OFF' && '%'}
                       </span>
                       {p.type === 'BUY_X_GET_Y' && (
-                        <span>Buy {p.buyQty} get {p.getQty}</span>
+                        <span>{t('promo.buy')} {p.buyQty} {t('promo.get')} {p.getQty}</span>
                       )}
                       {p.minSpend && (
-                        <span>Min {formatCurrency(p.minSpend)}</span>
+                        <span>{t('promo.min')} {formatCurrency(p.minSpend)}</span>
                       )}
                       {p.daysOfWeek?.length > 0 && (
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {p.daysOfWeek.map((d: number) => DOW_LABEL[d]).join(',')}
+                          {p.daysOfWeek.map((d: number) => t(`promo.dow.${d}`)).join(',')}
                         </span>
                       )}
                       {p.hourStart != null && (
@@ -164,7 +151,7 @@ export function PromotionsManager() {
                       )}
                       {p.usageLimit && (
                         <span>
-                          Used {p.usageCount}/{p.usageLimit}
+                          {t('promo.used')} {p.usageCount}/{p.usageLimit}
                         </span>
                       )}
                     </div>
@@ -177,7 +164,7 @@ export function PromotionsManager() {
                           ? 'text-success hover:bg-success/10'
                           : 'text-muted-foreground hover:bg-muted'
                       }`}
-                      title={p.isActive ? 'Disable' : 'Enable'}
+                      title={p.isActive ? t('promo.disable') : t('promo.enable')}
                     >
                       <Power className="w-4 h-4" />
                     </button>
@@ -189,7 +176,7 @@ export function PromotionsManager() {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`Delete "${p.name}"?`)) remove.mutate(p.id);
+                        if (confirm(`${t('promo.confirmDelete')} "${p.name}"?`)) remove.mutate(p.id);
                       }}
                       className="p-1.5 rounded hover:bg-muted text-danger"
                     >
@@ -224,6 +211,7 @@ function PromotionDialog({
   editing: any;
   onClose: () => void;
 }) {
+  const t = useT();
   const qc = useQueryClient();
   const isEdit = !!editing;
 
@@ -242,10 +230,10 @@ function PromotionDialog({
         : api.post('/promotions', payload).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['promotions'] });
-      toast.success(isEdit ? 'Saved' : 'Promotion created');
+      toast.success(isEdit ? t('promo.saved') : t('promo.created'));
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Failed to save'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('promo.saveFailed')),
   });
 
   const toggleDay = (d: number) => {
@@ -279,50 +267,50 @@ function PromotionDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto scrollbar-thin">
         <DialogHeader>
-          <DialogTitle>{isEdit ? 'Edit promotion' : 'New promotion'}</DialogTitle>
+          <DialogTitle>{isEdit ? t('promo.editTitle') : t('promo.newTitle')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">Promotion name *</Label>
+            <Label className="mb-1.5 block">{t('promo.nameLabel')}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="e.g. Happy Hour 50%, Spend 200 get 30 off"
+              placeholder={t('promo.namePlaceholder')}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">Type *</Label>
+              <Label className="mb-1.5 block">{t('promo.typeLabel')}</Label>
               <select
                 value={form.type}
                 onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full h-10 bg-input border border-border rounded-lg px-3 text-sm"
               >
-                <option value="PERCENT_OFF">% off</option>
-                <option value="FIXED_OFF">Amount off</option>
-                <option value="BUY_X_GET_Y">Buy X get Y</option>
-                <option value="FIXED_PRICE">Fixed price</option>
+                <option value="PERCENT_OFF">{t('promo.type.PERCENT_OFF')}</option>
+                <option value="FIXED_OFF">{t('promo.type.FIXED_OFF')}</option>
+                <option value="BUY_X_GET_Y">{t('promo.type.BUY_X_GET_Y')}</option>
+                <option value="FIXED_PRICE">{t('promo.type.FIXED_PRICE')}</option>
               </select>
             </div>
             <div>
-              <Label className="mb-1.5 block">Scope *</Label>
+              <Label className="mb-1.5 block">{t('promo.scopeLabel')}</Label>
               <select
                 value={form.scope}
                 onChange={(e) => setForm({ ...form, scope: e.target.value })}
                 className="w-full h-10 bg-input border border-border rounded-lg px-3 text-sm"
               >
-                <option value="ALL_ORDER">Whole order</option>
-                <option value="CATEGORY">Category only</option>
-                <option value="PRODUCT">Product only</option>
+                <option value="ALL_ORDER">{t('promo.scope.ALL_ORDER')}</option>
+                <option value="CATEGORY">{t('promo.scope.CATEGORY')}</option>
+                <option value="PRODUCT">{t('promo.scope.PRODUCT')}</option>
               </select>
             </div>
           </div>
 
           <div>
             <Label className="mb-1.5 block">
-              Value * {form.type === 'PERCENT_OFF' && '(%)'} {form.type !== 'PERCENT_OFF' && '(฿)'}
+              {t('promo.valueRequired')} {form.type === 'PERCENT_OFF' && '(%)'} {form.type !== 'PERCENT_OFF' && '(฿)'}
             </Label>
             <Input
               type="number"
@@ -336,7 +324,7 @@ function PromotionDialog({
           {form.type === 'BUY_X_GET_Y' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="mb-1.5 block">Buy (X)</Label>
+                <Label className="mb-1.5 block">{t('promo.buyX')}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -345,7 +333,7 @@ function PromotionDialog({
                 />
               </div>
               <div>
-                <Label className="mb-1.5 block">Get (Y)</Label>
+                <Label className="mb-1.5 block">{t('promo.getY')}</Label>
                 <Input
                   type="number"
                   min="1"
@@ -357,30 +345,30 @@ function PromotionDialog({
           )}
 
           <div>
-            <Label className="mb-1.5 block">Promo code (optional)</Label>
+            <Label className="mb-1.5 block">{t('promo.codeOptional')}</Label>
             <Input
               value={form.code}
               onChange={(e) => setForm({ ...form, code: e.target.value.toUpperCase() })}
-              placeholder="e.g. SUMMER2026 — customers must enter this code"
+              placeholder={t('promo.codePlaceholder')}
               className="font-mono uppercase"
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Minimum spend (฿)</Label>
+            <Label className="mb-1.5 block">{t('promo.minSpend')}</Label>
             <Input
               type="number"
               min="0"
               value={form.minSpend}
               onChange={(e) => setForm({ ...form, minSpend: e.target.value })}
-              placeholder="0 = no minimum"
+              placeholder={t('promo.minSpendPlaceholder')}
             />
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Days of week (empty = every day)</Label>
+            <Label className="mb-1.5 block">{t('promo.daysOfWeek')}</Label>
             <div className="flex gap-1">
-              {DOW_LABEL.map((d, i) => (
+              {[0, 1, 2, 3, 4, 5, 6].map((i) => (
                 <button
                   key={i}
                   type="button"
@@ -391,7 +379,7 @@ function PromotionDialog({
                       : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {d}
+                  {t(`promo.dow.${i}`)}
                 </button>
               ))}
             </div>
@@ -399,7 +387,7 @@ function PromotionDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="mb-1.5 block">Start hour</Label>
+              <Label className="mb-1.5 block">{t('promo.startHour')}</Label>
               <Input
                 type="number"
                 min="0"
@@ -410,7 +398,7 @@ function PromotionDialog({
               />
             </div>
             <div>
-              <Label className="mb-1.5 block">End hour</Label>
+              <Label className="mb-1.5 block">{t('promo.endHour')}</Label>
               <Input
                 type="number"
                 min="0"
@@ -423,13 +411,13 @@ function PromotionDialog({
           </div>
 
           <div>
-            <Label className="mb-1.5 block">Usage limit (total across all orders)</Label>
+            <Label className="mb-1.5 block">{t('promo.usageLimit')}</Label>
             <Input
               type="number"
               min="1"
               value={form.usageLimit}
               onChange={(e) => setForm({ ...form, usageLimit: e.target.value })}
-              placeholder="empty = unlimited"
+              placeholder={t('promo.usageLimitPlaceholder')}
             />
           </div>
 
@@ -440,19 +428,19 @@ function PromotionDialog({
               onChange={(e) => setForm({ ...form, memberOnly: e.target.checked })}
               className="w-4 h-4 accent-primary"
             />
-            <span className="text-sm">Members only (customer must be selected)</span>
+            <span className="text-sm">{t('promo.membersOnlyCheckbox')}</span>
           </label>
 
           <div className="flex gap-2 pt-2">
             <Button variant="outline" className="flex-1" onClick={onClose}>
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               className="flex-1"
               onClick={handleSubmit}
               disabled={save.isPending || !form.name || !form.value}
             >
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.save')}
             </Button>
           </div>
         </div>
