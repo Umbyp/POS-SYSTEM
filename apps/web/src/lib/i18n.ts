@@ -172,6 +172,16 @@ const DICT: Record<string, Entry> = {
   'pay.print': { th: 'พิมพ์', en: 'Print' },
   'pay.offlineSaved': { th: 'บันทึกออฟไลน์ไว้แล้ว — จะซิงค์เมื่อออนไลน์', en: 'Saved offline — will sync when online' },
   'pay.failed': { th: 'ชำระเงินไม่สำเร็จ', en: 'Payment failed' },
+  'pay.openCustomerDisplay': { th: 'เปิดจอลูกค้า', en: 'Open customer display' },
+
+  // Customer-facing display
+  'display.welcome': { th: 'ยินดีต้อนรับ', en: 'Welcome' },
+  'display.idleHint': { th: 'รายการสั่งซื้อของคุณจะแสดงที่นี่', en: 'Your order will appear here' },
+  'display.yourOrder': { th: 'รายการของคุณ', en: 'Your order' },
+  'display.total': { th: 'ยอดรวม', en: 'Total' },
+  'display.scanToPay': { th: 'สแกนเพื่อชำระเงิน', en: 'Scan to pay' },
+  'display.thankYou': { th: 'ขอบคุณที่ใช้บริการ', en: 'Thank you for your order' },
+  'display.paidAmount': { th: 'ชำระแล้ว', en: 'Amount paid' },
 };
 
 /** Hook returning a translator bound to the current language. */
