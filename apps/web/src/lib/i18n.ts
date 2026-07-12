@@ -186,7 +186,7 @@ const DICT: Record<string, Entry> = {
   'display.idleHint': { th: 'รายการสั่งซื้อของคุณจะแสดงที่นี่', en: 'Your order will appear here' },
   'display.yourOrder': { th: 'รายการของคุณ', en: 'Your order' },
   'display.items': { th: 'รายการ', en: 'items' },
-  'display.total': { th: 'ยอดรวม', en: 'Total' },
+  'display.total': { th: 'ยอดชำระเงิน', en: 'Total due' },
   'display.scanToPay': { th: 'สแกนเพื่อชำระเงิน', en: 'Scan to pay' },
   'display.thankYou': { th: 'ขอบคุณที่ใช้บริการ', en: 'Thank you for your order' },
   'display.paidAmount': { th: 'ชำระแล้ว', en: 'Amount paid' },
