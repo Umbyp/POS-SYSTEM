@@ -9,7 +9,13 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: env.WEB_URL.split(',').map((s) => s.trim()),
+    // The authenticated main namespace still requires a valid JWT (see
+    // socket.ts), so a permissive origin here is safe — it only widens who
+    // can *attempt* to connect, not what they can do without a token. This
+    // also lets the unauthenticated /display namespace be reached from a
+    // customer-facing device on the same LAN but a different origin
+    // (e.g. http://192.168.x.x:3000) than WEB_URL.
+    origin: true,
     credentials: true,
   },
 });
