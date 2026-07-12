@@ -637,11 +637,15 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
             <Button
               size="lg"
               className="h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
-              disabled={!openBill || items.length > 0}
-              title={items.length > 0 ? t('cart.sendFirst') : undefined}
+              // With no bill open yet, Pay goes straight through (create + pay +
+              // fire to kitchen in one step) — no separate "ส่งครัว" required,
+              // for guests who are paying right away. Once a bill IS open, new
+              // unsent items must still be sent before settling it.
+              disabled={openBill ? items.length > 0 : items.length === 0}
+              title={openBill && items.length > 0 ? t('cart.sendFirst') : undefined}
               onClick={onCheckout}
             >
-              {t('cart.pay')} {openBill ? formatCurrency(openBill.total) : ''}
+              {t('cart.pay')} {formatCurrency(openBill ? Number(openBill.total) : breakdown.total)}
             </Button>
           </div>
         ) : (
