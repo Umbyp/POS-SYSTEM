@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import QRCode from 'qrcode';
-import { ArrowLeft, Printer, UtensilsCrossed, Loader2 } from 'lucide-react';
+import { ArrowLeft, Printer, UtensilsCrossed, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { Button } from '@/components/ui/button';
@@ -22,14 +22,16 @@ export default function TableQrPrintPage() {
   const router = useRouter();
   const [qrDataUrl, setQrDataUrl] = useState('');
 
-  const { data: tableQr } = useQuery({
+  const { data: tableQr, isError: qrError, error: qrErrorObj, refetch: refetchQr } = useQuery({
     queryKey: ['table-qr', id],
     queryFn: () => api.get(`/tables/${id}/qr`).then((r) => r.data),
+    retry: false,
   });
 
-  const { data: store } = useQuery({
+  const { data: store, isError: storeError } = useQuery({
     queryKey: ['store-me'],
     queryFn: () => api.get('/stores/me').then((r) => r.data),
+    retry: false,
   });
 
   useEffect(() => {
@@ -39,6 +41,20 @@ export default function TableQrPrintPage() {
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(''));
   }, [tableQr]);
+
+  if (qrError || storeError) {
+    const message = (qrErrorObj as any)?.response?.data?.error || (qrErrorObj as any)?.message;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background text-center p-6">
+        <AlertCircle className="w-8 h-8 text-danger" />
+        <p className="text-danger text-sm">{t('tableQr.loadFailed')}</p>
+        {message && <p className="text-xs text-muted-foreground">{message}</p>}
+        <Button size="sm" variant="outline" onClick={() => refetchQr()}>
+          <RefreshCw className="w-3.5 h-3.5 mr-1" /> {t('tableQr.retry')}
+        </Button>
+      </div>
+    );
+  }
 
   if (!tableQr || !store || !qrDataUrl) {
     return (
