@@ -55,9 +55,21 @@ router.post(
 
 router.patch('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
-    const data: any = { ...req.body };
-    if (data.password) data.password = await bcrypt.hash(data.password, 10);
-    delete data.email;
+    // ต้องเป็นพนักงานในร้านตัวเองเท่านั้น (กันแก้ข้ามร้าน)
+    const target = await prisma.user.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (!target) return res.status(404).json({ error: 'ไม่พบพนักงาน' });
+
+    // whitelist ฟิลด์ — กัน mass-assignment (เช่น ย้าย storeId หรือปลอม field อื่น)
+    const data: any = {};
+    if (req.body.name !== undefined) data.name = req.body.name;
+    if (req.body.isActive !== undefined) data.isActive = Boolean(req.body.isActive);
+    if (req.body.role !== undefined && ['OWNER', 'ADMIN', 'CASHIER', 'KITCHEN'].includes(req.body.role)) {
+      data.role = req.body.role;
+    }
+    if (req.body.password) data.password = await bcrypt.hash(req.body.password, 10);
+
     const user = await prisma.user.update({
       where: { id: req.params.id },
       data,
@@ -82,7 +94,8 @@ router.get('/shifts/active', async (req, res, next) => {
 // GET /shifts - history
 router.get('/shifts', async (req, res, next) => {
   try {
-    const where: any = {};
+    // จำกัดเฉพาะกะของพนักงานในร้านตัวเอง (กันดูข้ามร้านผ่าน ?userId=)
+    const where: any = { user: { storeId: req.user!.storeId } };
     if (req.query.userId) where.userId = req.query.userId;
     else where.userId = req.user!.id;
 
@@ -118,7 +131,10 @@ router.post('/shifts/open', async (req, res, next) => {
 router.post('/shifts/:id/close', async (req, res, next) => {
   try {
     // คำนวณยอดขาย/cash ระหว่างกะ
-    const shift = await prisma.shift.findUnique({ where: { id: req.params.id } });
+    // ต้องเป็นกะของพนักงานในร้านตัวเองเท่านั้น (กันปิดกะข้ามร้าน)
+    const shift = await prisma.shift.findFirst({
+      where: { id: req.params.id, user: { storeId: req.user!.storeId } },
+    });
     if (!shift) return res.status(404).json({ error: 'ไม่พบกะ' });
     if (shift.endTime) return res.status(400).json({ error: 'กะนี้ปิดไปแล้ว' });
 

@@ -705,12 +705,29 @@ const DICT: Record<string, Entry> = {
 
   // Printable table QR card
   'tableQr.print': { th: 'พิมพ์ QR', en: 'Print QR' },
+  'tableQr.paperSize': { th: 'ขนาดกระดาษ', en: 'Paper size' },
   'tableQr.scanHeading': { th: 'สแกนเพื่อสั่งอาหาร', en: 'Scan to order' },
+  'tableQr.cardTagline': { th: 'สั่งอาหารเองได้เลยจากโต๊ะนี้', en: 'Order right from your table' },
+  'tableQr.tableLabel': { th: 'โต๊ะ', en: 'Table' },
+  'tableQr.step1': { th: 'เปิดกล้องมือถือ แล้วสแกน QR นี้', en: 'Open your phone camera and scan this code' },
+  'tableQr.step2': { th: 'เลือกเมนูที่ต้องการใส่ตะกร้า', en: 'Add the dishes you want to your cart' },
+  'tableQr.step3': { th: 'กดสั่ง แล้วพนักงานจะยืนยันให้', en: 'Send your order and our staff will confirm it' },
+  'tableQr.noApp': { th: 'ไม่ต้องโหลดแอป', en: 'No app to download' },
+  'tableQr.needHelp': { th: 'ต้องการความช่วยเหลือ เรียกพนักงานได้เลย', en: 'Need a hand? Just ask our staff' },
   'tableQr.printHint': {
     th: 'เปิดกล้องมือถือ สแกนโค้ดนี้ เพื่อดูเมนูและสั่งอาหารได้เลย',
     en: 'Open your phone camera, scan this code, and order right from your table',
   },
 };
+
+/**
+ * Both languages for a key — for printed, customer-facing artifacts (the table
+ * QR card) that should read to Thai locals and foreign guests at the same time,
+ * regardless of the staff UI language.
+ */
+export function both(key: string): Entry {
+  return DICT[key] ?? { th: key, en: key };
+}
 
 /** Hook returning a translator bound to the current language. */
 export function useT() {
