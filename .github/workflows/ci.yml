@@ -1,0 +1,66 @@
+name: CI
+
+# Gate every PR (and main) on typecheck + build + tests. This is the safety net
+# that was missing when a vitest import silently broke the production tsc build
+# for a month — that failure now shows up here instead of on Render.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  typecheck-build:
+    name: Typecheck & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Mirror render.yaml: the committed lockfile is Windows-generated and trips
+      # npm's cross-platform optional-dep bug (sharp linux-x64), so resolve fresh.
+      - name: Install dependencies
+        run: rm -f package-lock.json && npm install
+      - name: Generate Prisma client
+        run: npm run postinstall --workspace=apps/api
+      - name: Build API (tsc)
+        run: npm run build --workspace=apps/api
+      - name: Build web (next build)
+        run: npm run build --workspace=apps/web
+
+  test:
+    name: API tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pos
+          POSTGRES_PASSWORD: pospass
+          POSTGRES_DB: posdb_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://pos:pospass@localhost:5432/posdb_test?schema=public
+      DIRECT_URL: postgresql://pos:pospass@localhost:5432/posdb_test?schema=public
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: rm -f package-lock.json && npm install
+      - name: Generate Prisma client
+        run: npm run postinstall --workspace=apps/api
+      - name: Apply migrations to test DB
+        # Runs the real migration files against a clean DB — also validates that
+        # the committed migration SQL is correct.
+        run: npx prisma migrate deploy
+        working-directory: apps/api
+      - name: Run tests
+        run: npm run test --workspace=apps/api
