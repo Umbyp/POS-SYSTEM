@@ -93,7 +93,7 @@ router.get('/:id/qr', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
         data: { qrCode: crypto.randomBytes(9).toString('base64url') },
       });
     }
-    res.json({ qrCode: table.qrCode });
+    res.json({ qrCode: table.qrCode, number: table.number });
   } catch (e) { next(e); }
 });
 
