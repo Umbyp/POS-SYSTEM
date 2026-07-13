@@ -15,7 +15,10 @@ services:
     # ของ sharp สำหรับ linux-x64 (bug ของ npm กับ optional deps ข้าม platform).
     # การ resolve ใหม่บน Linux จะลง @img/sharp-linux-x64 ให้ถูกต้อง.
     # version สำคัญถูก pin ใน package.json แล้ว (typescript 5.9.3 เป๊ะ, @types ^4) จึงยัง deterministic
-    buildCommand: rm -f package-lock.json && npm install && npm run build --workspace=apps/api
+    # Apply any pending DB migrations before building/starting, so the schema is
+    # never behind the deployed code (the drift that caused prod 500s in the past).
+    # Prereq (one-time): the prod DB must be baselined — see apps/api/prisma/MIGRATIONS.md.
+    buildCommand: rm -f package-lock.json && npm install && npm run db:deploy --workspace=apps/api && npm run build --workspace=apps/api
     startCommand: npm run start --workspace=apps/api
     healthCheckPath: /health
     envVars:
