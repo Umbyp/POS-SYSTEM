@@ -48,6 +48,9 @@ jobs:
     env:
       DATABASE_URL: postgresql://pos:pospass@localhost:5432/posdb_test?schema=public
       DIRECT_URL: postgresql://pos:pospass@localhost:5432/posdb_test?schema=public
+      # Not a secret — a throwaway value just to satisfy env validation in CI.
+      JWT_SECRET: ci-test-jwt-secret-not-used-in-prod
+      NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
