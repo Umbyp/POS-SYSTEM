@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import QRCode from 'qrcode';
-import { Loader2, Copy, RefreshCw } from 'lucide-react';
+import { Loader2, Copy, RefreshCw, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -96,6 +96,13 @@ export function TableQrDialog({ table, onClose }: Props) {
             {regenerate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
           </Button>
         </div>
+        <Button
+          className="w-full"
+          onClick={() => window.open(`/tables/${table.id}/qr-print`, '_blank')}
+          disabled={!link}
+        >
+          <Printer className="w-4 h-4 mr-1" /> {t('tableQr.print')}
+        </Button>
       </DialogContent>
     </Dialog>
   );

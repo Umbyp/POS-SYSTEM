@@ -701,6 +701,14 @@ const DICT: Record<string, Entry> = {
   'selfOrderPanel.newBillCall': { th: 'เรียกเก็บเงิน', en: 'called for the bill' },
   'selfOrderPanel.acknowledge': { th: 'รับทราบ', en: 'Got it' },
   'selfOrderPanel.acknowledgeFailed': { th: 'ดำเนินการไม่สำเร็จ', en: 'Something went wrong' },
+
+  // Printable table QR card
+  'tableQr.print': { th: 'พิมพ์ QR', en: 'Print QR' },
+  'tableQr.scanHeading': { th: 'สแกนเพื่อสั่งอาหาร', en: 'Scan to order' },
+  'tableQr.printHint': {
+    th: 'เปิดกล้องมือถือ สแกนโค้ดนี้ เพื่อดูเมนูและสั่งอาหารได้เลย',
+    en: 'Open your phone camera, scan this code, and order right from your table',
+  },
 };
 
 /** Hook returning a translator bound to the current language. */
