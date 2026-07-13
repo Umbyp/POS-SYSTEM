@@ -1,8 +1,26 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import * as service from './self-order.service';
+
+// These endpoints are unauthenticated (a diner's phone hits them straight from
+// the QR link), so throttle per IP to keep the QR from being a spam/abuse
+// vector — fake orders, bill-call floods. Menu reads are chattier than writes.
+// Cast: express-rate-limit@7 ships Express-5 handler types; runtime is Express 4.
+const readLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+}) as unknown as RequestHandler;
+const writeLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+}) as unknown as RequestHandler;
 
 const itemSchema = z.object({
   productId: z.string(),
@@ -26,14 +44,14 @@ const rejectSchema = z.object({
  */
 const publicRouter = Router();
 
-publicRouter.get('/menu/:qrCode', async (req, res, next) => {
+publicRouter.get('/menu/:qrCode', readLimiter, async (req, res, next) => {
   try {
     const menu = await service.getMenu(req.params.qrCode);
     res.json(menu);
   } catch (e) { next(e); }
 });
 
-publicRouter.post('/:qrCode/submit', validate(submitSchema), async (req, res, next) => {
+publicRouter.post('/:qrCode/submit', writeLimiter, validate(submitSchema), async (req, res, next) => {
   try {
     const io = req.app.get('io');
     const request = await service.submitRequest(req.params.qrCode, req.body, io);
@@ -41,7 +59,7 @@ publicRouter.post('/:qrCode/submit', validate(submitSchema), async (req, res, ne
   } catch (e) { next(e); }
 });
 
-publicRouter.get('/status/:id', async (req, res, next) => {
+publicRouter.get('/status/:id', readLimiter, async (req, res, next) => {
   try {
     const status = await service.getStatus(req.params.id);
     if (!status) return res.status(404).json({ error: 'Not found' });
@@ -49,7 +67,7 @@ publicRouter.get('/status/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-publicRouter.post('/:qrCode/call-bill', async (req, res, next) => {
+publicRouter.post('/:qrCode/call-bill', writeLimiter, async (req, res, next) => {
   try {
     const io = req.app.get('io');
     const request = await service.callForBill(req.params.qrCode, io);

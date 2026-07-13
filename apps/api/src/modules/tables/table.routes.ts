@@ -35,7 +35,11 @@ router.patch('/:id/status', async (req, res, next) => {
       return res.status(400).json({ error: 'Invalid table status' });
     }
 
-    const current = await prisma.table.findUnique({ where: { id: req.params.id } });
+    // Scope by store: never let one store touch another store's table.
+    const current = await prisma.table.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (!current) return res.status(404).json({ error: 'Table not found' });
     const data: { status: string; occupiedAt?: Date | null } = { status };
 
     // occupiedAt drives the elapsed-time badge:
@@ -63,6 +67,11 @@ router.patch('/:id/status', async (req, res, next) => {
 // Edit table details (number, capacity, size)
 router.patch('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
+    const existing = await prisma.table.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (!existing) return res.status(404).json({ error: 'Table not found' });
+
     const { number, capacity, size } = req.body;
     const data: any = {};
     if (number !== undefined) data.number = number;
@@ -115,7 +124,11 @@ router.post('/:id/qr/regenerate', rbac('OWNER', 'ADMIN'), async (req, res, next)
 
 router.delete('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
-    await prisma.table.delete({ where: { id: req.params.id } });
+    // deleteMany scoped by store — a no-op (count 0) if the id isn't this store's.
+    const { count } = await prisma.table.deleteMany({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+    });
+    if (count === 0) return res.status(404).json({ error: 'Table not found' });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
