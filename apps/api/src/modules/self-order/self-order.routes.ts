@@ -31,6 +31,13 @@ const itemSchema = z.object({
 const submitSchema = z.object({
   items: z.array(itemSchema).min(1),
   note: z.string().optional(),
+  customerId: z.string().optional(),
+});
+
+const registerSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().min(1),
+  email: z.string().email().optional().or(z.literal('')),
 });
 
 const rejectSchema = z.object({
@@ -56,6 +63,23 @@ publicRouter.post('/:qrCode/submit', writeLimiter, validate(submitSchema), async
     const io = req.app.get('io');
     const request = await service.submitRequest(req.params.qrCode, req.body, io);
     res.status(201).json({ id: request.id, status: request.status });
+  } catch (e) { next(e); }
+});
+
+publicRouter.get('/:qrCode/customer/lookup', readLimiter, async (req, res, next) => {
+  try {
+    const phone = req.query.phone as string;
+    if (!phone) return res.status(400).json({ error: 'Phone is required' });
+    const customer = await service.lookupCustomer(req.params.qrCode, phone);
+    res.json(customer);
+  } catch (e) { next(e); }
+});
+
+publicRouter.post('/:qrCode/customer/register', writeLimiter, validate(registerSchema), async (req, res, next) => {
+  try {
+    const { name, phone, email } = req.body;
+    const customer = await service.registerCustomer(req.params.qrCode, name, phone, email);
+    res.status(201).json(customer);
   } catch (e) { next(e); }
 });
 

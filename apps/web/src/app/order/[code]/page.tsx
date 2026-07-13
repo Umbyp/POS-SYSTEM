@@ -69,6 +69,22 @@ export default function SelfOrderPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [billCallState, setBillCallState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
+  // Customer Loyalty member points states
+  interface MemberInfo {
+    id: string;
+    name: string;
+    phone: string;
+    points: number;
+  }
+  const [member, setMember] = useState<MemberInfo | null>(null);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [memberPhone, setMemberPhone] = useState('');
+  const [memberLookupError, setMemberLookupError] = useState('');
+  const [memberLoading, setMemberLoading] = useState(false);
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [registerName, setRegisterName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+
   const products: Product[] = menu?.products || [];
   const categories: Category[] = menu?.categories || [];
 
@@ -101,6 +117,7 @@ export default function SelfOrderPage() {
       const { data } = await api.post(`/self-order/${code}/submit`, {
         items,
         note: note.trim() || undefined,
+        customerId: member?.id || undefined,
       });
       setRequestId(data.id);
       if (data.status === 'APPROVED') {
@@ -530,6 +547,43 @@ export default function SelfOrderPage() {
               )}
 
               {cartLines.length > 0 && (
+                <div className="border border-dashed border-border rounded-xl p-3 bg-muted/40 space-y-2">
+                  <div className="text-xs font-semibold flex items-center gap-1.5 text-foreground">
+                    <ShoppingBag className="w-4 h-4 text-primary" />
+                    <span>สะสมแต้มสมาชิก POS Member 🎁</span>
+                  </div>
+
+                  {!member ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowMemberModal(true)}
+                      className="w-full py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg text-xs font-semibold active:scale-95 transition-all"
+                    >
+                      ค้นหาเบอร์โทรศัพท์ / สมัครสมาชิกใหม่
+                    </button>
+                  ) : (
+                    <div className="flex items-center justify-between text-xs bg-success/15 border border-success/20 rounded-lg p-2.5 text-left">
+                      <div className="space-y-0.5">
+                        <div className="font-semibold text-success">
+                          คุณ {member.name}
+                        </div>
+                        <div className="text-muted-foreground">
+                          เบอร์โทร: {member.phone} | คะแนนสะสม: <strong className="text-success">{member.points} แต้ม</strong>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setMember(null)}
+                        className="text-danger hover:underline font-semibold"
+                      >
+                        ยกเลิก
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {cartLines.length > 0 && (
                 <div className="pb-1">
                   <label className="text-xs text-muted-foreground mb-1 block">{t('selfOrder.noteLabel')}</label>
                   <textarea
@@ -564,6 +618,155 @@ export default function SelfOrderPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showMemberModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-card w-full max-w-sm rounded-2xl shadow-xl overflow-hidden flex flex-col border border-border">
+            <div className="px-4 py-3.5 border-b border-border flex justify-between items-center bg-muted/20">
+              <h3 className="font-bold text-sm text-foreground">สะสมแต้มสมาชิก (POS Member)</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMemberModal(false);
+                  setShowRegisterForm(false);
+                  setMemberPhone('');
+                  setMemberLookupError('');
+                  setRegisterName('');
+                  setRegisterEmail('');
+                }}
+                className="p-1 rounded-full hover:bg-muted text-muted-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 space-y-3.5">
+              {!showRegisterForm ? (
+                <div className="space-y-3 text-left">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">กรอกเบอร์โทรศัพท์ของสมาชิก</label>
+                    <input
+                      type="tel"
+                      value={memberPhone}
+                      onChange={(e) => {
+                        setMemberPhone(e.target.value);
+                        setMemberLookupError('');
+                      }}
+                      placeholder="เช่น 0812345678"
+                      className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+                  {memberLookupError && <p className="text-xs text-danger">{memberLookupError}</p>}
+                  <button
+                    type="button"
+                    disabled={memberLoading || !memberPhone}
+                    onClick={async () => {
+                      setMemberLoading(true);
+                      setMemberLookupError('');
+                      try {
+                        const { data } = await api.get(`/self-order/${code}/customer/lookup?phone=${memberPhone}`);
+                        if (data && data.id) {
+                          setMember(data);
+                          setShowMemberModal(false);
+                          setMemberPhone('');
+                        } else {
+                          setMemberLookupError('ไม่พบเบอร์โทรศัพท์นี้ในระบบสมาชิก');
+                          setShowRegisterForm(true);
+                        }
+                      } catch (e: any) {
+                        setMemberLookupError(e.response?.data?.error || 'เกิดข้อผิดพลาดในการตรวจสอบ');
+                      } finally {
+                        setMemberLoading(false);
+                      }
+                    }}
+                    className="w-full py-2 bg-primary text-primary-foreground font-semibold text-xs rounded-lg active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
+                  >
+                    {memberLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'ตรวจสอบเบอร์โทรศัพท์'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3 text-left">
+                  <p className="text-xs text-warning bg-warning/15 border border-warning/20 rounded-lg p-2.5 leading-relaxed">
+                    ไม่พบเบอร์โทรศัพท์ <strong>{memberPhone}</strong> ในระบบสมาชิก ท่านสามารถลงทะเบียนสมัครสมาชิกใหม่ได้ทันทีด้านล่างนี้
+                  </p>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">ชื่อ-นามสกุล สมาชิก *</label>
+                    <input
+                      type="text"
+                      value={registerName}
+                      onChange={(e) => setRegisterName(e.target.value)}
+                      placeholder="กรอกชื่อและนามสกุล"
+                      className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">เบอร์โทรศัพท์ *</label>
+                    <input
+                      type="tel"
+                      value={memberPhone}
+                      disabled
+                      className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none opacity-80 text-foreground"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-muted-foreground">อีเมล (ถ้ามี)</label>
+                    <input
+                      type="email"
+                      value={registerEmail}
+                      onChange={(e) => setRegisterEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="w-full bg-input border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 text-foreground"
+                    />
+                  </div>
+
+                  {memberLookupError && <p className="text-xs text-danger">{memberLookupError}</p>}
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterForm(false)}
+                      className="flex-1 py-2 bg-muted hover:bg-muted/80 text-muted-foreground font-semibold text-xs rounded-lg active:scale-95 transition-all"
+                    >
+                      ย้อนกลับ
+                    </button>
+                    <button
+                      type="button"
+                      disabled={memberLoading || !registerName}
+                      onClick={async () => {
+                        setMemberLoading(true);
+                        setMemberLookupError('');
+                        try {
+                          const { data } = await api.post(`/self-order/${code}/customer/register`, {
+                            name: registerName,
+                            phone: memberPhone,
+                            email: registerEmail || undefined,
+                          });
+                          setMember(data);
+                          setShowMemberModal(false);
+                          setShowRegisterForm(false);
+                          setMemberPhone('');
+                          setRegisterName('');
+                          setRegisterEmail('');
+                        } catch (e: any) {
+                          setMemberLookupError(e.response?.data?.error || 'เกิดข้อผิดพลาดในการลงทะเบียน');
+                        } finally {
+                          setMemberLoading(false);
+                        }
+                      }}
+                      className="flex-1 py-2 bg-primary text-primary-foreground font-semibold text-xs rounded-lg active:scale-95 transition-all disabled:opacity-60 flex items-center justify-center gap-1.5"
+                    >
+                      {memberLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'สมัครสมาชิกและเชื่อมต่อ'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
