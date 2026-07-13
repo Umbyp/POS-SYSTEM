@@ -7,6 +7,7 @@ import { ShiftButton } from '@/components/shifts/ShiftButton';
 import { StoreSwitcher } from '@/components/layout/StoreSwitcher';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
+import { PendingSelfOrders } from '@/components/layout/PendingSelfOrders';
 import { getMuted, setMuted, playCashRegister } from '@/lib/sounds';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/lib/i18n';
@@ -97,6 +98,8 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
         <StoreSwitcher />
 
         <ShiftButton />
+
+        <PendingSelfOrders />
 
         <button
           onClick={openCustomerDisplay}

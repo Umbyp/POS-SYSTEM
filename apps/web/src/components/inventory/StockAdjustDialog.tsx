@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useT } from '@/lib/i18n';
 
 type Mode = 'PURCHASE' | 'WASTE' | 'COUNT';
 
@@ -28,31 +29,32 @@ interface Props {
   item: any; // inventory item with product
 }
 
-const MODES: { key: Mode; label: string; icon: any; color: string; desc: string }[] = [
+const MODES: { key: Mode; labelKey: string; icon: any; color: string; descKey: string }[] = [
   {
     key: 'PURCHASE',
-    label: 'Receive',
+    labelKey: 'stock.mode.receive',
     icon: PackagePlus,
     color: 'border-success text-success bg-success/10',
-    desc: 'Receive new stock from supplier',
+    descKey: 'stock.mode.receiveDesc',
   },
   {
     key: 'WASTE',
-    label: 'Waste/Loss',
+    labelKey: 'stock.mode.waste',
     icon: TrendingDown,
     color: 'border-warning text-warning bg-warning/10',
-    desc: 'Lost / expired / damaged',
+    descKey: 'stock.mode.wasteDesc',
   },
   {
     key: 'COUNT',
-    label: 'Stock count',
+    labelKey: 'stock.mode.count',
     icon: ClipboardCheck,
     color: 'border-primary text-primary bg-primary/10',
-    desc: 'Physical count, set new quantity',
+    descKey: 'stock.mode.countDesc',
   },
 ];
 
 export function StockAdjustDialog({ open, onClose, item }: Props) {
+  const t = useT();
   const qc = useQueryClient();
   const [mode, setMode] = useState<Mode>('PURCHASE');
   const [qty, setQty] = useState('');
@@ -70,22 +72,22 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['inventory'] });
       qc.invalidateQueries({ queryKey: ['inventory-movements'] });
-      toast.success('Stock adjustment saved');
+      toast.success(t('stock.saved'));
       setQty('');
       setReason('');
       onClose();
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'Stock adjustment failed'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('stock.saveFailed')),
   });
 
   const handleSubmit = () => {
     const num = parseInt(qty);
     if (isNaN(num) || num < 0) {
-      toast.error('Please enter a valid quantity');
+      toast.error(t('stock.invalidQty'));
       return;
     }
     if (!reason.trim()) {
-      toast.error('Please provide a reason');
+      toast.error(t('stock.reasonRequired'));
       return;
     }
     if (mode === 'COUNT') {
@@ -95,7 +97,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     } else {
       // WASTE - negative
       if (num > item.quantity) {
-        toast.error(`Cannot reduce more than ${item.quantity}`);
+        toast.error(`${t('stock.cannotReduceMore')} ${item.quantity}`);
         return;
       }
       adjust.mutate({ quantity: -num, reason, type: 'WASTE' });
@@ -115,19 +117,19 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Adjust stock: {item?.product?.name}</DialogTitle>
+          <DialogTitle>{t('stock.adjustTitle')} {item?.product?.name}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center justify-between p-3 rounded-xl bg-muted">
           <div>
-            <div className="text-xs text-muted-foreground">Current stock</div>
+            <div className="text-xs text-muted-foreground">{t('stock.currentStock')}</div>
             <div className="text-2xl font-bold tabular-nums">{item?.quantity}</div>
           </div>
         </div>
 
         {/* Mode select */}
         <div>
-          <Label className="mb-2 block">Adjustment type</Label>
+          <Label className="mb-2 block">{t('stock.adjustType')}</Label>
           <div className="grid grid-cols-3 gap-2">
             {MODES.map((m) => {
               const Icon = m.icon;
@@ -142,20 +144,20 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  <span className="text-xs font-medium">{m.label}</span>
+                  <span className="text-xs font-medium">{t(m.labelKey)}</span>
                 </button>
               );
             })}
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5">
-            {MODES.find((m) => m.key === mode)?.desc}
+            {t(MODES.find((m) => m.key === mode)!.descKey)}
           </p>
         </div>
 
         {/* Quantity input */}
         <div>
           <Label className="mb-1.5 block">
-            {mode === 'COUNT' ? 'Counted quantity (new total)' : 'Quantity'}
+            {mode === 'COUNT' ? t('stock.countedQty') : t('stock.quantity')}
           </Label>
           <Input
             type="number"
@@ -176,7 +178,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
                   : 'bg-success/10 text-success'
               }`}
             >
-              <span>After:</span>
+              <span>{t('stock.after')}</span>
               <span className="font-bold tabular-nums">
                 {item?.quantity} →{' '}
                 <span
@@ -201,16 +203,16 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
 
         {/* Reason */}
         <div>
-          <Label className="mb-1.5 block">Reason *</Label>
+          <Label className="mb-1.5 block">{t('stock.reason')}</Label>
           <Input
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={
               mode === 'PURCHASE'
-                ? 'e.g. received from supplier XX on...'
+                ? t('stock.reasonPlaceholder.purchase')
                 : mode === 'WASTE'
-                ? 'e.g. expired, broken, pest damage'
-                : 'e.g. monthly stock count'
+                ? t('stock.reasonPlaceholder.waste')
+                : t('stock.reasonPlaceholder.count')
             }
             required
           />
@@ -218,7 +220,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
 
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             className="flex-1"
@@ -228,7 +230,7 @@ export function StockAdjustDialog({ open, onClose, item }: Props) {
             {adjust.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              'Save'
+              t('common.save')
             )}
           </Button>
         </div>

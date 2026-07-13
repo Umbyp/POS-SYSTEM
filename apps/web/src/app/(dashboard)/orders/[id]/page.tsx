@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { RefundDialog } from '@/components/orders/RefundDialog';
 import { useAuth } from '@/stores/auth.store';
+import { useT } from '@/lib/i18n';
 
 const STATUS_VARIANT: Record<string, any> = {
   PENDING: 'warning',
@@ -29,23 +30,8 @@ const STATUS_VARIANT: Record<string, any> = {
   REFUNDED: 'danger',
 };
 
-const STATUS_LABEL: Record<string, string> = {
-  PENDING: 'Pending',
-  PREPARING: 'Preparing',
-  READY: 'Ready',
-  COMPLETED: 'Completed',
-  CANCELLED: 'Cancelled',
-  REFUNDED: 'Refunded',
-};
-
-const PAYMENT_LABEL: Record<string, string> = {
-  CASH: 'Cash',
-  PROMPTPAY: 'PromptPay',
-  CREDIT_CARD: 'Credit Card',
-  BANK_TRANSFER: 'Bank Transfer',
-};
-
 export default function OrderDetailPage() {
+  const t = useT();
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const user = useAuth((s) => s.user);
@@ -58,7 +44,7 @@ export default function OrderDetailPage() {
 
   if (isLoading || !order) {
     return (
-      <div className="p-6 text-center text-muted-foreground">Loading...</div>
+      <div className="p-6 text-center text-muted-foreground">{t('orders.loading')}</div>
     );
   }
 
@@ -78,11 +64,11 @@ export default function OrderDetailPage() {
       <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-1" /> Back
+            <ArrowLeft className="w-4 h-4 mr-1" /> {t('orders.back')}
           </Button>
           <h2 className="text-lg sm:text-xl font-bold">{order.orderNumber}</h2>
           <Badge variant={STATUS_VARIANT[order.status]}>
-            {STATUS_LABEL[order.status] || order.status}
+            {t(`orders.status.${order.status}`, order.status)}
           </Badge>
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -91,11 +77,11 @@ export default function OrderDetailPage() {
             size="sm"
             onClick={() => window.open(`/orders/${order.id}/receipt`, '_blank')}
           >
-            <Printer className="w-4 h-4 mr-1" /> Receipt
+            <Printer className="w-4 h-4 mr-1" /> {t('orders.receipt')}
           </Button>
           {canRefund && (
             <Button variant="danger" size="sm" onClick={() => setRefundOpen(true)}>
-              <Undo2 className="w-4 h-4 mr-1" /> Refund
+              <Undo2 className="w-4 h-4 mr-1" /> {t('orders.refund')}
             </Button>
           )}
         </div>
@@ -105,7 +91,7 @@ export default function OrderDetailPage() {
         {/* Items */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Items</CardTitle>
+            <CardTitle className="text-base">{t('orders.itemsTitle')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
@@ -137,7 +123,7 @@ export default function OrderDetailPage() {
                         {refunded > 0 && (
                           <div className="mt-1 text-xs">
                             <Badge variant="warning" className="text-[10px]">
-                              Refunded {refunded}/{item.quantity}
+                              {t('orders.refundedBadge')} {refunded}/{item.quantity}
                             </Badge>
                             {item.refundReason && (
                               <span className="ml-2 italic text-muted-foreground">
@@ -170,39 +156,39 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <ReceiptIcon className="w-4 h-4" /> Summary
+                <ReceiptIcon className="w-4 h-4" /> {t('orders.summary')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1.5 text-sm">
               <div className="flex justify-between text-muted-foreground">
-                <span>Subtotal</span>
+                <span>{t('cart.subtotal')}</span>
                 <span className="tabular-nums">{formatCurrency(order.subtotal)}</span>
               </div>
               {Number(order.discount) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Discount</span>
+                  <span>{t('cart.discount')}</span>
                   <span className="tabular-nums">-{formatCurrency(order.discount)}</span>
                 </div>
               )}
               {Number(order.serviceCharge) > 0 && (
                 <div className="flex justify-between text-muted-foreground">
-                  <span>Service charge</span>
+                  <span>{t('cart.serviceCharge')}</span>
                   <span className="tabular-nums">{formatCurrency(order.serviceCharge)}</span>
                 </div>
               )}
               {Number(order.tax) > 0 && (
                 <div className="flex justify-between text-xs text-muted-foreground/70">
-                  <span>VAT (incl.)</span>
+                  <span>{t('orders.vatIncl')}</span>
                   <span className="tabular-nums">{formatCurrency(order.tax)}</span>
                 </div>
               )}
               <div className="flex justify-between font-bold text-lg pt-2 border-t border-border">
-                <span>Total</span>
+                <span>{t('cart.total')}</span>
                 <span className="tabular-nums text-accent">{formatCurrency(order.total)}</span>
               </div>
               {totalRefunded > 0 && (
                 <div className="flex justify-between text-warning font-medium pt-2 border-t border-border">
-                  <span>Refunded</span>
+                  <span>{t('orders.refunded')}</span>
                   <span className="tabular-nums">-{formatCurrency(totalRefunded)}</span>
                 </div>
               )}
@@ -212,21 +198,21 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <Wallet className="w-4 h-4" /> Payment
+                <Wallet className="w-4 h-4" /> {t('orders.payment')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-1.5 text-sm">
               {order.payments?.map((p: any) => (
                 <div key={p.id}>
                   <div className="flex justify-between">
-                    <span>{PAYMENT_LABEL[p.method] || p.method}</span>
+                    <span>{t(`orders.paymentMethod.${p.method}`, p.method)}</span>
                     <span className="tabular-nums font-medium">
                       {formatCurrency(p.amount)}
                     </span>
                   </div>
                   {p.reference && (
                     <div className="text-xs text-muted-foreground pl-1">
-                      Ref: {p.reference}
+                      {t('orders.ref')}: {p.reference}
                     </div>
                   )}
                 </div>
@@ -236,35 +222,35 @@ export default function OrderDetailPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Information</CardTitle>
+              <CardTitle className="text-base">{t('orders.information')}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
-              <Row icon={<Hash className="w-4 h-4" />} label="Number" value={order.orderNumber} />
+              <Row icon={<Hash className="w-4 h-4" />} label={t('orders.number')} value={order.orderNumber} />
               <Row
                 icon={<Calendar className="w-4 h-4" />}
-                label="Date"
+                label={t('orders.date')}
                 value={formatDate(order.createdAt)}
               />
               <Row
                 icon={<User className="w-4 h-4" />}
-                label="Cashier"
+                label={t('orders.cashier')}
                 value={order.cashier?.name || '-'}
               />
               {order.table && (
-                <Row label="Table" value={`${order.table.number}`} />
+                <Row label={t('cart.tableWord')} value={`${order.table.number}`} />
               )}
               {order.customer && (
-                <Row label="Customer" value={order.customer.name} />
+                <Row label={t('orders.customer')} value={order.customer.name} />
               )}
               {order.customerName && !order.customer && (
-                <Row label="Customer" value={order.customerName} />
+                <Row label={t('orders.customer')} value={order.customerName} />
               )}
               {order.customerTaxId && (
-                <Row label="Tax ID" value={order.customerTaxId} />
+                <Row label={t('orders.taxIdShort')} value={order.customerTaxId} />
               )}
               {order.notes && (
                 <div className="pt-2 border-t border-border">
-                  <div className="text-xs text-muted-foreground">Notes</div>
+                  <div className="text-xs text-muted-foreground">{t('orders.notes')}</div>
                   <div>{order.notes}</div>
                 </div>
               )}

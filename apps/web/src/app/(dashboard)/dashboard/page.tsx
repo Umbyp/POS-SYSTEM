@@ -12,6 +12,7 @@ import { formatCurrency, formatTime } from '@/lib/format';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AIInsightsWidget } from '@/components/dashboard/AIInsightsWidget';
+import { useT } from '@/lib/i18n';
 
 const STATUS_VARIANT: Record<string, any> = {
   PENDING: 'warning',
@@ -30,6 +31,7 @@ const PAYMENT_EMOJI: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const t = useT();
   const qc = useQueryClient();
   const router = useRouter();
   const user = useAuth((s) => s.user);
@@ -87,7 +89,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 rounded-lg bg-card border border-border p-6">
           <div className="flex items-center justify-between mb-2">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              Today's revenue
+              {t('dash.todayRevenue')}
             </div>
             {today.vsYesterdayPct != null && (
               <div
@@ -97,7 +99,7 @@ export default function DashboardPage() {
               >
                 {today.vsYesterdayPct >= 0 ? '+' : ''}
                 {today.vsYesterdayPct.toFixed(1)}%
-                <span className="text-muted-foreground font-normal ml-1">vs yesterday</span>
+                <span className="text-muted-foreground font-normal ml-1">{t('dash.vsYesterday')}</span>
               </div>
             )}
           </div>
@@ -107,7 +109,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-border">
             <div>
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
-                Profit
+                {t('dash.profit')}
               </div>
               <div className={`text-lg font-semibold tabular-nums ${today.profit >= 0 ? 'text-foreground' : 'text-danger'}`}>
                 {formatCurrency(today.profit)}
@@ -118,13 +120,13 @@ export default function DashboardPage() {
             </div>
             <div>
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
-                Orders
+                {t('dash.orders')}
               </div>
               <div className="text-lg font-semibold tabular-nums">{today.orders}</div>
             </div>
             <div>
               <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
-                Avg/Ticket
+                {t('dash.avgTicket')}
               </div>
               <div className="text-lg font-semibold tabular-nums">
                 {formatCurrency(today.avgTicket)}
@@ -136,19 +138,19 @@ export default function DashboardPage() {
         {/* Goal — minimal */}
         <div className="rounded-lg bg-card border border-border p-6">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
-            Goals
+            {t('dash.goals')}
           </div>
           {goals.dailyTarget > 0 || goals.monthlyTarget > 0 ? (
             <div className="space-y-4">
               {goals.dailyTarget > 0 && (
-                <GoalRow label="Today" actual={goals.dailyActual} target={goals.dailyTarget} pct={goals.dailyPct} />
+                <GoalRow label={t('dash.today')} actual={goals.dailyActual} target={goals.dailyTarget} pct={goals.dailyPct} />
               )}
               {goals.monthlyTarget > 0 && (
-                <GoalRow label="This month" actual={goals.monthlyActual} target={goals.monthlyTarget} pct={goals.monthlyPct} />
+                <GoalRow label={t('dash.thisMonth')} actual={goals.monthlyActual} target={goals.monthlyTarget} pct={goals.monthlyPct} />
               )}
               {goals.monthlyTarget > 0 && month.projection > 0 && (
                 <div className="text-[11px] text-muted-foreground pt-3 border-t border-border">
-                  End-of-month forecast{' '}
+                  {t('dash.forecast')}{' '}
                   <span className="text-foreground font-medium">
                     {formatCurrency(month.projection)}
                   </span>
@@ -160,7 +162,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             <Link href="/settings" className="text-xs text-muted-foreground hover:text-foreground">
-              Set goals in Settings →
+              {t('dash.setGoals')}
             </Link>
           )}
         </div>
@@ -170,7 +172,7 @@ export default function DashboardPage() {
       {insights.length > 0 && (
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="text-xs uppercase tracking-wider text-muted-foreground mb-3">
-            Today's summary
+            {t('dash.todaySummary')}
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {insights.map((ins: any, i: number) => (
@@ -183,26 +185,26 @@ export default function DashboardPage() {
       {/* === Status grid: clean, no icons === */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickStat
-          label="Kitchen queue"
+          label={t('dash.kitchenQueue')}
           value={`${restaurant.pendingKitchen}`}
           href="/kds"
           urgent={restaurant.pendingKitchen > 5}
         />
         <QuickStat
-          label="Active tables"
+          label={t('dash.activeTables')}
           value={`${restaurant.activeTables}/${restaurant.totalTables}`}
           href="/tables"
         />
         <QuickStat
-          label="New customers today"
+          label={t('dash.newCustomersToday')}
           value={`+${customers.newToday}`}
-          subText={`Total ${customers.total}`}
+          subText={`${t('dash.total')} ${customers.total}`}
           href="/customers"
         />
         <QuickStat
-          label="Low stock"
+          label={t('inventoryPage.lowStock')}
           value={`${alerts.lowStock.length}`}
-          subText={alerts.outOfStockCount > 0 ? `${alerts.outOfStockCount} out` : 'Normal'}
+          subText={alerts.outOfStockCount > 0 ? `${alerts.outOfStockCount} ${t('dash.outSuffix')}` : t('inventoryPage.statusNormal')}
           href="/inventory"
           urgent={alerts.outOfStockCount > 0}
         />
@@ -213,11 +215,11 @@ export default function DashboardPage() {
         <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-medium">Hourly revenue</h3>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Today</p>
+              <h3 className="text-sm font-medium">{t('dash.hourlyRevenue')}</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{t('dash.today')}</p>
             </div>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {today.orders} orders
+              {today.orders} {t('shift.ordersWord')}
             </span>
           </div>
           <HourlyChart hourly={hourly} />
@@ -225,10 +227,10 @@ export default function DashboardPage() {
 
         {/* Top Items today */}
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-medium mb-4">Top sellers today</h3>
+          <h3 className="text-sm font-medium mb-4">{t('dash.topSellers')}</h3>
           {topItems.length === 0 ? (
             <p className="text-xs text-muted-foreground py-4">
-              No orders yet
+              {t('orders.empty')}
             </p>
           ) : (
             <div className="space-y-2.5">
@@ -255,13 +257,13 @@ export default function DashboardPage() {
         {/* Recent Orders feed */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">Recent orders</h3>
+            <h3 className="text-sm font-medium">{t('dash.recentOrders')}</h3>
             <Link href="/orders" className="text-xs text-muted-foreground hover:text-foreground">
-              View all →
+              {t('dash.viewAll')}
             </Link>
           </div>
           {recentOrders.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-6 text-center">No orders yet</p>
+            <p className="text-xs text-muted-foreground py-6 text-center">{t('orders.empty')}</p>
           ) : (
             <div className="space-y-0 max-h-80 overflow-y-auto scrollbar-thin -mx-2">
               {recentOrders.map((o: any) => (
@@ -285,9 +287,9 @@ export default function DashboardPage() {
                       )}
                     </div>
                     <div className="text-[11px] text-muted-foreground mt-0.5 truncate">
-                      {o.tableNumber && `Table ${o.tableNumber} · `}
+                      {o.tableNumber && `${t('cart.tableWord')} ${o.tableNumber} · `}
                       {o.customerName && `${o.customerName} · `}
-                      {o.itemCount} items · {formatTime(o.createdAt)}
+                      {o.itemCount} {t('display.items')} · {formatTime(o.createdAt)}
                     </div>
                   </div>
                   <div className="font-semibold tabular-nums text-sm shrink-0">
@@ -302,14 +304,14 @@ export default function DashboardPage() {
         {/* Low stock alerts */}
         <div className="bg-card border border-border rounded-lg p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-medium">Stock to watch</h3>
+            <h3 className="text-sm font-medium">{t('dash.stockToWatch')}</h3>
             <Link href="/inventory" className="text-xs text-muted-foreground hover:text-foreground">
-              View inventory →
+              {t('dash.viewInventory')}
             </Link>
           </div>
           {alerts.lowStock.length === 0 ? (
             <div className="text-center py-6 text-xs text-muted-foreground">
-              All stock levels are normal
+              {t('dash.allStockNormal')}
             </div>
           ) : (
             <div className="space-y-0 -mx-2">
@@ -326,7 +328,7 @@ export default function DashboardPage() {
                   <div className="min-w-0 flex-1">
                     <div className="text-sm truncate">{s.name}</div>
                     <div className="text-[10px] text-muted-foreground">
-                      Min {s.lowStockAt}
+                      {t('inventoryPage.minShort')} {s.lowStockAt}
                     </div>
                   </div>
                   <div
@@ -349,7 +351,7 @@ export default function DashboardPage() {
       {/* Active Promotions */}
       {activePromotions.length > 0 && (
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-medium mb-4">Active promotions</h3>
+          <h3 className="text-sm font-medium mb-4">{t('dash.activePromotions')}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {activePromotions.map((p: any) => (
               <div
@@ -359,10 +361,10 @@ export default function DashboardPage() {
                 <div className="text-sm font-medium truncate">{p.name}</div>
                 <div className="text-[11px] text-muted-foreground mt-1 flex items-center justify-between">
                   <span>
-                    {p.type === 'PERCENT_OFF' && `${p.value}% off`}
-                    {p.type === 'FIXED_OFF' && `฿${p.value} off`}
-                    {p.type === 'BUY_X_GET_Y' && 'Buy & get free'}
-                    {p.type === 'FIXED_PRICE' && `฿${p.value} fixed`}
+                    {p.type === 'PERCENT_OFF' && t('dash.promoPercentOff').replace('%s', String(p.value))}
+                    {p.type === 'FIXED_OFF' && t('dash.promoFixedOff').replace('%s', String(p.value))}
+                    {p.type === 'BUY_X_GET_Y' && t('dash.promoBuyGetFree')}
+                    {p.type === 'FIXED_PRICE' && t('dash.promoFixedPrice').replace('%s', String(p.value))}
                   </span>
                   {p.usageLimit && (
                     <span className="tabular-nums">
@@ -381,7 +383,7 @@ export default function DashboardPage() {
         href="/reports"
         className="flex items-center justify-center gap-2 p-3 rounded-lg border border-border hover:bg-card-hover transition-colors text-sm text-muted-foreground hover:text-foreground"
       >
-        View detailed reports <ArrowRight className="w-3.5 h-3.5" />
+        {t('dash.viewReports')} <ArrowRight className="w-3.5 h-3.5" />
       </Link>
     </div>
   );

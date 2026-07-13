@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { generatePromptPayPayload, formatPromptPayId } from '@/lib/promptpay';
 import { formatCurrency } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   promptpayId: string;
@@ -12,13 +13,14 @@ interface Props {
 }
 
 export function PromptPayQR({ promptpayId, amount, merchantName }: Props) {
+  const t = useT();
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!promptpayId) {
-      setError('PromptPay ID not configured — set it in Settings');
+      setError(t('promptpayQr.notConfigured'));
       setLoading(false);
       return;
     }
@@ -87,14 +89,14 @@ export function PromptPayQR({ promptpayId, amount, merchantName }: Props) {
 
       {/* Amount */}
       <div className="mt-3 text-center">
-        <div className="text-xs text-gray-500">Amount</div>
+        <div className="text-xs text-gray-500">{t('promptpayQr.amount')}</div>
         <div className="text-2xl font-bold text-gray-900 tabular-nums">
           {formatCurrency(amount)}
         </div>
       </div>
 
       <p className="text-[10px] text-gray-500 mt-2 text-center px-2">
-        Scan with any Mobile Banking app
+        {t('promptpayQr.scanHint')}
       </p>
     </div>
   );

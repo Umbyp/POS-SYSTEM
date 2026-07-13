@@ -231,7 +231,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           <button
             onClick={() => setCustomer(undefined)}
             className="text-muted-foreground hover:text-foreground p-2 -m-1 touch-manipulation"
-            aria-label="Remove customer"
+            aria-label={t('cart.aria.removeCustomer')}
           >
             <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
           </button>
@@ -303,7 +303,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                       value={gpFeePct || ''}
                       onChange={(e) => setGpFeePct(Number(e.target.value) || 0)}
                       className="w-12 h-6 bg-card border border-border rounded pl-1.5 pr-4 text-right tabular-nums text-[11px]"
-                      aria-label="GP fee percent"
+                      aria-label={t('cart.aria.gpFeePercent')}
                     />
                     <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
                       %
@@ -436,7 +436,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                   <button
                     onClick={() => removeItem(item.productId)}
                     className="text-muted-foreground hover:text-foreground p-2 lg:p-0.5 -m-2 lg:m-0 touch-manipulation"
-                    aria-label="Remove from cart"
+                    aria-label={t('cart.aria.removeFromCart')}
                   >
                     <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
                   </button>
@@ -447,7 +447,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                     <button
                       onClick={() => updateQty(item.productId, item.quantity - 1)}
                       className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
-                      aria-label="Decrease quantity"
+                      aria-label={t('cart.aria.decreaseQty')}
                     >
                       <Minus className="w-4 h-4 lg:w-3 lg:h-3" />
                     </button>
@@ -457,7 +457,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                     <button
                       onClick={() => updateQty(item.productId, item.quantity + 1)}
                       className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
-                      aria-label="Increase quantity"
+                      aria-label={t('cart.aria.increaseQty')}
                     >
                       <Plus className="w-4 h-4 lg:w-3 lg:h-3" />
                     </button>

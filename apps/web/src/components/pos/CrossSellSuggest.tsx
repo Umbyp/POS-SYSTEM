@@ -6,6 +6,7 @@ import { useCart } from '@/stores/cart.store';
 import { analyticsApi } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
+import { useT } from '@/lib/i18n';
 
 interface Suggestion {
   productId: string;
@@ -23,6 +24,7 @@ interface Suggestion {
  * in localStorage so it doesn't re-open on every cart change.
  */
 export function CrossSellSuggest() {
+  const t = useT();
   const { items, addItem } = useCart();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
@@ -62,7 +64,7 @@ export function CrossSellSuggest() {
       return;
     }
     const lastItem = items[items.length - 1];
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       try {
         const { data } = await analyticsApi.get(
           `/api/basket/cross-sell/${lastItem.productId}`,
@@ -78,7 +80,7 @@ export function CrossSellSuggest() {
         setSuggestions([]);
       }
     }, 600);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line
   }, [items.length, items.map((i) => i.productId).join(','), realStoreId]);
 
@@ -105,10 +107,10 @@ export function CrossSellSuggest() {
           >
             <Sparkles className="w-3.5 h-3.5 text-primary" />
             <span className="text-xs font-medium">
-              {suggestions.length} แนะนำ
+              {suggestions.length} {t('crossSell.suggested')}
             </span>
             <span className="text-[10px] text-muted-foreground">
-              ลูกค้ามักซื้อด้วย
+              {t('crossSell.oftenBought')}
             </span>
             <ChevronDown className="w-3 h-3 text-muted-foreground rotate-180 group-hover:translate-y-[-1px] transition-transform" />
           </motion.button>
@@ -127,21 +129,21 @@ export function CrossSellSuggest() {
               <div className="flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-primary" />
                 <span className="text-xs font-medium text-foreground">
-                  ลูกค้ามักซื้อด้วย
+                  {t('crossSell.oftenBought')}
                 </span>
               </div>
               <div className="flex items-center gap-0.5">
                 <button
                   onClick={() => persistExpanded(false)}
                   className="w-6 h-6 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors"
-                  title="ย่อ"
+                  title={t('crossSell.collapse')}
                 >
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setHidden(true)}
                   className="w-6 h-6 rounded hover:bg-muted text-muted-foreground hover:text-danger flex items-center justify-center transition-colors"
-                  title="ปิด"
+                  title={t('crossSell.close')}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -185,7 +187,7 @@ export function CrossSellSuggest() {
                       dismiss(s.productId);
                     }}
                     className="w-7 h-7 rounded-md bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary-600 transition-colors"
-                    title="เพิ่มลงตะกร้า"
+                    title={t('crossSell.addToCart')}
                   >
                     <Plus className="w-4 h-4" />
                   </button>

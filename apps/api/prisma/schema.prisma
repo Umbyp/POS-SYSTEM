@@ -69,6 +69,8 @@ model Store {
   suppliers     Supplier[]
   tables        Table[]
   users         User[]
+  selfOrderRequests SelfOrderRequest[]
+  billCallRequests  BillCallRequest[]
 }
 
 model Promotion {
@@ -325,6 +327,56 @@ model Table {
   storeId  String
   orders   Order[]
   store    Store   @relation(fields: [storeId], references: [id])
+  selfOrderRequests SelfOrderRequest[]
+  billCallRequests  BillCallRequest[]
+}
+
+// A cart a customer built themselves by scanning a table's QR code, awaiting
+// staff approval before it's merged into the table's actual bill (see
+// self-order.service.ts) — kept separate from Order so a prank/mistaken
+// submission never touches stock or the kitchen until a staff member confirms.
+model SelfOrderRequest {
+  id           String   @id @default(cuid())
+  storeId      String
+  tableId      String
+  items        Json     // [{ productId, quantity, notes? }]
+  note         String?
+  status       SelfOrderStatus @default(PENDING)
+  rejectReason String?
+  createdAt    DateTime @default(now())
+  resolvedAt   DateTime?
+  store        Store    @relation(fields: [storeId], references: [id])
+  table        Table    @relation(fields: [tableId], references: [id])
+
+  @@index([storeId, status])
+}
+
+enum SelfOrderStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// A customer tapping "Call for the bill" from the self-order page — a plain
+// notification for staff to come collect payment, not a payment itself
+// (payment stays staff-mediated through the normal settle-tab flow).
+// Deduped per table: a second tap while one is already PENDING is a no-op.
+model BillCallRequest {
+  id             String        @id @default(cuid())
+  storeId        String
+  tableId        String
+  status         BillCallStatus @default(PENDING)
+  createdAt      DateTime      @default(now())
+  acknowledgedAt DateTime?
+  store          Store         @relation(fields: [storeId], references: [id])
+  table          Table         @relation(fields: [tableId], references: [id])
+
+  @@index([storeId, status])
+}
+
+enum BillCallStatus {
+  PENDING
+  ACKNOWLEDGED
 }
 
 model PaymentNotification {

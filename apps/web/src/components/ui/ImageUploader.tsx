@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useT } from '@/lib/i18n';
 
 interface Props {
   /** Current value — either a "/uploads/..." path or external URL */
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
+  const t = useT();
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const [showUrlInput, setShowUrlInput] = useState(false);
@@ -32,10 +34,10 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
     },
     onSuccess: (data) => {
       onChange(data.url);
-      toast.success('Image uploaded');
+      toast.success(t('image.uploaded'));
     },
     onError: (e: any) => {
-      const msg = e.response?.data?.error || e.message || 'Upload failed';
+      const msg = e.response?.data?.error || e.message || t('image.uploadFailed');
       toast.error(msg);
     },
   });
@@ -48,7 +50,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
-      toast.error('File too large (max 10MB)');
+      toast.error(t('image.tooLarge'));
       return;
     }
     upload.mutate(file);
@@ -97,17 +99,17 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
             {imgError ? (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center gap-1.5 px-3 text-muted-foreground">
                 <ImageIcon className="w-8 h-8 opacity-40" />
-                <span className="text-xs font-medium">Preview couldn&apos;t load</span>
+                <span className="text-xs font-medium">{t('image.previewFailed')}</span>
                 <a
                   href={preview}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-[11px] text-primary underline break-all"
                 >
-                  Open image in new tab
+                  {t('image.openInNewTab')}
                 </a>
                 <span className="text-[10px] text-muted-foreground/70">
-                  The image is uploaded &amp; saved — it will appear after you Save
+                  {t('image.savedHint')}
                 </span>
               </div>
             ) : (
@@ -130,7 +132,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
               type="button"
               onClick={clear}
               className="w-8 h-8 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-danger transition-colors"
-              title="Remove image"
+              title={t('image.removeTitle')}
             >
               <X className="w-4 h-4" />
             </button>
@@ -143,7 +145,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
               onClick={() => cameraRef.current?.click()}
               disabled={upload.isPending}
             >
-              <Camera className="w-4 h-4 mr-1" /> Re-take
+              <Camera className="w-4 h-4 mr-1" /> {t('image.retake')}
             </Button>
             <Button
               type="button"
@@ -152,7 +154,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
               onClick={() => fileRef.current?.click()}
               disabled={upload.isPending}
             >
-              <ImageIcon className="w-4 h-4 mr-1" /> Choose file
+              <ImageIcon className="w-4 h-4 mr-1" /> {t('image.chooseFile')}
             </Button>
           </div>
           <Button
@@ -163,7 +165,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
             disabled={upload.isPending || removeFile.isPending}
             className="w-full mt-2 text-danger hover:text-danger border-danger/30 hover:bg-danger/5"
           >
-            <Trash2 className="w-4 h-4 mr-1" /> Remove image
+            <Trash2 className="w-4 h-4 mr-1" /> {t('image.removeImage')}
           </Button>
         </div>
       ) : (
@@ -179,8 +181,8 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
             ) : (
               <>
                 <Camera className="w-6 h-6 text-primary" />
-                <span className="text-xs font-medium">Take photo</span>
-                <span className="text-[10px] text-muted-foreground">Mobile camera</span>
+                <span className="text-xs font-medium">{t('image.takePhoto')}</span>
+                <span className="text-[10px] text-muted-foreground">{t('image.mobileCamera')}</span>
               </>
             )}
           </button>
@@ -191,8 +193,8 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
             className="flex flex-col items-center justify-center gap-1.5 py-6 rounded-lg border-2 border-dashed border-border hover:border-primary hover:bg-primary/5 transition-colors disabled:opacity-50"
           >
             <ImageIcon className="w-6 h-6 text-primary" />
-            <span className="text-xs font-medium">Choose file</span>
-            <span className="text-[10px] text-muted-foreground">JPG, PNG, WebP</span>
+            <span className="text-xs font-medium">{t('image.chooseFile')}</span>
+            <span className="text-[10px] text-muted-foreground">{t('image.fileTypes')}</span>
           </button>
         </div>
       )}
@@ -203,7 +205,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
         className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-1"
       >
         <LinkIcon className="w-3 h-3" />
-        {showUrlInput ? 'Hide URL input' : 'Or paste image URL'}
+        {showUrlInput ? t('image.hideUrl') : t('image.pasteUrl')}
       </button>
       {showUrlInput && (
         <Input

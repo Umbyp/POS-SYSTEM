@@ -6,8 +6,10 @@ import { toast } from 'sonner';
 import { playCashRegister } from '@/lib/sounds';
 import { announcePayment } from '@/lib/voice';
 import { formatCurrency } from '@/lib/format';
+import { useT } from '@/lib/i18n';
 
 export function useOrderRealtime() {
+  const t = useT();
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -39,6 +41,17 @@ export function useOrderRealtime() {
     const onStatus = () => qc.invalidateQueries({ queryKey: ['orders'] });
     const onStock = () => qc.invalidateQueries({ queryKey: ['products'] });
     const onKdsNew = () => qc.invalidateQueries({ queryKey: ['kds-orders'] });
+    const onSelfOrderNew = (n: { tableNumber: string }) => {
+      qc.invalidateQueries({ queryKey: ['self-order-pending'] });
+      toast.info(`🛎️ ${t('selfOrderPanel.newOrder')} ${n.tableNumber}`);
+    };
+    const onSelfOrderUpdate = () => qc.invalidateQueries({ queryKey: ['self-order-pending'] });
+    const onBillCallNew = (n: { tableNumber: string }) => {
+      qc.invalidateQueries({ queryKey: ['bill-calls-pending'] });
+      toast.info(`🧾 ${t('cart.tableWord')} ${n.tableNumber} ${t('selfOrderPanel.newBillCall')}`);
+    };
+    const onBillCallUpdate = () => qc.invalidateQueries({ queryKey: ['bill-calls-pending'] });
+
     const onTableUpdated = (table: any) => {
       qc.setQueryData(['tables'], (old: any[] = []) => {
         if (!Array.isArray(old)) return old;
@@ -104,6 +117,10 @@ export function useOrderRealtime() {
     s.on('kds:status', onKdsNew);
     s.on('table:updated', onTableUpdated);
     s.on('payment:received', onPaymentReceived);
+    s.on('selforder:new', onSelfOrderNew);
+    s.on('selforder:update', onSelfOrderUpdate);
+    s.on('billcall:new', onBillCallNew);
+    s.on('billcall:update', onBillCallUpdate);
 
     return () => {
       s.off('order:created', onCreated);
@@ -114,6 +131,10 @@ export function useOrderRealtime() {
       s.off('kds:status', onKdsNew);
       s.off('table:updated', onTableUpdated);
       s.off('payment:received', onPaymentReceived);
+      s.off('selforder:new', onSelfOrderNew);
+      s.off('selforder:update', onSelfOrderUpdate);
+      s.off('billcall:new', onBillCallNew);
+      s.off('billcall:update', onBillCallUpdate);
     };
   }, [qc]);
 }

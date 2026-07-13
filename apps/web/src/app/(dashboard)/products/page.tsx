@@ -9,8 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ProductFormDialog } from '@/components/products/ProductFormDialog';
+import { useT } from '@/lib/i18n';
 
 export default function ProductsPage() {
+  const t = useT();
   const qc = useQueryClient();
   const [q, setQ] = useState('');
   const [formOpen, setFormOpen] = useState(false);
@@ -25,7 +27,7 @@ export default function ProductsPage() {
     mutationFn: (id: string) => api.delete(`/products/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] });
-      toast.success('Product deleted');
+      toast.success(t('productsPage.deleted'));
     },
   });
 
@@ -42,16 +44,16 @@ export default function ProductsPage() {
   return (
     <div className="p-6 h-full overflow-y-auto scrollbar-thin">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h2 className="text-xl font-bold">Products</h2>
+        <h2 className="text-xl font-bold">{t('productsPage.title')}</h2>
         <Button onClick={openCreate}>
-          <Plus className="w-4 h-4 mr-1" /> Add product
+          <Plus className="w-4 h-4 mr-1" /> {t('productsPage.add')}
         </Button>
       </div>
 
       <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search products..."
+          placeholder={t('productsPage.searchPlaceholder')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           className="pl-10 max-w-md"
@@ -67,9 +69,9 @@ export default function ProductsPage() {
       ) : products.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
           <Package className="w-12 h-12 mb-3 opacity-30" />
-          <p>No products found</p>
+          <p>{t('productsPage.noneFound')}</p>
           <Button className="mt-4" onClick={openCreate}>
-            <Plus className="w-4 h-4 mr-1" /> Add first product
+            <Plus className="w-4 h-4 mr-1" /> {t('productsPage.addFirst')}
           </Button>
         </div>
       ) : (
@@ -77,14 +79,14 @@ export default function ProductsPage() {
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
               <tr>
-                <th className="p-3">Product</th>
-                <th className="p-3">SKU</th>
-                <th className="p-3">Category</th>
-                <th className="p-3 text-right">Cost</th>
-                <th className="p-3 text-right">Selling price</th>
-                <th className="p-3 text-right">Margin</th>
-                <th className="p-3 text-right">Stock</th>
-                <th className="p-3 text-right">Actions</th>
+                <th className="p-3">{t('productsPage.colProduct')}</th>
+                <th className="p-3">{t('productsPage.colSku')}</th>
+                <th className="p-3">{t('productsPage.colCategory')}</th>
+                <th className="p-3 text-right">{t('productsPage.colCost')}</th>
+                <th className="p-3 text-right">{t('productsPage.colSellingPrice')}</th>
+                <th className="p-3 text-right">{t('productsPage.colMargin')}</th>
+                <th className="p-3 text-right">{t('productsPage.colStock')}</th>
+                <th className="p-3 text-right">{t('productsPage.colActions')}</th>
               </tr>
             </thead>
             <tbody>
@@ -120,7 +122,7 @@ export default function ProductsPage() {
                         <Button
                           size="icon" variant="ghost"
                           onClick={() => {
-                            if (confirm(`Delete product "${p.name}"?`)) remove.mutate(p.id);
+                            if (confirm(`${t('productsPage.confirmDelete')} "${p.name}"?`)) remove.mutate(p.id);
                           }}
                         >
                           <Trash2 className="w-4 h-4 text-danger" />

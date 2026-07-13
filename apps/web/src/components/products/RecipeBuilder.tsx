@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useT } from '@/lib/i18n';
 
 interface RecipeItemInput {
   ingredientId: string;
@@ -26,6 +27,7 @@ interface Props {
 const COMMON_UNITS = ['กรัม', 'มล.', 'ชิ้น', 'ช้อน', 'ถ้วย', 'ฝา', 'หยด', 'ใบ'];
 
 export function RecipeBuilder({ productId, isCombo, onCostUpdate }: Props) {
+  const t = useT();
   const qc = useQueryClient();
   const [items, setItems] = useState<RecipeItemInput[]>([]);
   const [search, setSearch] = useState('');
@@ -78,19 +80,19 @@ export function RecipeBuilder({ productId, isCombo, onCostUpdate }: Props) {
     mutationFn: (payload: any) =>
       api.put(`/products/${productId}/recipe`, payload).then((r) => r.data),
     onSuccess: (data) => {
-      toast.success('บันทึกสูตรแล้ว');
+      toast.success(t('recipe.saved'));
       qc.invalidateQueries({ queryKey: ['recipe', productId] });
       qc.invalidateQueries({ queryKey: ['product', productId] });
       qc.invalidateQueries({ queryKey: ['products'] });
       onCostUpdate?.(data.computedCost ?? 0);
       setDirty(false);
     },
-    onError: (e: any) => toast.error(e.response?.data?.error || 'บันทึกไม่สำเร็จ'),
+    onError: (e: any) => toast.error(e.response?.data?.error || t('recipe.saveFailed')),
   });
 
   const addIngredient = (ing: any) => {
     if (items.some((i) => i.ingredientId === ing.id)) {
-      toast.error('สินค้านี้อยู่ในสูตรแล้ว');
+      toast.error(t('recipe.alreadyInRecipe'));
       return;
     }
     setItems([
@@ -245,7 +247,7 @@ export function RecipeBuilder({ productId, isCombo, onCostUpdate }: Props) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="ค้นหาวัตถุดิบ... (ต้องเป็นสินค้าที่ flag 'วัตถุดิบ' ไว้)"
+            placeholder={t('recipe.searchPlaceholder')}
             className="pl-9"
           />
         </div>
