@@ -55,7 +55,7 @@ publicRouter.post('/:qrCode/submit', writeLimiter, validate(submitSchema), async
   try {
     const io = req.app.get('io');
     const request = await service.submitRequest(req.params.qrCode, req.body, io);
-    res.status(201).json({ id: request.id });
+    res.status(201).json({ id: request.id, status: request.status });
   } catch (e) { next(e); }
 });
 
