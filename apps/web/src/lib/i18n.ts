@@ -690,6 +690,7 @@ const DICT: Record<string, Entry> = {
   'tableQr.regenerate': { th: 'สร้างลิงก์ใหม่ (ยกเลิกลิงก์เดิม)', en: 'Regenerate link (invalidates the old one)' },
   'tableQr.regenerated': { th: 'สร้างลิงก์ใหม่แล้ว', en: 'Link regenerated' },
   'tableQr.loadFailed': { th: 'โหลด QR ไม่สำเร็จ', en: 'Failed to load QR' },
+  'tableQr.retry': { th: 'ลองอีกครั้ง', en: 'Retry' },
 
   // Call for the bill (customer-facing)
   'selfOrder.callBill': { th: 'เรียกเก็บเงิน', en: 'Call for the bill' },

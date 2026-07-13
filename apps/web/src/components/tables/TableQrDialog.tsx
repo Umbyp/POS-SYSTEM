@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import QRCode from 'qrcode';
-import { Loader2, Copy, RefreshCw, Printer } from 'lucide-react';
+import { Loader2, Copy, RefreshCw, Printer, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n';
@@ -26,11 +26,13 @@ export function TableQrDialog({ table, onClose }: Props) {
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [link, setLink] = useState('');
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['table-qr', table?.id],
     queryFn: () => api.get(`/tables/${table!.id}/qr`).then((r) => r.data),
     enabled: !!table,
+    retry: false,
   });
+  const errorMessage = (error as any)?.response?.data?.error || (error as any)?.message;
 
   useEffect(() => {
     if (!data?.qrCode) return;
@@ -72,7 +74,16 @@ export function TableQrDialog({ table, onClose }: Props) {
         <p className="text-xs text-muted-foreground">{t('tableQr.hint')}</p>
 
         <div className="flex flex-col items-center py-2">
-          {isLoading || !qrDataUrl ? (
+          {isError ? (
+            <div className="w-56 h-56 flex flex-col items-center justify-center gap-2 bg-danger/5 border border-danger/20 rounded-xl p-4 text-center">
+              <AlertCircle className="w-6 h-6 text-danger" />
+              <p className="text-xs text-danger">{t('tableQr.loadFailed')}</p>
+              {errorMessage && <p className="text-[10px] text-muted-foreground break-words">{errorMessage}</p>}
+              <Button size="sm" variant="outline" onClick={() => refetch()}>
+                <RefreshCw className="w-3.5 h-3.5 mr-1" /> {t('tableQr.retry')}
+              </Button>
+            </div>
+          ) : isLoading || !qrDataUrl ? (
             <div className="w-56 h-56 flex items-center justify-center bg-muted rounded-xl">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
