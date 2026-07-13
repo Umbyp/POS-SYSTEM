@@ -62,7 +62,7 @@ interface SubmitInput {
   note?: string;
 }
 
-/** Customer submits their self-built cart — lands as PENDING, staff must approve. */
+/** Customer submits their self-built cart — processed automatically, fires to kitchen, sets table state. */
 export async function submitRequest(qrCode: string, input: SubmitInput, io: Server) {
   if (!input.items?.length) throw BadRequest('No items');
   const table = await findTableByQr(qrCode);
@@ -80,22 +80,69 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
     }
   }
 
+  // Find a cashier/admin/owner of the store to associate with the order
+  let cashier = await prisma.user.findFirst({
+    where: { storeId: table.storeId, role: { in: ['OWNER', 'ADMIN', 'CASHIER'] }, isActive: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  // Fallback to any active user if no cashier-capable user is found
+  if (!cashier) {
+    cashier = await prisma.user.findFirst({
+      where: { storeId: table.storeId, isActive: true },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+  // Fallback to any user at all in the store
+  if (!cashier) {
+    cashier = await prisma.user.findFirst({
+      where: { storeId: table.storeId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+  if (!cashier) {
+    throw BadRequest('No staff member available to process this self-order');
+  }
+  const cashierId = cashier.id;
+
+  const items = input.items as unknown as SelfOrderItemInput[];
+  const existing = await orderTabService.getOpenByTable(table.storeId, table.id);
+
+  if (existing) {
+    await orderTabService.addRound(
+      existing.id,
+      { storeId: table.storeId, cashierId, items },
+      io
+    );
+  } else {
+    await orderTabService.openTab(
+      {
+        storeId: table.storeId,
+        cashierId,
+        tableId: table.id,
+        type: 'DINE_IN',
+        items,
+        notes: input.note,
+      },
+      io
+    );
+  }
+
   const request = await prisma.selfOrderRequest.create({
     data: {
       storeId: table.storeId,
       tableId: table.id,
       items: input.items as any,
       note: input.note,
+      status: 'APPROVED',
+      resolvedAt: new Date(),
     },
   });
 
-  io.to(`store:${table.storeId}`).emit('selforder:new', {
-    id: request.id,
-    tableId: table.id,
-    tableNumber: table.number,
-    items: input.items,
-    note: input.note,
-  });
+  // Emit resolved event so that customer client listening to socket room gets instant approval
+  io.of('/self-order').to(`req:${request.id}`).emit('resolved', { status: 'APPROVED' });
+
+  // Update store clients that a self-order was updated
+  io.to(`store:${table.storeId}`).emit('selforder:update', request);
 
   return request;
 }

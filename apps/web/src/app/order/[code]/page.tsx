@@ -103,7 +103,11 @@ export default function SelfOrderPage() {
         note: note.trim() || undefined,
       });
       setRequestId(data.id);
-      setPhase('waiting');
+      if (data.status === 'APPROVED') {
+        setPhase('approved');
+      } else {
+        setPhase('waiting');
+      }
     } catch (e: any) {
       setSubmitError(e.response?.data?.error || t('selfOrder.submitFailed'));
     } finally {
