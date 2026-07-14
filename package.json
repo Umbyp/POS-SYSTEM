@@ -9,6 +9,8 @@
     "dev:api": "npm run dev --workspace=apps/api",
     "dev:web": "npm run dev --workspace=apps/web",
     "dev": "concurrently \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:fresh": "bash scripts/dev-fresh.sh",
+    "clean": "rm -rf apps/web/.next",
     "build": "npm run build --workspaces",
     "db:migrate": "npm run db:migrate --workspace=apps/api",
     "db:seed": "npm run db:seed --workspace=apps/api",
