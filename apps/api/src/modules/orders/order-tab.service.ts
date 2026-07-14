@@ -11,8 +11,9 @@
 import { Server } from 'socket.io';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
-import { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
-import { generateOrderNumber, POINT_VALUE } from './order.service';
+import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
+import { generateOrderNumber } from './order.service';
+import { recordPoints, calcEarnedPoints } from './points.service';
 import * as stripeService from '../payments/stripe.service';
 
 export interface TabItem {
@@ -290,8 +291,11 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       const c = await tx.customer.findUnique({ where: { id: customerId } });
       if (!c) throw BadRequest('ไม่พบลูกค้า');
       if (c.points < input.pointsToRedeem) throw BadRequest(`คะแนนไม่พอ (มี ${c.points}, ต้องการ ${input.pointsToRedeem})`);
+      if (store.minRedeemPoints > 0 && input.pointsToRedeem < store.minRedeemPoints) {
+        throw BadRequest(`ต้องใช้แต้มขั้นต่ำ ${store.minRedeemPoints} แต้ม`);
+      }
       pointsToRedeem = input.pointsToRedeem;
-      pointDiscount = new Prisma.Decimal(pointsToRedeem * POINT_VALUE);
+      pointDiscount = new Prisma.Decimal(pointsToRedeem).mul(store.pointValue);
     }
 
     const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
@@ -305,7 +309,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       throw BadRequest(`เงินไม่พอ: ต้องชำระ ${total.toFixed(2)} ได้รับ ${paid.toFixed(2)}`);
     }
 
-    const earnedPoints = customerId ? Math.floor(total.toNumber() / 100) : 0;
+    const earnedPoints = customerId ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
     const updated = await tx.order.update({
       where: { id: orderId },
       data: {
@@ -329,9 +333,21 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         where: { id: customerId },
         data: {
           visitCount: { increment: 1 }, totalSpent: { increment: total },
-          points: { increment: earnedPoints - pointsToRedeem }, lastVisitAt: new Date(),
+          lastVisitAt: new Date(),
         },
       });
+      if (pointsToRedeem > 0) {
+        await recordPoints(tx, {
+          storeId: input.storeId, customerId, type: PointTxType.REDEEM,
+          points: -pointsToRedeem, orderId, note: `ใช้แต้มในบิล ${updated.orderNumber}`,
+        });
+      }
+      if (earnedPoints > 0) {
+        await recordPoints(tx, {
+          storeId: input.storeId, customerId, type: PointTxType.EARN,
+          points: earnedPoints, orderId, note: `ได้แต้มจากบิล ${updated.orderNumber}`,
+        });
+      }
     }
     if (input.promotionId) {
       await tx.promotion.update({ where: { id: input.promotionId }, data: { usageCount: { increment: 1 } } }).catch(() => {});
