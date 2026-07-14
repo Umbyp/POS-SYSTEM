@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -29,6 +29,23 @@ export default function POSPage() {
     queryKey: ['categories'],
     queryFn: () => api.get('/products/categories').then((r) => r.data),
   });
+
+  // All sellable products (ingredients are already excluded by the API), used
+  // only to figure out which categories actually have something to sell — so a
+  // category that holds only ingredients (e.g. "วัตถุดิบ") isn't shown as an
+  // empty tab in the POS.
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['products', 'category-presence'],
+    queryFn: () => api.get('/products').then((r) => r.data),
+  });
+  const nonEmptyCategoryIds = useMemo(
+    () => new Set((allProducts as any[]).map((p) => p.categoryId)),
+    [allProducts]
+  );
+  const visibleCategories = useMemo(
+    () => (categories as any[]).filter((c) => nonEmptyCategoryIds.has(c.id)),
+    [categories, nonEmptyCategoryIds]
+  );
 
   // Focus search with F2
   useEffect(() => {
@@ -64,7 +81,7 @@ export default function POSPage() {
 
         {/* Categories — flat text chips, no decorative color/emoji */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
-          {[{ id: null, name: t('pos.all') }, ...categories].map((c: any) => {
+          {[{ id: null, name: t('pos.all') }, ...visibleCategories].map((c: any) => {
             const active = categoryId === c.id;
             return (
               <button
