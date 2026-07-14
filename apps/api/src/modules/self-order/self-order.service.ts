@@ -43,7 +43,16 @@ export async function getMenu(qrCode: string) {
   ]);
 
   return {
-    store: { id: table.store.id, name: table.store.name, logo: table.store.logo },
+    store: {
+      id: table.store.id,
+      name: table.store.name,
+      logo: table.store.logo,
+      loyaltyMode: table.store.loyaltyMode,
+      pointsEarnBaht: table.store.pointsEarnBaht,
+      stampsPerReward: table.store.stampsPerReward,
+      stampRewardValue: table.store.stampRewardValue,
+      stampRewardName: table.store.stampRewardName,
+    },
     table: { id: table.id, number: table.number },
     categories,
     products: products.map((p) => ({
@@ -143,6 +152,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       note: input.note,
       status: 'APPROVED',
       resolvedAt: new Date(),
+      customerId: input.customerId || null,
     },
   });
 
@@ -213,6 +223,12 @@ export async function approve(id: string, input: ApproveInput, io: Server) {
       { storeId: input.storeId, cashierId: input.cashierId, items },
       io
     );
+    if (request.customerId && !existing.customerId) {
+      await prisma.order.update({
+        where: { id: existing.id },
+        data: { customerId: request.customerId },
+      });
+    }
   } else {
     await orderTabService.openTab(
       {
@@ -221,6 +237,7 @@ export async function approve(id: string, input: ApproveInput, io: Server) {
         tableId: request.tableId,
         type: 'DINE_IN',
         items,
+        customerId: request.customerId || undefined,
       },
       io
     );
@@ -317,7 +334,7 @@ export async function lookupCustomer(qrCode: string, phone: string) {
   const table = await findTableByQr(qrCode);
   const customer = await prisma.customer.findFirst({
     where: { storeId: table.storeId, phone, isActive: true },
-    select: { id: true, name: true, phone: true, points: true },
+    select: { id: true, name: true, phone: true, points: true, stamps: true },
   });
   return customer || null;
 }
@@ -340,6 +357,58 @@ export async function registerCustomer(qrCode: string, name: string, phone: stri
       phone,
       email: email || null,
       points: 0,
+      stamps: 0,
+    },
+  });
+
+  return customer;
+}
+
+/** Public: Get public details and loyalty config of a store */
+export async function getStorePublicInfo(storeId: string) {
+  const store = await prisma.store.findUnique({
+    where: { id: storeId },
+    select: {
+      id: true,
+      name: true,
+      logo: true,
+      loyaltyMode: true,
+      pointsEarnBaht: true,
+      stampsPerReward: true,
+      stampRewardValue: true,
+      stampRewardName: true,
+    },
+  });
+  if (!store) throw NotFound('Store not found');
+  return store;
+}
+
+/** Public: Lookup customer by storeId and phone */
+export async function lookupCustomerByStore(storeId: string, phone: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { storeId, phone, isActive: true },
+    select: { id: true, name: true, phone: true, points: true, stamps: true },
+  });
+  return customer || null;
+}
+
+/** Public: Register customer by storeId, name, phone, email */
+export async function registerCustomerByStore(storeId: string, name: string, phone: string, email?: string) {
+  const existing = await prisma.customer.findFirst({
+    where: { storeId, phone, isActive: true },
+  });
+  if (existing) {
+    throw BadRequest('เบอร์โทรศัพท์นี้ลงทะเบียนสมาชิกไว้แล้ว');
+  }
+
+  const customer = await prisma.customer.create({
+    data: {
+      storeId,
+      name,
+      phone,
+      email: email || null,
+      points: 0,
+      stamps: 0,
     },
   });
 

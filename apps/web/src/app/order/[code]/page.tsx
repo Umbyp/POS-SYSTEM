@@ -75,6 +75,7 @@ export default function SelfOrderPage() {
     name: string;
     phone: string;
     points: number;
+    stamps?: number;
   }
   const [member, setMember] = useState<MemberInfo | null>(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
@@ -562,22 +563,65 @@ export default function SelfOrderPage() {
                       ค้นหาเบอร์โทรศัพท์ / สมัครสมาชิกใหม่
                     </button>
                   ) : (
-                    <div className="flex items-center justify-between text-xs bg-success/15 border border-success/20 rounded-lg p-2.5 text-left">
-                      <div className="space-y-0.5">
-                        <div className="font-semibold text-success">
-                          คุณ {member.name}
+                    <div className="space-y-3 bg-success/5 border border-success/20 rounded-lg p-3 text-left">
+                      <div className="flex items-center justify-between text-xs">
+                        <div className="space-y-0.5">
+                          <div className="font-semibold text-success">
+                            คุณ {member.name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground flex flex-wrap gap-x-2">
+                            <span>เบอร์โทร: {member.phone}</span>
+                            {menu?.store?.loyaltyMode !== 'STAMPS' && (
+                              <span>• คะแนนสะสม: <strong className="text-success">{member.points ?? 0} แต้ม</strong></span>
+                            )}
+                            {(menu?.store?.loyaltyMode === 'STAMPS' || menu?.store?.loyaltyMode === 'BOTH') && (
+                              <span>• ดวงสะสม: <strong className="text-indigo-600 dark:text-indigo-400">{member.stamps ?? 0} ดวง</strong></span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-muted-foreground">
-                          เบอร์โทร: {member.phone} | คะแนนสะสม: <strong className="text-success">{member.points} แต้ม</strong>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setMember(null)}
+                          className="text-danger hover:underline font-semibold text-[11px]"
+                        >
+                          ยกเลิก
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setMember(null)}
-                        className="text-danger hover:underline font-semibold"
-                      >
-                        ยกเลิก
-                      </button>
+
+                      {/* Visual Stamp Card Grid */}
+                      {(menu?.store?.loyaltyMode === 'STAMPS' || menu?.store?.loyaltyMode === 'BOTH') && (
+                        <div className="pt-2.5 border-t border-success/10">
+                          <div className="text-[10px] text-muted-foreground mb-1.5 flex items-center justify-between">
+                            <span>บัตรสะสมดวง (ครบ {menu.store.stampsPerReward || 10} ดวง รับรางวัล)</span>
+                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                              {(member.stamps ?? 0) % (menu.store.stampsPerReward || 10)} / {menu.store.stampsPerReward || 10} ดวง
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-1.5 mt-1 bg-card/60 p-2 rounded-lg border border-border">
+                            {Array.from({ length: menu.store.stampsPerReward || 10 }).map((_, idx) => {
+                              const isStamped = idx < ((member.stamps ?? 0) % (menu.store.stampsPerReward || 10));
+                              return (
+                                <div
+                                  key={idx}
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
+                                    isStamped
+                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm scale-105 animate-pulse'
+                                      : 'bg-muted/40 border-dashed border-muted-foreground/30 text-muted-foreground/40'
+                                  }`}
+                                >
+                                  {isStamped ? '⭐' : idx + 1}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {menu.store.stampRewardName && (
+                            <div className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+                              <span>🎁 ของรางวัล:</span>
+                              <span className="font-medium text-foreground">{menu.store.stampRewardName}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
