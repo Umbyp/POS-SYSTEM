@@ -18,6 +18,7 @@ export interface CartCustomer {
   name: string;
   phone?: string | null;
   points?: number;
+  stamps?: number;
 }
 
 export interface AppliedPromotion {
@@ -30,6 +31,7 @@ interface CartState {
   items: CartItem[];
   discount: number;
   pointsToRedeem: number;
+  useStampReward: boolean;
   promotion?: AppliedPromotion;
   promoCode: string;
   tableId?: string;
@@ -45,6 +47,7 @@ interface CartState {
   setNotes: (productId: string, notes: string) => void;
   setDiscount: (amt: number) => void;
   setPointsToRedeem: (n: number) => void;
+  setUseStampReward: (v: boolean) => void;
   setPromotion: (p?: AppliedPromotion) => void;
   setPromoCode: (c: string) => void;
   setTable: (id?: string) => void;
@@ -66,6 +69,7 @@ export const useCart = create<CartState>()(
       items: [],
       discount: 0,
       pointsToRedeem: 0,
+      useStampReward: false,
       promoCode: '',
       type: 'DINE_IN',
       gpFeePct: 30,
@@ -107,6 +111,7 @@ export const useCart = create<CartState>()(
 
       setDiscount: (amt) => set({ discount: amt }),
       setPointsToRedeem: (n) => set({ pointsToRedeem: Math.max(0, n) }),
+      setUseStampReward: (v) => set({ useStampReward: v }),
       setPromotion: (p) => set({ promotion: p }),
       setPromoCode: (c) => set({ promoCode: c }),
       setTable: (id) => set({ tableId: id }),
@@ -115,8 +120,8 @@ export const useCart = create<CartState>()(
       setOpenOrder: (id) => set({ openOrderId: id }),
       setCustomerNote: (n) => set({ customerNote: n }),
       setCustomer: (c) =>
-        // Reset points when changing customer
-        set({ customer: c, pointsToRedeem: 0 }),
+        // Reset points/reward when changing customer
+        set({ customer: c, pointsToRedeem: 0, useStampReward: false }),
 
       // Clear the current (unsent) round but keep the table/customer selection
       clearItems: () => set({ items: [], discount: 0, promotion: undefined, promoCode: '' }),
@@ -126,6 +131,7 @@ export const useCart = create<CartState>()(
           items: [],
           discount: 0,
           pointsToRedeem: 0,
+          useStampReward: false,
           promotion: undefined,
           promoCode: '',
           tableId: undefined,

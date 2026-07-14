@@ -40,9 +40,12 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
     );
   }
 
+  const hasOptions = (p: any) =>
+    (p.variants && p.variants.length > 0) ||
+    (p.optionGroups && p.optionGroups.length > 0);
+
   const handleClick = (p: any) => {
-    const hasVariants = p.variants && p.variants.length > 0;
-    if (hasVariants) {
+    if (hasOptions(p)) {
       setPicking(p);
     } else {
       add({
@@ -64,7 +67,7 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
           const stock = p.inventory?.quantity ?? 0;
           const lowStock = p.trackStock && stock <= (p.inventory?.lowStockAt || 10);
           const outOfStock = p.trackStock && stock === 0;
-          const hasVariants = p.variants && p.variants.length > 0;
+          const hasVariants = hasOptions(p);
 
           return (
             <motion.button

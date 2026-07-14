@@ -4,6 +4,8 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
+import { PointTxType } from '@prisma/client';
+import { recordPoints, recordStamps } from '../orders/points.service';
 
 const router = Router();
 router.use(authMiddleware);
@@ -73,6 +75,43 @@ router.get('/:id/points', async (req, res, next) => {
       take,
     });
     res.json({ customer, transactions });
+  } catch (e) { next(e); }
+});
+
+// POST /customers/:id/adjust - ปรับแต้ม/ดวงเอง (บันทึกลง ledger)
+const adjustSchema = z.object({
+  kind: z.enum(['points', 'stamps']),
+  delta: z.number().int().refine((n) => n !== 0, 'ต้องไม่เป็น 0'),
+  note: z.string().optional(),
+});
+router.post('/:id/adjust', rbac('OWNER', 'ADMIN'), validate(adjustSchema), async (req, res, next) => {
+  try {
+    const { kind, delta, note } = req.body as { kind: 'points' | 'stamps'; delta: number; note?: string };
+    const customer = await prisma.customer.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+      select: { id: true, points: true, stamps: true },
+    });
+    if (!customer) return res.status(404).json({ error: 'ไม่พบลูกค้า' });
+
+    const current = kind === 'points' ? customer.points : customer.stamps;
+    if (current + delta < 0) {
+      return res.status(400).json({ error: `ปรับแล้วติดลบไม่ได้ (คงเหลือ ${current})` });
+    }
+
+    const balanceAfter = await prisma.$transaction((tx) =>
+      kind === 'points'
+        ? recordPoints(tx, {
+            storeId: req.user!.storeId, customerId: customer.id,
+            type: PointTxType.MANUAL_ADJUST, points: delta,
+            note: note || 'ปรับโดยพนักงาน', createdBy: req.user!.id,
+          })
+        : recordStamps(tx, {
+            storeId: req.user!.storeId, customerId: customer.id,
+            type: PointTxType.STAMP_ADJUST, stamps: delta,
+            note: note || 'ปรับโดยพนักงาน', createdBy: req.user!.id,
+          })
+    );
+    res.json({ id: customer.id, kind, balanceAfter });
   } catch (e) { next(e); }
 });
 

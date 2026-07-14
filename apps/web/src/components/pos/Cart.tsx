@@ -20,6 +20,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     items,
     discount,
     pointsToRedeem,
+    useStampReward,
     promotion,
     promoCode,
     type,
@@ -31,6 +32,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     setTable,
     setDiscount,
     setPointsToRedeem,
+    setUseStampReward,
     setPromotion,
     setPromoCode,
     setCustomer,
@@ -118,10 +120,21 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     serviceCharge: store?.serviceCharge ?? DEFAULT_TAX_CONFIG.serviceCharge,
   };
 
+  // Loyalty config for the stamp-card reward toggle
+  const loyaltyMode: string = store?.loyaltyMode ?? 'BOTH';
+  const stampsEnabled = loyaltyMode === 'STAMPS' || loyaltyMode === 'BOTH';
+  const stampsPerReward = Number(store?.stampsPerReward ?? 10);
+  const stampRewardValue = Number(store?.stampRewardValue ?? 0);
+  const canRedeemStamp =
+    stampsEnabled && !!customer && stampsPerReward > 0 &&
+    (customer.stamps ?? 0) >= stampsPerReward;
+  const stampReward = useStampReward && canRedeemStamp;
+
   const sub = subtotal();
   const pointDiscount = pointsToRedeem; // 1pt = 1 baht
+  const stampDiscount = stampReward ? stampRewardValue : 0;
   const promoDiscount = promotion?.discountAmount || 0;
-  const breakdown = computePricing(sub, discount + pointDiscount + promoDiscount, cfg);
+  const breakdown = computePricing(sub, discount + pointDiscount + stampDiscount + promoDiscount, cfg);
 
   // Delivery P&L — platform commission (GP fee) eats into the bill, so the
   // owner sees their true take-home the moment they pick the Delivery channel.
@@ -605,6 +618,26 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Stamp-card reward */}
+              {canRedeemStamp && (
+                <label className="flex items-center gap-2 bg-indigo-500/5 border border-indigo-500/30 rounded-lg p-2 -mx-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={stampReward}
+                    onChange={(e) => setUseStampReward(e.target.checked)}
+                    className="w-4 h-4 accent-indigo-500"
+                  />
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="font-medium">
+                      ใช้รางวัลบัตรสะสม{store?.stampRewardName ? ` · ${store.stampRewardName}` : ''}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">
+                      มี {customer!.stamps} ดวง · แลก {stampsPerReward} ดวง = ส่วนลด {formatCurrency(stampRewardValue)}
+                    </div>
+                  </div>
+                </label>
               )}
             </motion.div>
           )}

@@ -11,6 +11,7 @@ import {
   Target,
   Info,
   ChevronRight,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { useAuth } from '@/stores/auth.store';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StoreSettingsForm } from '@/components/settings/StoreSettingsForm';
 import { CategoriesManager } from '@/components/settings/CategoriesManager';
+import { OptionGroupsManager } from '@/components/settings/OptionGroupsManager';
 import { PromotionsManager } from '@/components/settings/PromotionsManager';
 import { SmsWebhookSetup } from '@/components/settings/SmsWebhookSetup';
 import { OnboardingWizard } from '@/components/onboarding/OnboardingWizard';
@@ -29,6 +31,7 @@ type SectionKey =
   | 'tax'
   | 'payment'
   | 'categories'
+  | 'options'
   | 'promotions'
   | 'goals'
   | 'system';
@@ -47,6 +50,7 @@ const SECTIONS: SectionDef[] = [
   { key: 'tax', labelKey: 'settings.section.tax.label', descKey: 'settings.section.tax.desc', icon: Receipt, ownerOnly: true },
   { key: 'payment', labelKey: 'settings.section.payment.label', descKey: 'settings.section.payment.desc', icon: Wallet, ownerOnly: true },
   { key: 'categories', labelKey: 'settings.section.categories.label', descKey: 'settings.section.categories.desc', icon: FolderTree, ownerOnly: true },
+  { key: 'options', labelKey: 'settings.section.options.label', descKey: 'settings.section.options.desc', icon: SlidersHorizontal, ownerOnly: true },
   { key: 'promotions', labelKey: 'settings.section.promotions.label', descKey: 'settings.section.promotions.desc', icon: Tag, ownerOnly: true },
   { key: 'goals', labelKey: 'settings.section.goals.label', descKey: 'settings.section.goals.desc', icon: Target, ownerOnly: true },
   { key: 'system', labelKey: 'settings.section.system.label', descKey: 'settings.section.system.desc', icon: Info },
@@ -160,6 +164,7 @@ export default function SettingsPage() {
               </div>
             )}
             {section === 'categories' && canEditStore && <CategoriesManager />}
+            {section === 'options' && canEditStore && <OptionGroupsManager />}
             {section === 'promotions' && canEditStore && <PromotionsManager />}
             {section === 'goals' && canEditStore && <StoreSettingsForm sections={['goals']} />}
             {section === 'system' && <SystemSection />}

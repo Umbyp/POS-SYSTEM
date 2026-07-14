@@ -13,7 +13,7 @@ import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
 import { generateOrderNumber } from './order.service';
-import { recordPoints, calcEarnedPoints } from './points.service';
+import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
 
 export interface TabItem {
@@ -252,6 +252,7 @@ interface SettleInput {
   payments: { method: PaymentMethod; amount: number; reference?: string }[];
   discount?: number;
   pointsToRedeem?: number;
+  useStampReward?: boolean;
   customerId?: string;
   promotionId?: string;
   promotionDiscount?: number;
@@ -298,9 +299,25 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       pointDiscount = new Prisma.Decimal(pointsToRedeem).mul(store.pointValue);
     }
 
+    // ใช้รางวัลบัตรสะสม (แลกดวงเต็ม 1 ใบ)
+    let stampsToRedeem = 0;
+    let stampDiscount = new Prisma.Decimal(0);
+    if (input.useStampReward && stampsEnabled(store.loyaltyMode)) {
+      if (!customerId) throw BadRequest('ต้องเลือกลูกค้าก่อนใช้รางวัล');
+      const c = await tx.customer.findUnique({ where: { id: customerId } });
+      if (!c) throw BadRequest('ไม่พบลูกค้า');
+      if (store.stampsPerReward <= 0) throw BadRequest('ร้านยังไม่ได้ตั้งค่าจำนวนดวงต่อรางวัล');
+      if (c.stamps < store.stampsPerReward) {
+        throw BadRequest(`ดวงไม่พอแลกรางวัล (มี ${c.stamps}, ต้องการ ${store.stampsPerReward})`);
+      }
+      stampsToRedeem = store.stampsPerReward;
+      stampDiscount = new Prisma.Decimal(store.stampRewardValue);
+    }
+
     const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
     const orderDiscount = new Prisma.Decimal(input.discount ?? Number(order.discount) ?? 0)
       .plus(pointDiscount)
+      .plus(stampDiscount)
       .plus(promoDiscount);
     const { tax, serviceCharge, total } = computeTotals(new Prisma.Decimal(order.subtotal), orderDiscount, store);
 
@@ -309,7 +326,9 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       throw BadRequest(`เงินไม่พอ: ต้องชำระ ${total.toFixed(2)} ได้รับ ${paid.toFixed(2)}`);
     }
 
-    const earnedPoints = customerId ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
+    const earnedPoints = customerId && pointsEnabled(store.loyaltyMode)
+      ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
+    const earnedStamps = customerId && stampsEnabled(store.loyaltyMode) ? 1 : 0;
     const updated = await tx.order.update({
       where: { id: orderId },
       data: {
@@ -318,6 +337,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         promotionId: input.promotionId, promotionName: input.promotionName,
         tax, serviceCharge, total,
         pointsRedeemed: pointsToRedeem, pointsEarned: earnedPoints,
+        stampsEarned: earnedStamps, stampsRedeemed: stampsToRedeem,
         customerName: input.customerName, customerTaxId: input.customerTaxId, customerAddress: input.customerAddress,
         payments: {
           create: input.payments.map((p) => ({
@@ -346,6 +366,18 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         await recordPoints(tx, {
           storeId: input.storeId, customerId, type: PointTxType.EARN,
           points: earnedPoints, orderId, note: `ได้แต้มจากบิล ${updated.orderNumber}`,
+        });
+      }
+      if (stampsToRedeem > 0) {
+        await recordStamps(tx, {
+          storeId: input.storeId, customerId, type: PointTxType.STAMP_REDEEM,
+          stamps: -stampsToRedeem, orderId, note: `ใช้ดวงแลกรางวัลในบิล ${updated.orderNumber}`,
+        });
+      }
+      if (earnedStamps > 0) {
+        await recordStamps(tx, {
+          storeId: input.storeId, customerId, type: PointTxType.STAMP_EARN,
+          stamps: earnedStamps, orderId, note: `ได้ดวงจากบิล ${updated.orderNumber}`,
         });
       }
     }

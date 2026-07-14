@@ -90,8 +90,17 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const sub = settleId ? Number(settleOrder?.subtotal ?? 0) : cart.subtotal();
   // 1 point = 1 baht, matching Cart.tsx's own redeem logic
   const pointDiscount = cart.pointsToRedeem || 0;
+  // Stamp-card reward discount — only if enabled, a member is selected, and
+  // they hold enough stamps (mirror of Cart.tsx's guard, re-checked here so the
+  // amount due matches what the backend will compute).
+  const stampsPerReward = Number(store?.stampsPerReward ?? 10);
+  const stampsEnabled = store?.loyaltyMode === 'STAMPS' || store?.loyaltyMode === 'BOTH';
+  const useStampReward =
+    !!cart.useStampReward && stampsEnabled && stampsPerReward > 0 &&
+    (cart.customer?.stamps ?? 0) >= stampsPerReward;
+  const stampDiscount = useStampReward ? Number(store?.stampRewardValue ?? 0) : 0;
   const promoDiscount = cart.promotion?.discountAmount || 0;
-  const breakdown = computePricing(sub, cart.discount + pointDiscount + promoDiscount, cfg);
+  const breakdown = computePricing(sub, cart.discount + pointDiscount + stampDiscount + promoDiscount, cfg);
   const total = breakdown.total;
 
   const [method, setMethod] = useState<Method>('CASH');
@@ -300,6 +309,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
           payments,
           discount: cart.discount,
           pointsToRedeem: cart.pointsToRedeem || undefined,
+          useStampReward: useStampReward || undefined,
           customerId: cart.customer?.id,
           promotionId: cart.promotion?.promotionId,
           promotionDiscount: cart.promotion?.discountAmount,
@@ -342,6 +352,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         })),
         discount: cart.discount,
         pointsToRedeem: cart.pointsToRedeem || undefined,
+        useStampReward: useStampReward || undefined,
         promotionId: cart.promotion?.promotionId,
         promotionDiscount: cart.promotion?.discountAmount,
         promotionName: cart.promotion?.promotionName,
