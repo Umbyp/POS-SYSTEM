@@ -99,6 +99,30 @@ publicRouter.post('/:qrCode/call-bill', writeLimiter, async (req, res, next) => 
   } catch (e) { next(e); }
 });
 
+publicRouter.get('/store/:storeId', readLimiter, async (req, res, next) => {
+  try {
+    const store = await service.getStorePublicInfo(req.params.storeId);
+    res.json(store);
+  } catch (e) { next(e); }
+});
+
+publicRouter.get('/store/:storeId/customer/lookup', readLimiter, async (req, res, next) => {
+  try {
+    const phone = req.query.phone as string;
+    if (!phone) return res.status(400).json({ error: 'Phone is required' });
+    const customer = await service.lookupCustomerByStore(req.params.storeId, phone);
+    res.json(customer);
+  } catch (e) { next(e); }
+});
+
+publicRouter.post('/store/:storeId/customer/register', writeLimiter, validate(registerSchema), async (req, res, next) => {
+  try {
+    const { name, phone, email } = req.body;
+    const customer = await service.registerCustomerByStore(req.params.storeId, name, phone, email);
+    res.status(201).json(customer);
+  } catch (e) { next(e); }
+});
+
 /** Staff-side — authenticated, scoped to the cashier's own store. */
 const router = Router();
 router.use(authMiddleware);

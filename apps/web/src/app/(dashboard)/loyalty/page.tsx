@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Stamp, Coins, Search, Settings2, Plus, Minus, History } from 'lucide-react';
+import { Stamp, Coins, Search, Settings2, Plus, Minus, History, QrCode, Copy, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
@@ -118,6 +118,20 @@ export default function LoyaltyPage() {
 function LoyaltySettings({ store }: { store: any }) {
   const qc = useQueryClient();
   const [form, setForm] = useState<any>(null);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+  const [memberUrl, setMemberUrl] = useState('');
+
+  useEffect(() => {
+    if (store?.id) {
+      const url = `${window.location.origin}/member?storeId=${store.id}`;
+      setMemberUrl(url);
+      import('qrcode').then((QRCode) => {
+        QRCode.default.toDataURL(url, { width: 300, margin: 2, errorCorrectionLevel: 'H' })
+          .then(setQrDataUrl)
+          .catch(() => setQrDataUrl(''));
+      });
+    }
+  }, [store]);
 
   useEffect(() => {
     if (store) {
@@ -228,6 +242,51 @@ function LoyaltySettings({ store }: { store: any }) {
       <div className="flex justify-end">
         <Button onClick={submit} disabled={save.isPending}>บันทึกการตั้งค่า</Button>
       </div>
+
+      {/* QR Code and Member Link section */}
+      {store?.id && (
+        <div className="pt-4 border-t border-border mt-4">
+          <div className="flex items-center gap-2 mb-3">
+            <QrCode className="w-4 h-4 text-indigo-500" />
+            <h4 className="text-xs font-semibold text-foreground">คิวอาร์โค้ดสมัครสมาชิกสำหรับลูกค้า (Customer Registration Portal)</h4>
+          </div>
+          <div className="flex flex-col md:flex-row gap-4 bg-muted/30 p-3 rounded-lg border border-border">
+            {qrDataUrl && (
+              <div className="flex-shrink-0 flex flex-col items-center gap-2 bg-white p-2 rounded-lg border border-border max-w-[140px] mx-auto md:mx-0">
+                <img src={qrDataUrl} alt="Registration QR Code" className="w-28 h-28 animate-fade-in" />
+                <a 
+                  href={qrDataUrl} 
+                  download={`${store.name}_member_qr.png`}
+                  className="text-[10px] text-primary hover:underline flex items-center gap-1 font-semibold"
+                >
+                  <Download className="w-3 h-3" /> ดาวน์โหลด QR
+                </a>
+              </div>
+            )}
+            <div className="flex-1 flex flex-col justify-between space-y-2">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  ร้านค้าสามารถพิมพ์คิวอาร์โค้ดนี้หรือคัดลอกลิงก์สมาชิกเพื่อแชร์ให้ลูกค้าสแกนสมัครสมาชิกด้วยตัวเอง
+                  และเข้ามาดูแต้มหรือดวงสะสมผ่านหน้าจอมือถือได้ทันที
+                </p>
+                <div className="text-[11px] font-mono bg-slate-900 border border-slate-800 p-2 rounded text-slate-300 break-all select-all flex items-center justify-between gap-2 mt-2">
+                  <span className="truncate">{memberUrl}</span>
+                  <button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(memberUrl);
+                      toast.success('คัดลอกลิงก์ไปยังคลิปบอร์ดแล้ว');
+                    }}
+                    className="p-1 rounded bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    title="Copy Link"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
