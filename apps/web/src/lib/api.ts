@@ -36,9 +36,12 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      // Don't redirect for auth/me failures during hydration — let useRequireAuth handle it
-      const isAuthMe = err.config?.url?.includes('/auth/me');
-      if (!isAuthMe) {
+      // Don't redirect for auth/me failures during hydration, and ignore broadcast failures
+      const shouldIgnoreRedirect = 
+        err.config?.url?.includes('/auth/me') || 
+        err.config?.url?.includes('/display/broadcast');
+
+      if (!shouldIgnoreRedirect) {
         localStorage.removeItem('token');
         try {
           // Clear the persisted zustand state too
