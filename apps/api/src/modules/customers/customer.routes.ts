@@ -57,6 +57,25 @@ router.get('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /customers/:id/points - ประวัติแต้ม (ledger)
+router.get('/:id/points', async (req, res, next) => {
+  try {
+    const customer = await prisma.customer.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+      select: { id: true, name: true, points: true },
+    });
+    if (!customer) return res.status(404).json({ error: 'ไม่พบลูกค้า' });
+
+    const take = Math.min(Number(req.query.limit) || 50, 200);
+    const transactions = await prisma.pointTransaction.findMany({
+      where: { customerId: customer.id },
+      orderBy: { createdAt: 'desc' },
+      take,
+    });
+    res.json({ customer, transactions });
+  } catch (e) { next(e); }
+});
+
 // POST /customers
 router.post('/', validate(upsertSchema), async (req, res, next) => {
   try {

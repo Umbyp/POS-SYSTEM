@@ -60,6 +60,7 @@ export async function getMenu(qrCode: string) {
 interface SubmitInput {
   items: SelfOrderItemInput[];
   note?: string;
+  customerId?: string;
 }
 
 /** Customer submits their self-built cart — processed automatically, fires to kitchen, sets table state. */
@@ -113,6 +114,12 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       { storeId: table.storeId, cashierId, items },
       io
     );
+    if (input.customerId && !existing.customerId) {
+      await prisma.order.update({
+        where: { id: existing.id },
+        data: { customerId: input.customerId },
+      });
+    }
   } else {
     await orderTabService.openTab(
       {
@@ -122,6 +129,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
         type: 'DINE_IN',
         items,
         notes: input.note,
+        customerId: input.customerId,
       },
       io
     );
@@ -302,4 +310,38 @@ export async function acknowledgeBillCall(id: string, storeId: string, io: Serve
 
   io.to(`store:${storeId}`).emit('billcall:update', updated);
   return updated;
+}
+
+/** Public: Lookup a customer member by phone in the table's store. */
+export async function lookupCustomer(qrCode: string, phone: string) {
+  const table = await findTableByQr(qrCode);
+  const customer = await prisma.customer.findFirst({
+    where: { storeId: table.storeId, phone, isActive: true },
+    select: { id: true, name: true, phone: true, points: true },
+  });
+  return customer || null;
+}
+
+/** Public: Register a new customer member in the table's store. */
+export async function registerCustomer(qrCode: string, name: string, phone: string, email?: string) {
+  const table = await findTableByQr(qrCode);
+
+  const existing = await prisma.customer.findFirst({
+    where: { storeId: table.storeId, phone, isActive: true },
+  });
+  if (existing) {
+    throw BadRequest('เบอร์โทรศัพท์นี้ลงทะเบียนสมาชิกไว้แล้ว');
+  }
+
+  const customer = await prisma.customer.create({
+    data: {
+      storeId: table.storeId,
+      name,
+      phone,
+      email: email || null,
+      points: 0,
+    },
+  });
+
+  return customer;
 }

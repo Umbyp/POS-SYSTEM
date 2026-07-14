@@ -1,8 +1,9 @@
 import { Server } from 'socket.io';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
-import { OrderStatus, OrderType, PaymentMethod, Prisma } from '@prisma/client';
+import { OrderStatus, OrderType, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
 import * as stripeService from '../payments/stripe.service';
+import { recordPoints, calcEarnedPoints, reverseOrderPoints } from './points.service';
 
 interface CreateOrderInput {
   storeId: string;
@@ -49,9 +50,6 @@ interface ParkOrderInput {
   discount?: number;
   notes?: string;
 }
-
-// 1 point = 1 บาท ส่วนลด
-export const POINT_VALUE = 1;
 
 export async function create(input: CreateOrderInput, io: Server) {
   if (!input.items?.length) throw BadRequest('No items in order');
@@ -165,8 +163,11 @@ export async function create(input: CreateOrderInput, io: Server) {
       if (customer.points < input.pointsToRedeem) {
         throw BadRequest(`คะแนนไม่พอ (มี ${customer.points}, ต้องการ ${input.pointsToRedeem})`);
       }
+      if (store.minRedeemPoints > 0 && input.pointsToRedeem < store.minRedeemPoints) {
+        throw BadRequest(`ต้องใช้แต้มขั้นต่ำ ${store.minRedeemPoints} แต้ม`);
+      }
       pointsToRedeem = input.pointsToRedeem;
-      pointDiscount = new Prisma.Decimal(pointsToRedeem * POINT_VALUE);
+      pointDiscount = new Prisma.Decimal(pointsToRedeem).mul(store.pointValue);
     }
 
     const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
@@ -193,7 +194,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     }
 
     // 5. สร้าง order
-    const earnedPoints = input.customerId ? Math.floor(total.toNumber() / 100) : 0;
+    const earnedPoints = input.customerId ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
     const orderNumber = await generateOrderNumber(tx, input.storeId);
     const order = await tx.order.create({
       data: {
@@ -321,18 +322,36 @@ export async function create(input: CreateOrderInput, io: Server) {
       });
     }
 
-    // 8b. Update customer stats — หักคะแนนที่ใช้ + เพิ่มคะแนนที่ได้ใหม่
+    // 8b. Update customer stats + บันทึกแต้มลง ledger (หักที่ใช้ / เพิ่มที่ได้)
     if (input.customerId) {
-      const netPointsDelta = earnedPoints - pointsToRedeem;
       await tx.customer.update({
         where: { id: input.customerId },
         data: {
           visitCount: { increment: 1 },
           totalSpent: { increment: total },
-          points: { increment: netPointsDelta },
           lastVisitAt: new Date(),
         },
       });
+      if (pointsToRedeem > 0) {
+        await recordPoints(tx, {
+          storeId: input.storeId,
+          customerId: input.customerId,
+          type: PointTxType.REDEEM,
+          points: -pointsToRedeem,
+          orderId: order.id,
+          note: `ใช้แต้มในบิล ${orderNumber}`,
+        });
+      }
+      if (earnedPoints > 0) {
+        await recordPoints(tx, {
+          storeId: input.storeId,
+          customerId: input.customerId,
+          type: PointTxType.EARN,
+          points: earnedPoints,
+          orderId: order.id,
+          note: `ได้แต้มจากบิล ${orderNumber}`,
+        });
+      }
     }
 
     // 8c. Increment promotion usage
@@ -458,6 +477,9 @@ export async function refund(id: string, userId: string, io: Server) {
       }
     }
 
+    // คืน/ดึงแต้มกลับ (idempotent เพราะกัน REFUNDED ซ้ำด้านบนแล้ว)
+    await reverseOrderPoints(tx, order);
+
     const updated = await tx.order.update({
       where: { id },
       data: { status: 'REFUNDED' },
@@ -553,6 +575,12 @@ export async function refundItems(
     // เช็คว่า refund ครบทั้งบิลหรือไม่ → ถ้าครบ status = REFUNDED
     const remainingItems = await tx.orderItem.findMany({ where: { orderId } });
     const allRefunded = remainingItems.every((i) => i.refundedQty >= i.quantity);
+
+    // แต้มกลับเฉพาะตอนคืนครบทั้งบิล (การคืนบางรายการยังไม่แตะแต้ม — เฟส 1)
+    // กันซ้ำได้เพราะ status='REFUNDED' แล้วจะ throw ที่ต้นฟังก์ชัน
+    if (allRefunded) {
+      await reverseOrderPoints(tx, order);
+    }
 
     const updated = await tx.order.update({
       where: { id: orderId },

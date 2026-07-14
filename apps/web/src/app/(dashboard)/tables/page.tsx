@@ -112,7 +112,18 @@ export default function TablesPage() {
     setCartTable(tableId);
     router.push('/pos');
   };
-  const [showOccupied, setShowOccupied] = useState(false);
+  // Default to showing in-use tables: an occupied/billing table is an unpaid
+  // bill staff still need to act on — hiding it by default made those tables
+  // look like they "vanished" after a refresh. Persist the choice so toggling
+  // it off (to hunt for a free table) survives a reload too.
+  const [showOccupied, setShowOccupied] = useState(true);
+  useEffect(() => {
+    const saved = localStorage.getItem('tables:showOccupied');
+    if (saved !== null) setShowOccupied(saved === '1');
+  }, []);
+  useEffect(() => {
+    localStorage.setItem('tables:showOccupied', showOccupied ? '1' : '0');
+  }, [showOccupied]);
   const [sizeFilter, setSizeFilter] = useState<Size | 'ALL'>('ALL');
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [addOpen, setAddOpen] = useState(false);
