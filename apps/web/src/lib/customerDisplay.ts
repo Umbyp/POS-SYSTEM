@@ -77,11 +77,15 @@ export function useCustomerDisplayMessages(
 
   useEffect(() => {
     if (!storeId) return;
-    // Default to the page's own host (not a hardcoded "localhost") — this
-    // page may be loaded on a separate device via a LAN IP, where
+    // Prefer an explicit socket URL, then derive it from the API URL (prod),
+    // and finally fall back to the page's own host on :4000 — not a hardcoded
+    // "localhost", since this page may be opened on a separate LAN device where
     // "localhost" would (wrongly) mean that device itself.
+    const derivedFromApi = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, '');
     const socketBase =
-      process.env.NEXT_PUBLIC_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:4000`;
+      process.env.NEXT_PUBLIC_SOCKET_URL ||
+      derivedFromApi ||
+      `${window.location.protocol}//${window.location.hostname}:4000`;
     const socket: Socket = io(`${socketBase}/display`, {
       transports: ['websocket', 'polling'],
       reconnection: true,
