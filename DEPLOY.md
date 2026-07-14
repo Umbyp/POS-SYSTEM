@@ -59,7 +59,12 @@
    - `NEXT_PUBLIC_API_URL` = `https://pos-api.onrender.com/api`  ← มี `/api` ต่อท้าย
    - `NEXT_PUBLIC_ANALYTICS_API` = `https://analytics-api.onrender.com`
    - `NEXT_PUBLIC_ANALYTICS_URL` = (ใส่ทีหลังหลังได้ URL ของ Analytics Web)
+   - (ไม่บังคับ) `NEXT_PUBLIC_SOCKET_URL` = `https://pos-api.onrender.com` — realtime; ถ้าไม่ตั้งจะเดาจาก `NEXT_PUBLIC_API_URL` ให้เอง
 5. Deploy → **คัดลอก URL** (เช่น `https://pos-web.vercel.app`)
+
+> ⚠️ ค่า `NEXT_PUBLIC_*` ถูกฝังตอน **build** — ถ้าแก้/เพิ่มทีหลัง ต้อง **Redeploy** ถึงจะมีผล
+> อาการเมื่อลืมตั้ง `NEXT_PUBLIC_API_URL`: เว็บที่ deploy จะยิง API ไป `http://localhost:4000`
+> → `ERR_CONNECTION_REFUSED` ตอนล็อกอิน + `websocket error` รัว ๆ
 
 ---
 
