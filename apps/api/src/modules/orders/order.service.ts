@@ -3,7 +3,10 @@ import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, OrderType, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
 import * as stripeService from '../payments/stripe.service';
-import { recordPoints, calcEarnedPoints, reverseOrderPoints } from './points.service';
+import {
+  recordPoints, recordStamps, calcEarnedPoints, reverseOrderPoints,
+  pointsEnabled, stampsEnabled,
+} from './points.service';
 
 interface CreateOrderInput {
   storeId: string;
@@ -20,6 +23,7 @@ interface CreateOrderInput {
   }[];
   discount?: number;
   pointsToRedeem?: number;
+  useStampReward?: boolean;
   promotionId?: string;
   promotionDiscount?: number;
   promotionName?: string;
@@ -170,9 +174,25 @@ export async function create(input: CreateOrderInput, io: Server) {
       pointDiscount = new Prisma.Decimal(pointsToRedeem).mul(store.pointValue);
     }
 
+    // ใช้รางวัลบัตรสะสม (แลกดวงเต็ม 1 ใบ → ส่วนลด stampRewardValue)
+    let stampsToRedeem = 0;
+    let stampDiscount = new Prisma.Decimal(0);
+    if (input.useStampReward && stampsEnabled(store.loyaltyMode)) {
+      if (!input.customerId) throw BadRequest('ต้องเลือกลูกค้าก่อนใช้รางวัล');
+      const c = await tx.customer.findUnique({ where: { id: input.customerId } });
+      if (!c) throw BadRequest('ไม่พบลูกค้า');
+      if (store.stampsPerReward <= 0) throw BadRequest('ร้านยังไม่ได้ตั้งค่าจำนวนดวงต่อรางวัล');
+      if (c.stamps < store.stampsPerReward) {
+        throw BadRequest(`ดวงไม่พอแลกรางวัล (มี ${c.stamps}, ต้องการ ${store.stampsPerReward})`);
+      }
+      stampsToRedeem = store.stampsPerReward;
+      stampDiscount = new Prisma.Decimal(store.stampRewardValue);
+    }
+
     const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
     const orderDiscount = new Prisma.Decimal(input.discount || 0)
       .plus(pointDiscount)
+      .plus(stampDiscount)
       .plus(promoDiscount);
     const afterDiscount = Prisma.Decimal.max(0, subtotal.minus(orderDiscount));
     const rate = new Prisma.Decimal(store.taxRate);
@@ -194,7 +214,9 @@ export async function create(input: CreateOrderInput, io: Server) {
     }
 
     // 5. สร้าง order
-    const earnedPoints = input.customerId ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
+    const earnedPoints = input.customerId && pointsEnabled(store.loyaltyMode)
+      ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
+    const earnedStamps = input.customerId && stampsEnabled(store.loyaltyMode) ? 1 : 0;
     const orderNumber = await generateOrderNumber(tx, input.storeId);
     const order = await tx.order.create({
       data: {
@@ -215,6 +237,8 @@ export async function create(input: CreateOrderInput, io: Server) {
         total,
         pointsRedeemed: pointsToRedeem,
         pointsEarned: earnedPoints,
+        stampsEarned: earnedStamps,
+        stampsRedeemed: stampsToRedeem,
         notes: input.notes,
         customerName: input.customerName,
         customerTaxId: input.customerTaxId,
@@ -350,6 +374,26 @@ export async function create(input: CreateOrderInput, io: Server) {
           points: earnedPoints,
           orderId: order.id,
           note: `ได้แต้มจากบิล ${orderNumber}`,
+        });
+      }
+      if (stampsToRedeem > 0) {
+        await recordStamps(tx, {
+          storeId: input.storeId,
+          customerId: input.customerId,
+          type: PointTxType.STAMP_REDEEM,
+          stamps: -stampsToRedeem,
+          orderId: order.id,
+          note: `ใช้ดวงแลกรางวัลในบิล ${orderNumber}`,
+        });
+      }
+      if (earnedStamps > 0) {
+        await recordStamps(tx, {
+          storeId: input.storeId,
+          customerId: input.customerId,
+          type: PointTxType.STAMP_EARN,
+          stamps: earnedStamps,
+          orderId: order.id,
+          note: `ได้ดวงจากบิล ${orderNumber}`,
         });
       }
     }

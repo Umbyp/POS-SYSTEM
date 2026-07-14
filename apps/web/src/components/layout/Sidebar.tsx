@@ -20,6 +20,7 @@ import {
   History,
   LayoutDashboard,
   LineChart,
+  Stamp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/stores/auth.store';
@@ -39,6 +40,7 @@ const NAV = [
   { href: '/products', label: 'nav.products', icon: Package, roles: ['OWNER', 'ADMIN'] },
   { href: '/inventory', label: 'nav.inventory', icon: Boxes, roles: ['OWNER', 'ADMIN'] },
   { href: '/customers', label: 'nav.customers', icon: UserCircle, roles: ['OWNER', 'ADMIN', 'CASHIER'] },
+  { href: '/loyalty', label: 'nav.loyalty', icon: Stamp, roles: ['OWNER', 'ADMIN'] },
   { href: '/employees', label: 'nav.staff', icon: Users, roles: ['OWNER', 'ADMIN'] },
   { href: '/reports', label: 'nav.reports', icon: BarChart3, roles: ['OWNER', 'ADMIN'] },
   { href: '/activity', label: 'nav.activity', icon: History, roles: ['OWNER', 'ADMIN'] },

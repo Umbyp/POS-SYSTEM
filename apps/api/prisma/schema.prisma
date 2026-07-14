@@ -61,9 +61,14 @@ model Store {
   dailyTarget     Decimal  @default(0) @db.Decimal(12, 2)
   monthlyTarget   Decimal  @default(0) @db.Decimal(12, 2)
   // ระบบสะสมแต้ม — ปรับได้ต่อร้าน
-  pointsEarnBaht  Int      @default(100) // ใช้จ่ายกี่บาทได้ 1 แต้ม (0 = ปิดการสะสม)
-  pointValue      Decimal  @default(1) @db.Decimal(10, 2) // 1 แต้ม แลกส่วนลดกี่บาท
-  minRedeemPoints Int      @default(0)  // ใช้แต้มขั้นต่ำต่อครั้ง (0 = ไม่จำกัด)
+  loyaltyMode      String  @default("BOTH") // POINTS | STAMPS | BOTH | OFF
+  pointsEarnBaht   Int     @default(100) // ใช้จ่ายกี่บาทได้ 1 แต้ม (0 = ปิดการสะสม)
+  pointValue       Decimal @default(1) @db.Decimal(10, 2) // 1 แต้ม แลกส่วนลดกี่บาท
+  minRedeemPoints  Int     @default(0)  // ใช้แต้มขั้นต่ำต่อครั้ง (0 = ไม่จำกัด)
+  // บัตรสะสมดวง (stamp card) — มา 1 ครั้ง = 1 ดวง
+  stampsPerReward  Int     @default(10) // ครบกี่ดวงได้ 1 รางวัล
+  stampRewardValue Decimal @default(0) @db.Decimal(10, 2) // รางวัล = ส่วนลดกี่บาทต่อ 1 ใบเต็ม
+  stampRewardName  String? // ชื่อรางวัล เช่น "กาแฟฟรี 1 แก้ว"
   members         StoreMember[]
   categories    Category[]
   customers     Customer[]
@@ -249,6 +254,8 @@ model Order {
   total         Decimal     @db.Decimal(10, 2)
   pointsRedeemed   Int         @default(0)
   pointsEarned     Int         @default(0)
+  stampsEarned     Int         @default(0) // ดวงที่ได้จากบิลนี้ (ไว้ดึงกลับเมื่อ refund)
+  stampsRedeemed   Int         @default(0) // ดวงที่ใช้แลกรางวัลในบิลนี้
   notes            String?
   customerName     String?
   customerTaxId    String?
@@ -277,6 +284,7 @@ model Customer {
   taxId       String?
   address     String?
   points      Int      @default(0)
+  stamps      Int      @default(0) // ดวงบัตรสะสมที่ยังไม่ได้แลก (รีเซ็ตเมื่อแลกรางวัล)
   totalSpent  Decimal  @default(0) @db.Decimal(12, 2)
   visitCount  Int      @default(0)
   lastVisitAt DateTime?
@@ -316,6 +324,9 @@ enum PointTxType {
   REDEEM          // ใช้แต้มแลกส่วนลด
   REFUND_REVERSAL // คืนเงินบิล → ดึงแต้มที่เคยได้กลับ / คืนแต้มที่เคยใช้
   MANUAL_ADJUST   // พนักงานปรับแต้มเอง
+  STAMP_EARN      // ได้ดวงบัตรสะสม (1 ครั้ง = 1 ดวง)
+  STAMP_REDEEM    // ใช้ดวงแลกรางวัล (หัก 1 ใบเต็ม)
+  STAMP_ADJUST    // พนักงานปรับดวงเอง
 }
 
 model OrderItem {

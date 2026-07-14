@@ -1,51 +1,86 @@
 import { Prisma, PointTxType } from '@prisma/client';
 
+type LoyaltyKind = 'points' | 'stamps';
+
 /**
- * บันทึกการเปลี่ยนแปลงแต้มลง ledger + อัปเดตยอดสรุปที่ Customer ในทรานแซกชันเดียว
- * คืนค่ายอดแต้มคงเหลือหลังรายการ (balanceAfter)
- *
- * ต้องเรียกภายใน prisma.$transaction เสมอ (รับ tx client เข้ามา)
+ * ตัวเขียน ledger กลาง — อัปเดตยอดสรุป (points หรือ stamps) ที่ Customer
+ * + สร้างแถว PointTransaction ในทรานแซกชันเดียว คืนยอดคงเหลือหลังรายการ
+ * ต้องเรียกภายใน prisma.$transaction เสมอ
  */
-export async function recordPoints(
+async function writeLedger(
   tx: Prisma.TransactionClient,
+  kind: LoyaltyKind,
   args: {
     storeId: string;
     customerId: string;
     type: PointTxType;
-    points: number; // +ได้ / -ใช้ (delta ที่จะใช้จริง)
+    amount: number; // +ได้ / -ใช้ (delta ที่จะใช้จริง)
     orderId?: string | null;
     note?: string;
     createdBy?: string;
   }
 ): Promise<number> {
-  if (args.points === 0) {
+  const column = kind === 'points' ? 'points' : 'stamps';
+
+  if (args.amount === 0) {
     const c = await tx.customer.findUniqueOrThrow({
       where: { id: args.customerId },
-      select: { points: true },
+      select: { [column]: true } as any,
     });
-    return c.points;
+    return (c as any)[column];
   }
 
   const updated = await tx.customer.update({
     where: { id: args.customerId },
-    data: { points: { increment: args.points } },
-    select: { points: true },
+    data: { [column]: { increment: args.amount } } as any,
+    select: { [column]: true } as any,
   });
+  const balanceAfter = (updated as any)[column] as number;
 
   await tx.pointTransaction.create({
     data: {
       storeId: args.storeId,
       customerId: args.customerId,
       type: args.type,
-      points: args.points,
-      balanceAfter: updated.points,
+      points: args.amount,
+      balanceAfter,
       orderId: args.orderId ?? null,
       note: args.note,
       createdBy: args.createdBy,
     },
   });
 
-  return updated.points;
+  return balanceAfter;
+}
+
+/** บันทึกการเปลี่ยนแปลง "แต้ม" (points ตามยอดซื้อ) */
+export function recordPoints(
+  tx: Prisma.TransactionClient,
+  args: {
+    storeId: string; customerId: string; type: PointTxType;
+    points: number; orderId?: string | null; note?: string; createdBy?: string;
+  }
+): Promise<number> {
+  return writeLedger(tx, 'points', { ...args, amount: args.points });
+}
+
+/** บันทึกการเปลี่ยนแปลง "ดวง" (stamps บัตรสะสม) */
+export function recordStamps(
+  tx: Prisma.TransactionClient,
+  args: {
+    storeId: string; customerId: string; type: PointTxType;
+    stamps: number; orderId?: string | null; note?: string; createdBy?: string;
+  }
+): Promise<number> {
+  return writeLedger(tx, 'stamps', { ...args, amount: args.stamps });
+}
+
+/** โหมด loyalty ของร้านเปิดใช้ points / stamps อยู่ไหม */
+export function pointsEnabled(loyaltyMode: string): boolean {
+  return loyaltyMode === 'POINTS' || loyaltyMode === 'BOTH';
+}
+export function stampsEnabled(loyaltyMode: string): boolean {
+  return loyaltyMode === 'STAMPS' || loyaltyMode === 'BOTH';
 }
 
 /**
@@ -58,11 +93,10 @@ export function calcEarnedPoints(total: number, pointsEarnBaht: number): number 
 }
 
 /**
- * คืนเงินบิล → กลับรายการแต้ม:
- *  - คืนแต้มที่ลูกค้าเคย "ใช้" (pointsRedeemed) กลับให้
- *  - ดึงแต้มที่เคย "ได้" (pointsEarned) กลับ แต่ไม่ให้ยอดติดลบ
- *    (เผื่อกรณีลูกค้าใช้แต้มนั้นไปแล้วก่อน refund — ดึงเท่าที่มี)
- * ต้องกันการ refund ซ้ำจากผู้เรียก (order.service ทำอยู่) ไม่งั้นจะกลับแต้มซ้ำ
+ * คืนเงินบิล → กลับทั้งแต้มและดวง:
+ *  - คืนสิ่งที่ลูกค้าเคย "ใช้" (redeemed) กลับให้
+ *  - ดึงสิ่งที่เคย "ได้" (earned) กลับ แต่ไม่ให้ยอดติดลบ (ดึงเท่าที่เหลืออยู่)
+ * ต้องกันการ refund ซ้ำจากผู้เรียก (order.service ทำอยู่) ไม่งั้นจะกลับซ้ำ
  */
 export async function reverseOrderPoints(
   tx: Prisma.TransactionClient,
@@ -72,35 +106,54 @@ export async function reverseOrderPoints(
     customerId: string | null;
     pointsEarned: number;
     pointsRedeemed: number;
+    stampsEarned?: number;
+    stampsRedeemed?: number;
   }
 ): Promise<void> {
   if (!order.customerId) return;
 
+  // ---- แต้ม (points) ----
   if (order.pointsRedeemed > 0) {
     await recordPoints(tx, {
-      storeId: order.storeId,
-      customerId: order.customerId,
-      type: PointTxType.REFUND_REVERSAL,
-      points: order.pointsRedeemed,
-      orderId: order.id,
-      note: 'คืนแต้มที่ใช้ (คืนเงินบิล)',
+      storeId: order.storeId, customerId: order.customerId,
+      type: PointTxType.REFUND_REVERSAL, points: order.pointsRedeemed,
+      orderId: order.id, note: 'คืนแต้มที่ใช้ (คืนเงินบิล)',
     });
   }
-
   if (order.pointsEarned > 0) {
     const c = await tx.customer.findUniqueOrThrow({
-      where: { id: order.customerId },
-      select: { points: true },
+      where: { id: order.customerId }, select: { points: true },
     });
     const clawback = Math.min(order.pointsEarned, c.points);
     if (clawback > 0) {
       await recordPoints(tx, {
-        storeId: order.storeId,
-        customerId: order.customerId,
-        type: PointTxType.REFUND_REVERSAL,
-        points: -clawback,
-        orderId: order.id,
-        note: 'ดึงแต้มที่ได้กลับ (คืนเงินบิล)',
+        storeId: order.storeId, customerId: order.customerId,
+        type: PointTxType.REFUND_REVERSAL, points: -clawback,
+        orderId: order.id, note: 'ดึงแต้มที่ได้กลับ (คืนเงินบิล)',
+      });
+    }
+  }
+
+  // ---- ดวง (stamps) ----
+  const stampsRedeemed = order.stampsRedeemed ?? 0;
+  const stampsEarned = order.stampsEarned ?? 0;
+  if (stampsRedeemed > 0) {
+    await recordStamps(tx, {
+      storeId: order.storeId, customerId: order.customerId,
+      type: PointTxType.REFUND_REVERSAL, stamps: stampsRedeemed,
+      orderId: order.id, note: 'คืนดวงที่ใช้แลกรางวัล (คืนเงินบิล)',
+    });
+  }
+  if (stampsEarned > 0) {
+    const c = await tx.customer.findUniqueOrThrow({
+      where: { id: order.customerId }, select: { stamps: true },
+    });
+    const clawback = Math.min(stampsEarned, c.stamps);
+    if (clawback > 0) {
+      await recordStamps(tx, {
+        storeId: order.storeId, customerId: order.customerId,
+        type: PointTxType.REFUND_REVERSAL, stamps: -clawback,
+        orderId: order.id, note: 'ดึงดวงที่ได้กลับ (คืนเงินบิล)',
       });
     }
   }

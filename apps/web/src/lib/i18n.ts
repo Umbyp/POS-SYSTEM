@@ -34,6 +34,7 @@ const DICT: Record<string, Entry> = {
   'nav.products': { th: 'สินค้า', en: 'Products' },
   'nav.inventory': { th: 'สต๊อก', en: 'Inventory' },
   'nav.customers': { th: 'ลูกค้า', en: 'Customers' },
+  'nav.loyalty': { th: 'สะสมแต้ม', en: 'Loyalty' },
   'nav.staff': { th: 'พนักงาน', en: 'Staff' },
   'nav.reports': { th: 'รายงาน', en: 'Reports' },
   'nav.activity': { th: 'ประวัติการใช้งาน', en: 'Activity' },

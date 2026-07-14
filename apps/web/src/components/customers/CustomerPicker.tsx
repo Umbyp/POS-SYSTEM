@@ -41,7 +41,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ['customers'] });
       toast.success(`Added "${c.name}"`);
-      onSelect({ id: c.id, name: c.name, phone: c.phone, points: c.points });
+      onSelect({ id: c.id, name: c.name, phone: c.phone, points: c.points, stamps: c.stamps });
       onClose();
       setForm({ name: '', phone: '', email: '', taxId: '' });
     },
@@ -106,6 +106,7 @@ export function CustomerPicker({ open, onClose, onSelect }: Props) {
                         name: c.name,
                         phone: c.phone,
                         points: c.points,
+                        stamps: c.stamps,
                       });
                       onClose();
                     }}

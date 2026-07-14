@@ -23,6 +23,14 @@ const updateSchema = z.object({
   branchCode: z.string().optional().nullable(),
   dailyTarget: z.number().nonnegative().optional(),
   monthlyTarget: z.number().nonnegative().optional(),
+  // ระบบสะสมแต้ม
+  loyaltyMode: z.enum(['OFF', 'POINTS', 'STAMPS', 'BOTH']).optional(),
+  pointsEarnBaht: z.number().int().nonnegative().optional(),
+  pointValue: z.number().nonnegative().optional(),
+  minRedeemPoints: z.number().int().nonnegative().optional(),
+  stampsPerReward: z.number().int().positive().optional(),
+  stampRewardValue: z.number().nonnegative().optional(),
+  stampRewardName: z.string().optional().nullable(),
 });
 
 // GET /api/stores/me - ข้อมูลร้านของ user ปัจจุบัน
