@@ -207,6 +207,8 @@ const DICT: Record<string, Entry> = {
   'settings.section.payment.desc': { th: 'พร้อมเพย์ + SMS webhook + เสียงแจ้งเตือน', en: 'PromptPay + SMS webhook + voice' },
   'settings.section.categories.label': { th: 'หมวดหมู่', en: 'Categories' },
   'settings.section.categories.desc': { th: 'หมวดหมู่สินค้า', en: 'Product categories' },
+  'settings.section.options.label': { th: 'ตัวเลือกเมนู', en: 'Menu options' },
+  'settings.section.options.desc': { th: 'ความหวาน, ท็อปปิ้ง ฯลฯ', en: 'Sweetness, toppings, etc.' },
   'settings.section.promotions.label': { th: 'โปรโมชั่น', en: 'Promotions' },
   'settings.section.promotions.desc': { th: 'ส่วนลด, โค้ด, เฉพาะสมาชิก', en: 'Discounts, codes, member-only' },
   'settings.section.goals.label': { th: 'เป้าหมายยอดขาย', en: 'Sales goals' },

@@ -2,6 +2,20 @@ import { prisma } from '../../config/prisma';
 import { NotFound } from '../../utils/errors';
 import { Prisma } from '@prisma/client';
 
+// Standard include so the POS/menu always gets a product's attached option
+// groups (with their options, ordered) alongside category/stock/legacy variants.
+const PRODUCT_INCLUDE = {
+  category: true,
+  inventory: true,
+  variants: true,
+  optionGroups: {
+    orderBy: { sortOrder: 'asc' as const },
+    include: {
+      group: { include: { options: { orderBy: { sortOrder: 'asc' as const } } } },
+    },
+  },
+} satisfies Prisma.ProductInclude;
+
 export async function list(storeId: string, query: { q?: string; categoryId?: string; includeIngredients?: boolean }) {
   const where: Prisma.ProductWhereInput = {
     storeId,
@@ -20,7 +34,7 @@ export async function list(storeId: string, query: { q?: string; categoryId?: st
   };
   return prisma.product.findMany({
     where,
-    include: { category: true, inventory: true, variants: true },
+    include: PRODUCT_INCLUDE,
     orderBy: { name: 'asc' },
   });
 }
@@ -85,7 +99,7 @@ export async function setRecipe(
 export async function getById(id: string) {
   const p = await prisma.product.findUnique({
     where: { id },
-    include: { category: true, inventory: true, variants: true },
+    include: PRODUCT_INCLUDE,
   });
   if (!p) throw NotFound('Product not found');
   return p;
@@ -94,7 +108,7 @@ export async function getById(id: string) {
 export async function findByBarcode(storeId: string, barcode: string) {
   const p = await prisma.product.findFirst({
     where: { storeId, barcode, isActive: true },
-    include: { category: true, inventory: true, variants: true },
+    include: PRODUCT_INCLUDE,
   });
   if (!p) throw NotFound('Product not found');
   return p;
@@ -121,12 +135,24 @@ export async function create(storeId: string, input: any) {
       variants: input.variants?.length
         ? { create: input.variants }
         : undefined,
+      optionGroups: Array.isArray(input.optionGroupIds) && input.optionGroupIds.length
+        ? { create: input.optionGroupIds.map((groupId: string, i: number) => ({ groupId, sortOrder: i })) }
+        : undefined,
     },
-    include: { category: true, inventory: true, variants: true },
+    include: PRODUCT_INCLUDE,
   });
 }
 
 export async function update(id: string, input: any) {
+  // Re-attach option groups only when the client explicitly sends the array
+  // (so a plain rename doesn't wipe attachments).
+  const reattach = Array.isArray(input.optionGroupIds)
+    ? {
+        deleteMany: {},
+        create: input.optionGroupIds.map((groupId: string, i: number) => ({ groupId, sortOrder: i })),
+      }
+    : undefined;
+
   return prisma.product.update({
     where: { id },
     data: {
@@ -141,9 +167,89 @@ export async function update(id: string, input: any) {
       isActive: input.isActive,
       isIngredient: input.isIngredient,
       isCombo: input.isCombo,
+      ...(reattach ? { optionGroups: reattach } : {}),
     },
-    include: { category: true, inventory: true },
+    include: PRODUCT_INCLUDE,
   });
+}
+
+/* ---------------- Option groups (store-level, reusable) ---------------- */
+
+const GROUP_INCLUDE = {
+  options: { orderBy: { sortOrder: 'asc' as const } },
+  _count: { select: { products: true } },
+} satisfies Prisma.OptionGroupInclude;
+
+export function listOptionGroups(storeId: string) {
+  return prisma.optionGroup.findMany({
+    where: { storeId, isActive: true },
+    include: GROUP_INCLUDE,
+    orderBy: { sortOrder: 'asc' },
+  });
+}
+
+interface OptionInput { name: string; priceDelta?: number; isDefault?: boolean }
+interface GroupInput {
+  name: string;
+  minSelect?: number;
+  maxSelect?: number;
+  sortOrder?: number;
+  options: OptionInput[];
+}
+
+export function createOptionGroup(storeId: string, input: GroupInput) {
+  return prisma.optionGroup.create({
+    data: {
+      storeId,
+      name: input.name,
+      minSelect: input.minSelect ?? 0,
+      maxSelect: input.maxSelect ?? 1,
+      sortOrder: input.sortOrder ?? 0,
+      options: {
+        create: input.options.map((o, i) => ({
+          name: o.name,
+          priceDelta: new Prisma.Decimal(o.priceDelta ?? 0),
+          isDefault: o.isDefault ?? false,
+          sortOrder: i,
+        })),
+      },
+    },
+    include: GROUP_INCLUDE,
+  });
+}
+
+// Replace the whole group (name/limits + full option list) in one transaction.
+export async function updateOptionGroup(storeId: string, id: string, input: GroupInput) {
+  const existing = await prisma.optionGroup.findFirst({ where: { id, storeId } });
+  if (!existing) throw NotFound('Option group not found');
+  return prisma.$transaction(async (tx) => {
+    await tx.option.deleteMany({ where: { groupId: id } });
+    return tx.optionGroup.update({
+      where: { id },
+      data: {
+        name: input.name,
+        minSelect: input.minSelect ?? 0,
+        maxSelect: input.maxSelect ?? 1,
+        sortOrder: input.sortOrder ?? 0,
+        options: {
+          create: input.options.map((o, i) => ({
+            name: o.name,
+            priceDelta: new Prisma.Decimal(o.priceDelta ?? 0),
+            isDefault: o.isDefault ?? false,
+            sortOrder: i,
+          })),
+        },
+      },
+      include: GROUP_INCLUDE,
+    });
+  });
+}
+
+export async function deleteOptionGroup(storeId: string, id: string) {
+  const existing = await prisma.optionGroup.findFirst({ where: { id, storeId } });
+  if (!existing) throw NotFound('Option group not found');
+  // soft-delete so historical order snapshots (stored as JSON) stay meaningful
+  await prisma.optionGroup.update({ where: { id }, data: { isActive: false } });
 }
 
 export async function remove(id: string) {

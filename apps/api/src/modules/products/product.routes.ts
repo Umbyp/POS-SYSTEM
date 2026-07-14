@@ -27,6 +27,19 @@ const productSchema = z.object({
     priceDelta: z.number(),
     sku: z.string().optional(),
   })).optional(),
+  optionGroupIds: z.array(z.string()).optional(),
+});
+
+const optionGroupSchema = z.object({
+  name: z.string().min(1),
+  minSelect: z.number().int().nonnegative().optional(),
+  maxSelect: z.number().int().nonnegative().optional(),
+  sortOrder: z.number().int().optional(),
+  options: z.array(z.object({
+    name: z.string().min(1),
+    priceDelta: z.number().optional(),
+    isDefault: z.boolean().optional(),
+  })).min(1),
 });
 
 router.use(authMiddleware);
@@ -75,6 +88,34 @@ router.delete('/categories/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) 
       });
     }
     await prisma.category.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  } catch (e) { next(e); }
+});
+
+/* ---------------- Option groups (store-level menu options) ---------------- */
+// Defined before the "/:id" routes so "option-groups" isn't captured as an id.
+
+router.get('/option-groups', async (req, res, next) => {
+  try {
+    res.json(await service.listOptionGroups(req.user!.storeId));
+  } catch (e) { next(e); }
+});
+
+router.post('/option-groups', rbac('OWNER', 'ADMIN'), validate(optionGroupSchema), async (req, res, next) => {
+  try {
+    res.status(201).json(await service.createOptionGroup(req.user!.storeId, req.body));
+  } catch (e) { next(e); }
+});
+
+router.put('/option-groups/:id', rbac('OWNER', 'ADMIN'), validate(optionGroupSchema), async (req, res, next) => {
+  try {
+    res.json(await service.updateOptionGroup(req.user!.storeId, req.params.id, req.body));
+  } catch (e) { next(e); }
+});
+
+router.delete('/option-groups/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
+  try {
+    await service.deleteOptionGroup(req.user!.storeId, req.params.id);
     res.status(204).end();
   } catch (e) { next(e); }
 });

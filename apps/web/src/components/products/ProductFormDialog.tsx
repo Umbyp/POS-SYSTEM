@@ -41,6 +41,7 @@ interface FormState {
   initialStock: string;
   lowStockAt: string;
   variants: Variant[];
+  optionGroupIds: string[];
 }
 
 const EMPTY: FormState = {
@@ -56,6 +57,7 @@ const EMPTY: FormState = {
   initialStock: '0',
   lowStockAt: '10',
   variants: [],
+  optionGroupIds: [],
 };
 
 export function ProductFormDialog({ open, onClose, productId }: Props) {
@@ -76,6 +78,13 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
     enabled: open && !!productId,
   });
 
+  // Store-level option groups (ความหวาน, ท็อปปิ้ง …) available to attach
+  const { data: optionGroups = [] } = useQuery({
+    queryKey: ['option-groups'],
+    queryFn: () => api.get('/products/option-groups').then((r) => r.data),
+    enabled: open,
+  });
+
   useEffect(() => {
     if (!open) return;
     if (product) {
@@ -92,6 +101,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
         initialStock: String(product.inventory?.quantity || 0),
         lowStockAt: String(product.inventory?.lowStockAt || 10),
         variants: product.variants || [],
+        optionGroupIds: (product.optionGroups || []).map((pog: any) => pog.groupId ?? pog.group?.id).filter(Boolean),
       });
     } else {
       setForm(EMPTY);
@@ -127,6 +137,7 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
       sellingPrice: parseFloat(form.sellingPrice) || 0,
       categoryId: form.categoryId,
       trackStock: form.trackStock,
+      optionGroupIds: form.optionGroupIds,
     };
     if (!productId) {
       payload.initialStock = parseInt(form.initialStock) || 0;
@@ -271,11 +282,55 @@ export function ProductFormDialog({ open, onClose, productId }: Props) {
             )}
           </div>
 
-          {/* Variants (only when creating new) */}
+          {/* Menu option groups (store-level, e.g. ความหวาน / ท็อปปิ้ง) */}
+          <div className="border-t border-border pt-4">
+            <Label className="mb-2 block">ตัวเลือกเมนู</Label>
+            {optionGroups.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                ยังไม่มีชุดตัวเลือก — สร้างได้ที่ ตั้งค่า → ตัวเลือกเมนู
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {optionGroups.map((g: any) => {
+                  const checked = form.optionGroupIds.includes(g.id);
+                  return (
+                    <label
+                      key={g.id}
+                      className={`flex items-start gap-2 p-2.5 rounded-lg border-2 cursor-pointer transition-all ${
+                        checked ? 'border-primary bg-primary/10' : 'border-border hover:border-muted-foreground'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            optionGroupIds: e.target.checked
+                              ? [...f.optionGroupIds, g.id]
+                              : f.optionGroupIds.filter((id) => id !== g.id),
+                          }))
+                        }
+                        className="w-4 h-4 accent-primary mt-0.5"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium">{g.name}</div>
+                        <div className="text-[11px] text-muted-foreground truncate">
+                          {g.options?.map((o: any) => o.name).join(', ')}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Legacy per-product variants (only when creating new) */}
           {!productId && (
             <div className="border-t border-border pt-4">
               <div className="flex items-center justify-between mb-2">
-                <Label>Options (Variants)</Label>
+                <Label>ตัวเลือกเฉพาะเมนูนี้ (เดิม)</Label>
                 <Button
                   type="button" size="sm" variant="outline"
                   onClick={() =>
