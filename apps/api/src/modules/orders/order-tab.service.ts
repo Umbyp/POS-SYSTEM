@@ -213,18 +213,31 @@ export async function addRound(
     const newSubtotal = new Prisma.Decimal(order.subtotal).plus(addSubtotal);
     const { tax, serviceCharge, total } = computeTotals(newSubtotal, new Prisma.Decimal(order.discount), store);
 
+    // A fresh round means there's unprepared food again — if the kitchen had
+    // already marked this table READY (food out, awaiting the next round or
+    // payment), that READY no longer reflects reality: it must go back to the
+    // kitchen queue, both so KDS shows it again and so it drops off the
+    // public ready-board instead of wrongly lingering there.
+    const wasReady = order.status === 'READY';
+
     const updated = await tx.order.update({
       where: { id: orderId },
-      data: { subtotal: newSubtotal, tax, serviceCharge, total },
+      data: {
+        subtotal: newSubtotal, tax, serviceCharge, total,
+        ...(wasReady ? { status: 'PENDING' } : {}),
+      },
       include: ORDER_INCLUDE,
     });
     await deductStock(tx, input.items, products, allRecipes, orderId, order.orderNumber, input.cashierId);
-    return { updated, productIds };
+    return { updated, productIds, wasReady };
   });
 
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.updated);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
   io.to(`store:${input.storeId}`).emit('order:status', { id: orderId, status: result.updated.status });
+  if (result.wasReady) {
+    io.of('/display').to(`store:${input.storeId}:display`).emit('ready-board:update');
+  }
   return result.updated;
 }
 

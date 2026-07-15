@@ -1,5 +1,29 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authMiddleware } from '../../middleware/auth.middleware';
+import * as service from './display.service';
+
+// Cast: express-rate-limit@7 ships Express-5 handler types; runtime is Express 4
+// (same pattern as self-order.routes.ts).
+const readLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+}) as unknown as RequestHandler;
+
+/**
+ * Public — no auth. A ready-board TV/kiosk in the shop (or a customer's own
+ * phone) reads this to see which orders the kitchen has finished. Scoped by
+ * storeId only; see display.service.ts for exactly what fields are exposed.
+ */
+const publicRouter = Router();
+
+publicRouter.get('/store/:storeId/ready-board', readLimiter, async (req, res, next) => {
+  try {
+    res.json(await service.getReadyBoard(req.params.storeId));
+  } catch (e) { next(e); }
+});
 
 /**
  * Relays a cashier's customer-display broadcast (live cart / QR / thank-you)
@@ -17,4 +41,4 @@ router.post('/broadcast', (req, res) => {
   res.json({ ok: true });
 });
 
-export default router;
+export { publicRouter as displayPublicRouter, router as displayRouter };

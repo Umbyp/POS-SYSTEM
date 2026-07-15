@@ -489,6 +489,12 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server) 
 
   io.to(`store:${order.storeId}`).emit('order:status', { id: order.id, status });
   io.to(`store:${order.storeId}:kds`).emit('kds:status', { id: order.id, status });
+  // Ready-board is public/unauthenticated, so it lives on its own socket
+  // namespace (see socket.ts) — only ping it for the two transitions it
+  // actually cares about (an order becoming ready, or leaving the board).
+  if (status === 'READY' || status === 'COMPLETED') {
+    io.of('/display').to(`store:${order.storeId}:display`).emit('ready-board:update');
+  }
   return order;
 }
 
