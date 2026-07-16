@@ -44,6 +44,11 @@ const rejectSchema = z.object({
   reason: z.string().optional(),
 });
 
+const claimPointsSchema = z.object({
+  phone: z.string().min(1),
+  name: z.string().optional(),
+});
+
 /**
  * Public — no auth. Reached by a customer's phone via the table's QR link.
  * Scoped entirely by the opaque `qrCode` token; never exposes internal IDs
@@ -120,6 +125,16 @@ publicRouter.post('/store/:storeId/customer/register', writeLimiter, validate(re
     const { name, phone, email } = req.body;
     const customer = await service.registerCustomerByStore(req.params.storeId, name, phone, email);
     res.status(201).json(customer);
+  } catch (e) { next(e); }
+});
+
+// Scanned from the QR printed at the end of a receipt — claims that one
+// order's points/stamps for whoever's phone number is entered.
+publicRouter.post('/order/:orderId/claim-points', writeLimiter, validate(claimPointsSchema), async (req, res, next) => {
+  try {
+    const { phone, name } = req.body;
+    const result = await service.claimOrderPoints(req.params.orderId, phone, name);
+    res.json(result);
   } catch (e) { next(e); }
 });
 

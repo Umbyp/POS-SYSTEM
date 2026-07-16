@@ -7,9 +7,11 @@
  * prank or mistaken submission from ever reaching the kitchen unattended.
  */
 import { Server } from 'socket.io';
+import { PointTxType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import * as orderTabService from '../orders/order-tab.service';
+import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from '../orders/points.service';
 
 export interface SelfOrderItemInput {
   productId: string;
@@ -413,4 +415,93 @@ export async function registerCustomerByStore(storeId: string, name: string, pho
   });
 
   return customer;
+}
+
+/**
+ * Public: claim the points/stamps for a paid order via the QR code printed
+ * on its receipt — the self-service fallback for when a cashier didn't
+ * attach a member at checkout. Identifies the customer by phone (registers
+ * them on the spot if `name` is given and none exists yet), then credits
+ * that ONE order's earn exactly as checkout would have — safe to expose
+ * publicly because it's scoped to a specific already-paid order and is a
+ * one-time claim (order.customerId being set already blocks re-claiming).
+ */
+export async function claimOrderPoints(orderId: string, phone: string, name?: string) {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { payments: true, store: true },
+  });
+  if (!order) throw NotFound('ไม่พบบิลนี้');
+  if (order.payments.length === 0) throw BadRequest('บิลนี้ยังไม่ได้ชำระเงิน');
+  if (order.customerId) throw BadRequest('บิลนี้สะสมแต้มไปแล้ว', 'ALREADY_CLAIMED');
+  if (order.store.loyaltyMode === 'OFF') throw BadRequest('ร้านนี้ยังไม่เปิดระบบสะสมแต้ม');
+
+  const store = order.store;
+
+  return prisma.$transaction(async (tx) => {
+    let customer = await tx.customer.findFirst({
+      where: { storeId: order.storeId, phone, isActive: true },
+    });
+    if (!customer) {
+      if (!name?.trim()) throw BadRequest('กรุณากรอกชื่อเพื่อสมัครสมาชิกใหม่', 'NEEDS_NAME');
+      customer = await tx.customer.create({
+        data: { storeId: order.storeId, name: name.trim(), phone, points: 0, stamps: 0 },
+      });
+    }
+
+    // Re-check under the transaction — guards a race if the receipt QR is
+    // scanned twice at nearly the same moment.
+    const fresh = await tx.order.findUniqueOrThrow({ where: { id: order.id }, select: { customerId: true } });
+    if (fresh.customerId) throw BadRequest('บิลนี้สะสมแต้มไปแล้ว', 'ALREADY_CLAIMED');
+
+    const earnedPoints = pointsEnabled(store.loyaltyMode)
+      ? calcEarnedPoints(Number(order.total), store.pointsEarnBaht)
+      : 0;
+    const earnedStamps = stampsEnabled(store.loyaltyMode) ? 1 : 0;
+
+    await tx.order.update({
+      where: { id: order.id },
+      data: { customerId: customer.id, pointsEarned: earnedPoints, stampsEarned: earnedStamps },
+    });
+    await tx.customer.update({
+      where: { id: customer.id },
+      data: { visitCount: { increment: 1 }, totalSpent: { increment: order.total }, lastVisitAt: new Date() },
+    });
+
+    let pointsBalance = customer.points;
+    let stampsBalance = customer.stamps;
+    if (earnedPoints > 0) {
+      pointsBalance = await recordPoints(tx, {
+        storeId: order.storeId,
+        customerId: customer.id,
+        type: PointTxType.EARN,
+        points: earnedPoints,
+        orderId: order.id,
+        note: `ได้แต้มจากบิล ${order.orderNumber} (สแกน QR ท้ายใบเสร็จ)`,
+      });
+    }
+    if (earnedStamps > 0) {
+      stampsBalance = await recordStamps(tx, {
+        storeId: order.storeId,
+        customerId: customer.id,
+        type: PointTxType.STAMP_EARN,
+        stamps: earnedStamps,
+        orderId: order.id,
+        note: `ได้ดวงจากบิล ${order.orderNumber} (สแกน QR ท้ายใบเสร็จ)`,
+      });
+    }
+
+    return {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        points: pointsBalance,
+        stamps: stampsBalance,
+      },
+      earnedPoints,
+      earnedStamps,
+      orderNumber: order.orderNumber,
+    };
+  });
 }

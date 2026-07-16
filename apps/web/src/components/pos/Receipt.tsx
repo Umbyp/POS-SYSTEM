@@ -29,6 +29,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbreviated' }: Props) {
   const [qrUrl, setQrUrl] = useState<string>('');
+  const [claimQrUrl, setClaimQrUrl] = useState<string>('');
 
   useEffect(() => {
     const ppPayment = order?.payments?.find((p: any) => p.method === 'PROMPTPAY');
@@ -41,6 +42,19 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
         QRCode.toDataURL(payload, { width: 140, margin: 0 }).then(setQrUrl);
       } catch { /* ignore */ }
     }
+  }, [order, store]);
+
+  // "Scan to collect points" — only when nobody was linked to this order at
+  // checkout (a member's own receipt already shows the earned/redeemed block
+  // below instead) and the store actually runs a loyalty program. Points the
+  // QR to the customer member portal, pre-filled with this order so it can
+  // credit the earn retroactively (see self-order.service.claimOrderPoints).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (order?.customer || !store?.id || !order?.id) return setClaimQrUrl('');
+    if (!store.loyaltyMode || store.loyaltyMode === 'OFF') return setClaimQrUrl('');
+    const url = `${window.location.origin}/member?storeId=${store.id}&order=${order.id}`;
+    QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setClaimQrUrl).catch(() => {});
   }, [order, store]);
 
   if (!order || !store) return null;
@@ -380,6 +394,19 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                 ✨ Earned +{order.pointsEarned} pts
               </div>
             )}
+          </div>
+        )}
+
+        {/* ==================== SCAN TO COLLECT POINTS ==================== */}
+        {claimQrUrl && (
+          <div
+            className="mt-3 p-2 rounded text-center"
+            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
+          >
+            <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
+              สแกนสะสมแต้ม / Scan to collect points
+            </div>
+            <img src={claimQrUrl} alt="scan to collect points" className="mx-auto" />
           </div>
         )}
 
