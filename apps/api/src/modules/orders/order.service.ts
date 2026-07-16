@@ -463,6 +463,7 @@ export async function getById(id: string) {
       items: { include: { product: true } },
       payments: true,
       cashier: { select: { id: true, name: true } },
+      customer: true,
       table: true,
       store: true,
     },

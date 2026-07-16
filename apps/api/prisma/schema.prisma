@@ -69,6 +69,12 @@ model Store {
   stampsPerReward  Int     @default(10) // ครบกี่ดวงได้ 1 รางวัล
   stampRewardValue Decimal @default(0) @db.Decimal(10, 2) // รางวัล = ส่วนลดกี่บาทต่อ 1 ใบเต็ม
   stampRewardName  String? // ชื่อรางวัล เช่น "กาแฟฟรี 1 แก้ว"
+  // ปรับแต่งใบเสร็จ — ร้านตั้งเองได้ในหน้าตั้งค่า ไม่ต้องแก้โค้ด
+  receiptShowSignupQr   Boolean @default(true)  // โชว์ QR ชวนสมัครสมาชิก (ทั่วไป ไม่ผูกบิล)
+  receiptSignupHeadline String? // หัวข้อเหนือ QR สมัครสมาชิก (ค่าเริ่มต้นถ้าไม่ตั้ง)
+  receiptShowPointsQr   Boolean @default(true)  // โชว์ QR สแกนสะสมแต้มจากบิลนี้ (เฉพาะบิลที่ยังไม่มีสมาชิก)
+  receiptPointsTerms    String? // ข้อความเงื่อนไขใต้ QR สะสมแต้ม
+  receiptFooterText     String? // ข้อความท้ายใบเสร็จ (แทนที่ข้อความเริ่มต้นถ้าตั้งไว้)
   members         StoreMember[]
   categories    Category[]
   customers     Customer[]
