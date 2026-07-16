@@ -24,7 +24,7 @@ import {
 import promotionRoutes from './modules/promotions/promotion.routes';
 import notificationRoutes from './modules/notifications/notification.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
-import displayRoutes from './modules/display/display.routes';
+import { displayPublicRouter, displayRouter } from './modules/display/display.routes';
 import { selfOrderPublicRouter, selfOrderRouter } from './modules/self-order/self-order.routes';
 import { stripeWebhookHandler } from './modules/payments/stripe-webhook.routes';
 
@@ -81,7 +81,9 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/promotions', promotionRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/display', displayRoutes);
+// Public ready-board read is unauthenticated (reached via a TV/kiosk link) — mount BEFORE the staff-only router
+app.use('/api/display', displayPublicRouter);
+app.use('/api/display', displayRouter);
 // Public menu/submit is unauthenticated (reached via table QR) — mount BEFORE the staff-only router
 app.use('/api/self-order', selfOrderPublicRouter);
 app.use('/api/self-order', selfOrderRouter);
