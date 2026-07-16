@@ -37,6 +37,8 @@ const updateSchema = z.object({
   receiptShowPointsQr: z.boolean().optional(),
   receiptPointsTerms: z.string().optional().nullable(),
   receiptFooterText: z.string().optional().nullable(),
+  // ตัวช่วยตั้งค่าเริ่มต้น — ตั้งเมื่อร้านทำ/ข้าม wizard แล้ว (กันไม่ให้เด้งซ้ำ)
+  onboardingCompletedAt: z.coerce.date().optional().nullable(),
 });
 
 // GET /api/stores/me - ข้อมูลร้านของ user ปัจจุบัน

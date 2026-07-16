@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import {
   CheckCircle2,
@@ -14,6 +14,7 @@ import {
   Plus,
   Trash2,
   X,
+  Wand2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
@@ -30,6 +31,70 @@ const SUGGESTED_CATEGORIES = [
   { name: 'Snacks', icon: '🥨' },
   { name: 'Fruits', icon: '🍎' },
   { name: 'Other', icon: '📦' },
+];
+
+// Starter menus by business type — lets a brand-new store fill its whole
+// menu in one tap instead of typing every item by hand. Purely a local
+// pre-fill: items land in the same editable `products` list as manual
+// entries, so nothing is created until the wizard actually finishes.
+const MENU_TEMPLATES: {
+  key: string;
+  label: string;
+  icon: string;
+  items: { name: string; price: number; category: string }[];
+}[] = [
+  {
+    key: 'cafe',
+    label: 'ร้านกาแฟ / คาเฟ่',
+    icon: '☕',
+    items: [
+      { name: 'อเมริกาโน่', price: 45, category: 'Drinks' },
+      { name: 'ลาเต้', price: 55, category: 'Drinks' },
+      { name: 'คาปูชิโน่', price: 55, category: 'Drinks' },
+      { name: 'ชาไทย', price: 45, category: 'Drinks' },
+      { name: 'ชาเขียวลาเต้', price: 55, category: 'Drinks' },
+      { name: 'บราวนี่', price: 65, category: 'Desserts' },
+      { name: 'ชีสเค้ก', price: 75, category: 'Desserts' },
+    ],
+  },
+  {
+    key: 'bubbletea',
+    label: 'ชานม / เครื่องดื่มปั่น',
+    icon: '🧋',
+    items: [
+      { name: 'ชานมไข่มุก', price: 45, category: 'Drinks' },
+      { name: 'ชาเขียวไข่มุก', price: 50, category: 'Drinks' },
+      { name: 'นมสดไข่มุก', price: 45, category: 'Drinks' },
+      { name: 'โกโก้ปั่น', price: 55, category: 'Drinks' },
+      { name: 'ชาไทยปั่น', price: 50, category: 'Drinks' },
+    ],
+  },
+  {
+    key: 'restaurant',
+    label: 'ร้านอาหารตามสั่ง',
+    icon: '🍱',
+    items: [
+      { name: 'ข้าวผัดกะเพราหมู', price: 60, category: 'Food' },
+      { name: 'ข้าวผัดกะเพราไก่', price: 60, category: 'Food' },
+      { name: 'ผัดไทย', price: 65, category: 'Food' },
+      { name: 'ข้าวมันไก่', price: 55, category: 'Food' },
+      { name: 'ต้มยำกุ้ง', price: 90, category: 'Food' },
+      { name: 'น้ำเปล่า', price: 10, category: 'Drinks' },
+      { name: 'โค้ก', price: 20, category: 'Drinks' },
+    ],
+  },
+  {
+    key: 'bakery',
+    label: 'เบเกอรี่ / ของหวาน',
+    icon: '🥐',
+    items: [
+      { name: 'ครัวซองต์', price: 55, category: 'Desserts' },
+      { name: 'มัฟฟินช็อกโกแลต', price: 45, category: 'Desserts' },
+      { name: 'ขนมปังโฮลวีท', price: 65, category: 'Desserts' },
+      { name: 'อเมริกาโน่', price: 45, category: 'Drinks' },
+      { name: 'ลาเต้', price: 55, category: 'Drinks' },
+    ],
+  },
 ];
 
 interface Props {
@@ -79,8 +144,11 @@ export function OnboardingWizard({ open, onClose }: Props) {
     enabled: open,
   });
 
-  // Auto-fill store name from existing
-  useState(() => {
+  // Pre-fill from the store record created at registration — `store` only
+  // resolves after the async fetch above, so this needs to actually re-run
+  // when it arrives (a useState(() => …) lazy initializer, used previously,
+  // only ever runs once on mount and misses it entirely).
+  useEffect(() => {
     if (store && !storeForm.name) {
       setStoreForm((f) => ({
         ...f,
@@ -91,17 +159,19 @@ export function OnboardingWizard({ open, onClose }: Props) {
         priceIncludesTax: store.priceIncludesTax ?? true,
       }));
     }
-  });
+  }, [store]);
 
   const finish = useMutation({
     mutationFn: async () => {
-      // 1. Update store info
+      // 1. Update store info + mark onboarding done (stops the wizard from
+      // auto-popping up again on next login)
       await api.patch('/stores/me', {
         name: storeForm.name,
         address: storeForm.address || null,
         phone: storeForm.phone || null,
         taxRate: Number(storeForm.taxRate),
         priceIncludesTax: storeForm.priceIncludesTax,
+        onboardingCompletedAt: new Date().toISOString(),
       });
 
       // 2. Create categories (idempotent — check existing first)
@@ -164,6 +234,37 @@ export function OnboardingWizard({ open, onClose }: Props) {
     onError: (e: any) => toast.error(e.response?.data?.error || t('onboarding.somethingWrong')),
   });
 
+  // "ข้ามตอนนี้" — marks onboarding as seen without creating anything, so the
+  // wizard doesn't nag on every login. The full setup is still reachable
+  // anytime from Settings → ตัวช่วยตั้งค่า.
+  const skip = useMutation({
+    mutationFn: () => api.patch('/stores/me', { onboardingCompletedAt: new Date().toISOString() }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['store-me'] });
+      onClose();
+    },
+  });
+
+  // Populate the (still-editable) product list from a starter template, and
+  // make sure every category it touches is selected — otherwise a template
+  // item could reference a category the user deselected in the previous step.
+  const applyTemplate = (templateKey: string) => {
+    const tpl = MENU_TEMPLATES.find((t) => t.key === templateKey);
+    if (!tpl) return;
+    const neededCats = Array.from(new Set(tpl.items.map((i) => i.category)));
+    setSelectedCats((cur) => Array.from(new Set([...cur, ...neededCats])));
+    setProducts((cur) => [
+      ...cur,
+      ...tpl.items.map((i) => ({
+        name: i.name,
+        price: String(i.price),
+        category: i.category,
+        sku: `SKU-${Date.now()}-${Math.random().toString(36).slice(-4)}`,
+      })),
+    ]);
+    toast.success(`เพิ่มเมนู ${tpl.label} แล้ว (${tpl.items.length} รายการ) — แก้ไข/ลบได้ก่อนเสร็จสิ้น`);
+  };
+
   const STEPS = [
     { icon: StoreIcon, label: 'Store info' },
     { icon: FolderTree, label: 'Categories' },
@@ -189,8 +290,18 @@ export function OnboardingWizard({ open, onClose }: Props) {
     if (step > 0 && step < 4) setStep(step - 1);
   };
 
+  // Closing any way other than finishing (backdrop click, Esc, or the
+  // explicit skip link) all mean the same thing: don't ask again this run.
+  const dismiss = () => {
+    if (step === 4) {
+      onClose();
+    } else {
+      skip.mutate();
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <Dialog open={open} onOpenChange={(o) => !o && dismiss()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto scrollbar-thin">
         {/* Stepper */}
         <div className="flex items-center justify-between mb-3">
@@ -327,6 +438,27 @@ export function OnboardingWizard({ open, onClose }: Props) {
               Add some starter products (optional — you can add more later in /products)
             </p>
 
+            {/* Menu templates — one tap fills the list below, still fully editable */}
+            <div>
+              <div className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                <Wand2 className="w-3.5 h-3.5" /> เริ่มเร็วด้วยเมนูสำเร็จรูป
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {MENU_TEMPLATES.map((tpl) => (
+                  <button
+                    key={tpl.key}
+                    type="button"
+                    onClick={() => applyTemplate(tpl.key)}
+                    className="p-2.5 rounded-xl border-2 border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
+                  >
+                    <span className="text-xl">{tpl.icon}</span>
+                    <div className="text-sm font-medium mt-0.5">{tpl.label}</div>
+                    <div className="text-[10px] text-muted-foreground">{tpl.items.length} เมนู</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {products.length > 0 && (
               <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-thin">
                 {products.map((p, i) => (
@@ -459,25 +591,35 @@ export function OnboardingWizard({ open, onClose }: Props) {
 
         {/* Footer buttons */}
         {step < 4 && (
-          <div className="flex gap-2 pt-3 border-t border-border">
-            {step > 0 && (
-              <Button variant="outline" onClick={back} disabled={finish.isPending}>
-                <ArrowLeft className="w-4 h-4 mr-1" /> Back
-              </Button>
-            )}
-            <Button
-              className="flex-1"
-              onClick={next}
-              disabled={!canNext || finish.isPending}
-            >
-              {finish.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : step === 3 ? (
-                <>Finish <Sparkles className="w-4 h-4 ml-1" /></>
-              ) : (
-                <>Next <ArrowRight className="w-4 h-4 ml-1" /></>
+          <div className="pt-3 border-t border-border space-y-2">
+            <div className="flex gap-2">
+              {step > 0 && (
+                <Button variant="outline" onClick={back} disabled={finish.isPending}>
+                  <ArrowLeft className="w-4 h-4 mr-1" /> Back
+                </Button>
               )}
-            </Button>
+              <Button
+                className="flex-1"
+                onClick={next}
+                disabled={!canNext || finish.isPending}
+              >
+                {finish.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : step === 3 ? (
+                  <>Finish <Sparkles className="w-4 h-4 ml-1" /></>
+                ) : (
+                  <>Next <ArrowRight className="w-4 h-4 ml-1" /></>
+                )}
+              </Button>
+            </div>
+            <button
+              type="button"
+              onClick={() => skip.mutate()}
+              disabled={skip.isPending || finish.isPending}
+              className="w-full text-center text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              ข้ามตอนนี้ — ตั้งค่าทีหลังได้ที่ ตั้งค่า → ตัวช่วยตั้งค่า
+            </button>
           </div>
         )}
       </DialogContent>

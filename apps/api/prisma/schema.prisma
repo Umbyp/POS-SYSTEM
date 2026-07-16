@@ -75,6 +75,7 @@ model Store {
   receiptShowPointsQr   Boolean @default(true)  // โชว์ QR สแกนสะสมแต้มจากบิลนี้ (เฉพาะบิลที่ยังไม่มีสมาชิก)
   receiptPointsTerms    String? // ข้อความเงื่อนไขใต้ QR สะสมแต้ม
   receiptFooterText     String? // ข้อความท้ายใบเสร็จ (แทนที่ข้อความเริ่มต้นถ้าตั้งไว้)
+  onboardingCompletedAt DateTime? // null = ร้านยังไม่เคยผ่าน/ข้ามตัวช่วยตั้งค่า (โชว์ wizard อัตโนมัติ)
   members         StoreMember[]
   categories    Category[]
   customers     Customer[]
