@@ -205,6 +205,8 @@ const DICT: Record<string, Entry> = {
   'settings.section.tax.desc': { th: 'VAT, สาขา, เลขที่บิล', en: 'VAT, branch, prefix' },
   'settings.section.payment.label': { th: 'การชำระเงิน & เสียง', en: 'Payment & Voice' },
   'settings.section.payment.desc': { th: 'พร้อมเพย์ + SMS webhook + เสียงแจ้งเตือน', en: 'PromptPay + SMS webhook + voice' },
+  'settings.section.receipt.label': { th: 'ปรับแต่งใบเสร็จ', en: 'Receipt' },
+  'settings.section.receipt.desc': { th: 'ข้อความและ QR ท้ายใบเสร็จ', en: 'Footer text & QR codes' },
   'settings.section.categories.label': { th: 'หมวดหมู่', en: 'Categories' },
   'settings.section.categories.desc': { th: 'หมวดหมู่สินค้า', en: 'Product categories' },
   'settings.section.options.label': { th: 'ตัวเลือกเมนู', en: 'Menu options' },

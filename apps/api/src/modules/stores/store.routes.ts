@@ -31,6 +31,12 @@ const updateSchema = z.object({
   stampsPerReward: z.number().int().positive().optional(),
   stampRewardValue: z.number().nonnegative().optional(),
   stampRewardName: z.string().optional().nullable(),
+  // ปรับแต่งใบเสร็จ
+  receiptShowSignupQr: z.boolean().optional(),
+  receiptSignupHeadline: z.string().optional().nullable(),
+  receiptShowPointsQr: z.boolean().optional(),
+  receiptPointsTerms: z.string().optional().nullable(),
+  receiptFooterText: z.string().optional().nullable(),
 });
 
 // GET /api/stores/me - ข้อมูลร้านของ user ปัจจุบัน

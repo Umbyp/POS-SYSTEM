@@ -30,6 +30,9 @@ const TYPE_LABEL: Record<string, string> = {
 export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbreviated' }: Props) {
   const [qrUrl, setQrUrl] = useState<string>('');
   const [claimQrUrl, setClaimQrUrl] = useState<string>('');
+  const [signupQrUrl, setSignupQrUrl] = useState<string>('');
+
+  const loyaltyOn = !!store?.loyaltyMode && store.loyaltyMode !== 'OFF';
 
   useEffect(() => {
     const ppPayment = order?.payments?.find((p: any) => p.method === 'PROMPTPAY');
@@ -52,10 +55,20 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (order?.customer || !store?.id || !order?.id) return setClaimQrUrl('');
-    if (!store.loyaltyMode || store.loyaltyMode === 'OFF') return setClaimQrUrl('');
+    if (!loyaltyOn || store.receiptShowPointsQr === false) return setClaimQrUrl('');
     const url = `${window.location.origin}/member?storeId=${store.id}&order=${order.id}`;
     QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setClaimQrUrl).catch(() => {});
   }, [order, store]);
+
+  // General "join our loyalty program" QR — not tied to this order, so it
+  // shows regardless of whether a member is already linked (pure marketing,
+  // same link as the printable QR on the staff /loyalty page).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !store?.id) return setSignupQrUrl('');
+    if (!loyaltyOn || store.receiptShowSignupQr === false) return setSignupQrUrl('');
+    const url = `${window.location.origin}/member?storeId=${store.id}`;
+    QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setSignupQrUrl).catch(() => {});
+  }, [store]);
 
   if (!order || !store) return null;
 
@@ -216,6 +229,11 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                     {item.quantity} × {Number(item.unitPrice).toFixed(2)}
                     {Number(item.discount) > 0 && ` − Discount ${Number(item.discount).toFixed(2)}`}
                   </div>
+                  {item.variants?.length > 0 && (
+                    <div style={{ fontSize: '10px', color: '#666', paddingLeft: 6 }}>
+                      {item.variants.map((v: any) => v.name).join(' · ')}
+                    </div>
+                  )}
                   {item.notes && (
                     <div style={{ fontSize: '10px', color: '#777', fontStyle: 'italic', paddingLeft: 6 }}>
                       ↪ {item.notes}
@@ -248,6 +266,11 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
                   <td className="py-1.5 px-2 text-gray-500">{idx + 1}</td>
                   <td className="py-1.5 px-2">
                     <div style={{ fontWeight: 500 }}>{item.product.name}</div>
+                    {item.variants?.length > 0 && (
+                      <div className="text-xs text-gray-600">
+                        {item.variants.map((v: any) => v.name).join(' · ')}
+                      </div>
+                    )}
                     {item.notes && (
                       <div className="text-xs text-gray-600 italic">↪ {item.notes}</div>
                     )}
@@ -397,6 +420,20 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           </div>
         )}
 
+        {/* ==================== JOIN THE LOYALTY PROGRAM ==================== */}
+        {signupQrUrl && (
+          <div
+            className="mt-3 p-2 rounded text-center"
+            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
+          >
+            <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
+              {store.receiptSignupHeadline || 'สมัครสมาชิก เพื่อรับสิทธิพิเศษมากมาย!'}
+            </div>
+            <img src={signupQrUrl} alt="join membership" className="mx-auto" />
+            <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>สแกนสมัครสมาชิกที่นี่</div>
+          </div>
+        )}
+
         {/* ==================== SCAN TO COLLECT POINTS ==================== */}
         {claimQrUrl && (
           <div
@@ -407,6 +444,9 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
               สแกนสะสมแต้ม / Scan to collect points
             </div>
             <img src={claimQrUrl} alt="scan to collect points" className="mx-auto" />
+            {store.receiptPointsTerms && (
+              <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>{store.receiptPointsTerms}</div>
+            )}
           </div>
         )}
 
@@ -415,7 +455,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '12px', color: '#111' }}>
             Thank you 🙏
           </div>
-          <div style={{ marginTop: 2 }}>Thank you for your purchase</div>
+          <div style={{ marginTop: 2 }}>{store.receiptFooterText || 'Thank you for your purchase'}</div>
           {isFullInvoice && (
             <div style={{ marginTop: 4, fontSize: 9, color: '#888' }}>
               This document is issued by computer
