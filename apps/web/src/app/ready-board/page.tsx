@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -25,9 +26,7 @@ function pickupLabel(o: ReadyOrder): string {
 }
 
 function ReadyBoardContent() {
-  const [storeId] = useState<string | undefined>(() =>
-    typeof window === 'undefined' ? undefined : new URLSearchParams(window.location.search).get('store') || undefined
-  );
+  const storeId = useSearchParams().get('store') || undefined;
   const [now, setNow] = useState('');
 
   const { data: orders = [], refetch } = useQuery<ReadyOrder[]>({
