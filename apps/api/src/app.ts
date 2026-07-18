@@ -30,6 +30,14 @@ import { stripeWebhookHandler } from './modules/payments/stripe-webhook.routes';
 
 const app = express();
 
+// We run behind exactly one reverse proxy in production (Render's load
+// balancer). Without this, Express's req.ip resolves to the proxy's own
+// address for every request — since express-rate-limit keys its buckets by
+// req.ip, that collapses ALL clients (every customer of every store hitting
+// the public self-order endpoints) into a single shared counter, causing
+// unrelated customers to 429 each other out under real traffic.
+app.set('trust proxy', 1);
+
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(
   cors({
