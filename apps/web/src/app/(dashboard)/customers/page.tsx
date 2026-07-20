@@ -18,7 +18,6 @@ import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { CustomerPicker } from '@/components/customers/CustomerPicker';
 import { useT } from '@/lib/i18n';
 
@@ -47,22 +46,23 @@ export default function CustomersPage() {
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">
-      <div className="flex items-center justify-between mb-4 gap-2 flex-wrap">
-        <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-          <Users className="w-5 h-5" /> {t('nav.customers')} ({customers.length})
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <h2 className="text-lg sm:text-xl font-extrabold tracking-tight flex items-center gap-2">
+          <Users className="w-5 h-5 text-primary" /> {t('nav.customers')}{' '}
+          <span className="text-muted-foreground font-semibold text-base">({customers.length})</span>
         </h2>
         <Button onClick={() => setPickerOpen(true)}>
-          <UserPlus className="w-4 h-4 mr-1" /> {t('customers.add')}
+          <UserPlus className="w-4 h-4 mr-1.5" /> {t('customers.add')}
         </Button>
       </div>
 
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+      <div className="relative mb-4 max-w-md">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder={t('customers.searchPlaceholder')}
-          className="pl-10 max-w-md"
+          className="pl-10 h-10 rounded-lg"
         />
       </div>
 
@@ -90,13 +90,13 @@ export default function CustomersPage() {
               onClick={() => router.push(`/customers/${c.id}`)}
               className="bg-card border border-border rounded-xl p-4 hover:bg-card-hover hover:border-primary/40 transition-colors cursor-pointer"
             >
-              <div className="flex items-start justify-between gap-2 mb-2">
+              <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-sm font-bold shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center text-sm font-extrabold shrink-0">
                     {c.name[0]}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold truncate">{c.name}</div>
+                    <div className="font-bold truncate">{c.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {c.visitCount} {t(c.visitCount !== 1 ? 'customers.visits' : 'customers.visit')}
                     </div>
@@ -107,7 +107,7 @@ export default function CustomersPage() {
                     e.stopPropagation();
                     if (confirm(`${t('customers.confirmDelete')} "${c.name}"?`)) remove.mutate(c.id);
                   }}
-                  className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-danger"
+                  className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-danger transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -135,15 +135,15 @@ export default function CustomersPage() {
               </div>
 
               <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-border">
-                <Badge variant="success" className="text-[10px]">
-                  <ShoppingBag className="w-3 h-3 mr-0.5" />
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-success/10 text-success">
+                  <ShoppingBag className="w-3 h-3" />
                   {t('customers.spent')} {formatCurrency(c.totalSpent)}
-                </Badge>
+                </span>
                 {c.points > 0 && (
-                  <Badge variant="accent" className="text-[10px]">
-                    <Sparkles className="w-3 h-3 mr-0.5" />
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-1 rounded-full bg-accent/10 text-accent">
+                    <Sparkles className="w-3 h-3" />
                     {c.points} {t('cart.points')}
-                  </Badge>
+                  </span>
                 )}
               </div>
             </div>

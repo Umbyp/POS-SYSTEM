@@ -131,8 +131,18 @@ export function PendingSelfOrders() {
             <div className="space-y-3">
               {pending.map((req: any) => (
                 <div key={req.id} className="border border-border rounded-xl p-3">
-                  <div className="font-semibold text-sm mb-1.5">
-                    {t('cart.tableWord')} {req.table?.number}
+                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-lg bg-foreground text-background font-extrabold text-xs flex items-center justify-center shrink-0">
+                        {req.table?.number}
+                      </span>
+                      <span className="font-semibold text-sm">
+                        {t('cart.tableWord')} {req.table?.number}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">
+                      {t('selfOrderPanel.pending')}
+                    </span>
                   </div>
                   <div className="space-y-1 text-sm mb-2">
                     {req.items.map((it: any, i: number) => (
@@ -190,6 +200,12 @@ export function PendingSelfOrders() {
                         <X className="w-3.5 h-3.5 mr-1" /> {t('selfOrderPanel.reject')}
                       </Button>
                     </div>
+                  )}
+
+                  {rejectingId !== req.id && (
+                    <p className="text-[11px] text-muted-foreground bg-success/5 border border-success/20 rounded-lg px-2.5 py-2 mt-2 leading-relaxed">
+                      {t('selfOrderPanel.autoMergeNote')}
+                    </p>
                   )}
                 </div>
               ))}

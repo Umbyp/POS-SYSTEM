@@ -2,13 +2,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, ChefHat, CheckCircle2, Volume2, VolumeX, Bell, Link2, Tv } from 'lucide-react';
+import { ChefHat, CheckCircle2, Volume2, VolumeX, Link2, Tv } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/stores/auth.store';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { useT } from '@/lib/i18n';
 import { playBeep } from '@/lib/sounds';
 
 /**
@@ -35,24 +34,26 @@ function groupByRound(items: any[]) {
 
 function TicketItems({ items }: { items: any[] }) {
   return (
-    <div className="space-y-2 mb-3 border-y border-border py-2">
+    <div className="space-y-1.5 mb-3 border-t border-border pt-2.5 text-[13.5px] leading-relaxed">
       {groupByRound(items).map((round, i) => (
         <div
           key={round.firedAt}
           className={i > 0 ? 'pt-2 mt-1 border-t border-dashed border-accent/40' : undefined}
         >
           {i > 0 && (
-            <div className="text-[10px] font-semibold text-accent uppercase tracking-wide mb-1">
-              + เพิ่มรอบใหม่ · {Math.max(0, Math.floor((Date.now() - new Date(round.firedAt).getTime()) / 60000))} นาทีที่แล้ว
+            <div className="text-[11px] font-bold text-accent mb-1">
+              ⊕ เพิ่มรอบใหม่ · {Math.max(0, Math.floor((Date.now() - new Date(round.firedAt).getTime()) / 60000))} นาทีที่แล้ว
             </div>
           )}
           {round.items.map((item: any) => (
-            <div key={item.id} className="flex gap-2">
-              <span className="font-bold text-accent w-8 text-center">{item.quantity}×</span>
-              <div className="flex-1">
-                <div className="font-medium">{item.product.name}</div>
-                {item.notes && <div className="text-xs text-warning italic">↪ {item.notes}</div>}
-              </div>
+            <div key={item.id} className="flex gap-1.5 flex-wrap items-baseline">
+              <span className="font-bold text-primary">{item.quantity}×</span>
+              <span className="font-medium">{item.product.name}</span>
+              {item.notes && (
+                <span className="text-[11px] font-semibold text-warning bg-warning/10 px-1.5 py-0.5 rounded">
+                  {item.notes}
+                </span>
+              )}
             </div>
           ))}
         </div>
@@ -61,7 +62,25 @@ function TicketItems({ items }: { items: any[] }) {
   );
 }
 
+/** Small square badge showing the table number, or the order's short tail for non-table tickets. */
+function EntityBadge({ order, tone }: { order: any; tone: 'default' | 'danger' | 'success' }) {
+  const label = order.table ? order.table.number : order.orderNumber?.slice(-2);
+  const toneClass =
+    tone === 'danger' ? 'bg-danger text-white' : tone === 'success' ? 'bg-success text-white' : 'bg-foreground text-background';
+  return (
+    <span className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[13px] font-extrabold ${toneClass}`}>
+      {label}
+    </span>
+  );
+}
+
+function entityLabel(t: (k: string, f?: string) => string, order: any) {
+  if (order.table) return `${t('cart.tableWord')} ${order.table.number}`;
+  return order.type === 'TAKEAWAY' ? t('cart.takeaway') : t('cart.delivery');
+}
+
 export default function KDSPage() {
+  const t = useT();
   const qc = useQueryClient();
   const user = useAuth((s) => s.user);
   const [muted, setMuted] = useState(() => {
@@ -71,16 +90,25 @@ export default function KDSPage() {
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
   const [tick, setTick] = useState(0);
+  const [connected, setConnected] = useState(false);
 
-  const invalidateBoth = () => {
+  const invalidateAll = () => {
     qc.invalidateQueries({ queryKey: ['kds-pending'] });
+    qc.invalidateQueries({ queryKey: ['kds-preparing'] });
     qc.invalidateQueries({ queryKey: ['kds-ready'] });
   };
 
-  // Cooking queue — kitchen still needs to make these.
+  // Not started yet — kitchen hasn't picked it up.
   const { data: pendingData, isLoading: pendingLoading } = useQuery({
     queryKey: ['kds-pending'],
     queryFn: () => api.get('/orders', { params: { status: 'PENDING', limit: 50 } }).then((r) => r.data),
+    refetchInterval: 10_000,
+  });
+
+  // Actively cooking.
+  const { data: preparingData, isLoading: preparingLoading } = useQuery({
+    queryKey: ['kds-preparing'],
+    queryFn: () => api.get('/orders', { params: { status: 'PREPARING', limit: 50 } }).then((r) => r.data),
     refetchInterval: 10_000,
   });
 
@@ -96,7 +124,7 @@ export default function KDSPage() {
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
-    onSuccess: invalidateBoth,
+    onSuccess: invalidateAll,
   });
 
   // re-render every 30s to update elapsed time
@@ -105,25 +133,34 @@ export default function KDSPage() {
     return () => clearInterval(id);
   }, []);
 
-  // Beep on new orders; refresh both queues on any status change from
-  // elsewhere (another till marking something ready/picked up).
+  // Beep on new orders; refresh all queues on any status change from
+  // elsewhere (another till marking something ready/picked up). Also track
+  // live connection state for the header indicator.
   useEffect(() => {
     const s = getSocket();
     if (!s) return;
+    setConnected(s.connected);
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
     const onNew = (order: any) => {
-      invalidateBoth();
+      invalidateAll();
       if (!mutedRef.current) {
         playBeep(true);
-        toast.info(`🍽️ New order: ${order.orderNumber}`, { duration: 5000 });
+        toast.info(`🍽️ ${t('kds.newOrderToast')}: ${order.orderNumber}`, { duration: 5000 });
       }
     };
-    const onStatus = () => invalidateBoth();
+    const onStatus = () => invalidateAll();
+    s.on('connect', onConnect);
+    s.on('disconnect', onDisconnect);
     s.on('kds:new', onNew);
     s.on('kds:status', onStatus);
     return () => {
+      s.off('connect', onConnect);
+      s.off('disconnect', onDisconnect);
       s.off('kds:new', onNew);
       s.off('kds:status', onStatus);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qc]);
 
   const toggleMute = () => {
@@ -145,34 +182,40 @@ export default function KDSPage() {
     const url = `${window.location.origin}${readyBoardUrl()}`;
     try {
       await navigator.clipboard.writeText(url);
-      toast.success('คัดลอกลิงก์จอออเดอร์พร้อมรับแล้ว');
+      toast.success(t('kds.linkCopied'));
     } catch {
-      toast.error('คัดลอกลิงก์ไม่สำเร็จ');
+      toast.error(t('kds.linkCopyFailed'));
     }
   };
 
   const pendingOrders = pendingData?.data || [];
+  const preparingOrders = preparingData?.data || [];
   const readyOrders = readyData?.data || [];
-  const isLoading = pendingLoading || readyLoading;
+  const isLoading = pendingLoading || preparingLoading || readyLoading;
+  const isEmpty = pendingOrders.length === 0 && preparingOrders.length === 0 && readyOrders.length === 0;
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-hidden flex flex-col">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-          <ChefHat className="w-6 h-6 text-primary" /> Kitchen Display
+        <h2 className="text-lg sm:text-xl font-extrabold flex items-center gap-2">
+          <ChefHat className="w-6 h-6 text-primary" /> {t('kds.title')}
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={`w-2 h-2 rounded-full ${connected ? 'bg-success' : 'bg-danger'}`} />
+            {connected ? t('kds.connected') : t('kds.disconnected')}
+          </span>
           <button
             onClick={openReadyBoard}
             className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-            title="เปิดจอออเดอร์พร้อมรับ"
+            title={t('kds.openReadyBoard')}
           >
             <Tv className="w-4 h-4" />
           </button>
           <button
             onClick={copyReadyBoardLink}
             className="p-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
-            title="คัดลอกลิงก์จอออเดอร์พร้อมรับ"
+            title={t('kds.copyReadyBoardLink')}
           >
             <Link2 className="w-4 h-4" />
           </button>
@@ -183,134 +226,169 @@ export default function KDSPage() {
                 ? 'border-border text-muted-foreground hover:text-foreground'
                 : 'border-success text-success bg-success/10'
             }`}
-            title={muted ? 'Unmute alerts' : 'Mute alerts'}
+            title={muted ? t('kds.unmuteAlerts') : t('kds.muteAlerts')}
           >
             {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
           </button>
-          <Badge variant="accent">{pendingOrders.length} กำลังทำ</Badge>
-          <Badge variant="success">{readyOrders.length} พร้อมส่ง</Badge>
         </div>
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 flex-1">
-          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer rounded-2xl" />)}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 flex-1">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="shimmer rounded-2xl" />
+          ))}
         </div>
-      ) : pendingOrders.length === 0 && readyOrders.length === 0 ? (
+      ) : isEmpty ? (
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
           <CheckCircle2 className="w-16 h-16 mb-4 text-success opacity-50" />
-          <p className="text-lg">No pending orders</p>
-          <p className="text-sm">Waiting for new orders...</p>
+          <p className="text-lg font-semibold">{t('kds.empty')}</p>
+          <p className="text-sm">{t('kds.emptyHint')}</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto scrollbar-thin space-y-6 pb-2">
-          {/* Cooking */}
-          {pendingOrders.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-                <ChefHat className="w-3.5 h-3.5" /> กำลังทำ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                <AnimatePresence>
-                  {pendingOrders.map((o: any) => {
-                    const elapsed = Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000);
-                    const urgent = elapsed >= 15;
-                    return (
-                      <motion.div
-                        key={o.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className={`bg-card border-2 rounded-2xl p-4 ${
-                          urgent ? 'border-danger animate-pulse' : 'border-border'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <div>
-                            <div className="font-mono text-sm text-muted-foreground">{o.orderNumber}</div>
-                            <div className="font-bold">
-                              {o.table ? `Table ${o.table.number}` : o.type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'}
-                            </div>
-                          </div>
-                          <div
-                            className={`flex items-center gap-1 text-sm tabular-nums ${
-                              urgent ? 'text-danger' : 'text-muted-foreground'
-                            }`}
-                          >
-                            <Clock className="w-4 h-4" />
-                            {elapsed} min
-                          </div>
-                        </div>
-
-                        <TicketItems items={o.items} />
-
-                        <Button
-                          size="lg"
-                          variant="success"
-                          className="w-full"
-                          onClick={() => updateStatus.mutate({ id: o.id, status: 'READY' })}
-                          disabled={updateStatus.isPending}
-                        >
-                          <Bell className="w-4 h-4 mr-1.5" /> พร้อมเสิร์ฟ
-                        </Button>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+        <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Column: รอเริ่มทำ */}
+          <div className="flex flex-col min-h-0">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted mb-2.5 shrink-0">
+              <span className="text-[13px] font-extrabold flex-1">{t('kds.col.pending')}</span>
+              <span className="text-xs font-extrabold bg-card border border-border min-w-[22px] text-center px-1.5 py-0.5 rounded-full">
+                {pendingOrders.length}
+              </span>
             </div>
-          )}
+            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-2.5 pr-0.5">
+              <AnimatePresence>
+                {pendingOrders.map((o: any) => (
+                  <motion.div
+                    key={o.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-card border border-border rounded-xl p-3"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <EntityBadge order={o} tone="default" />
+                        <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-muted-foreground">{t('kds.justIn')}</span>
+                    </div>
+                    <TicketItems items={o.items} />
+                    <button
+                      onClick={() => updateStatus.mutate({ id: o.id, status: 'PREPARING' })}
+                      disabled={updateStatus.isPending}
+                      className="w-full h-11 rounded-lg bg-foreground text-background font-extrabold text-sm disabled:opacity-50"
+                    >
+                      {t('kds.startCooking')} ▸
+                    </button>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
 
-          {/* Ready — awaiting pickup/serving */}
-          {readyOrders.length > 0 && (
-            <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-success mb-2 flex items-center gap-1.5">
-                <Bell className="w-3.5 h-3.5" /> พร้อมส่ง / รอรับ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                <AnimatePresence>
-                  {readyOrders.map((o: any) => {
-                    const isDineIn = !!o.table;
-                    return (
-                      <motion.div
-                        key={o.id}
-                        layout
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.9 }}
-                        className="bg-success/5 border-2 border-success/40 rounded-2xl p-4"
-                      >
-                        <div className="mb-3">
-                          <div className="font-mono text-sm text-muted-foreground">{o.orderNumber}</div>
-                          <div className="font-bold">
-                            {isDineIn ? `Table ${o.table.number}` : o.type === 'TAKEAWAY' ? 'Takeaway' : 'Delivery'}
-                          </div>
+          {/* Column: กำลังทำ */}
+          <div className="flex flex-col min-h-0">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 mb-2.5 shrink-0">
+              <span className="text-[13px] font-extrabold flex-1 text-primary-600">{t('kds.col.preparing')}</span>
+              <span className="text-xs font-extrabold bg-primary text-white min-w-[22px] text-center px-1.5 py-0.5 rounded-full">
+                {preparingOrders.length}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-2.5 pr-0.5">
+              <AnimatePresence>
+                {preparingOrders.map((o: any) => {
+                  const elapsed = Math.floor((Date.now() - new Date(o.createdAt).getTime()) / 60000);
+                  const urgent = elapsed >= 15;
+                  return (
+                    <motion.div
+                      key={o.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`relative bg-card rounded-xl p-3 border-2 ${
+                        urgent ? 'border-danger' : 'border-border'
+                      }`}
+                    >
+                      {urgent && (
+                        <span className="absolute -top-2.5 right-2.5 bg-danger text-white text-[10.5px] font-extrabold px-2.5 py-0.5 rounded-full">
+                          ⏱ {elapsed} {t('kds.minutes')} · {t('kds.overtime')}
+                        </span>
+                      )}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <EntityBadge order={o} tone={urgent ? 'danger' : 'default'} />
+                          <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
                         </div>
-
-                        <TicketItems items={o.items} />
-
-                        {isDineIn ? (
-                          <div className="text-center text-xs text-muted-foreground py-2.5 rounded-lg bg-muted">
-                            รอเก็บเงินที่โต๊ะเพื่อปิดบิล
-                          </div>
-                        ) : (
-                          <Button
-                            size="lg"
-                            className="w-full"
-                            onClick={() => updateStatus.mutate({ id: o.id, status: 'COMPLETED' })}
-                            disabled={updateStatus.isPending}
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-1.5" /> รับแล้ว
-                          </Button>
+                        {!urgent && (
+                          <span className="text-xs font-semibold text-muted-foreground tabular-nums">
+                            ⏱ {elapsed} {t('kds.minutes')}
+                          </span>
                         )}
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
-              </div>
+                      </div>
+                      <TicketItems items={o.items} />
+                      <button
+                        onClick={() => updateStatus.mutate({ id: o.id, status: 'READY' })}
+                        disabled={updateStatus.isPending}
+                        className="w-full h-11 rounded-lg bg-success text-white font-extrabold text-sm disabled:opacity-50"
+                      >
+                        {t('kds.doneNotify')} ▸
+                      </button>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
-          )}
+          </div>
+
+          {/* Column: พร้อมเสิร์ฟ */}
+          <div className="flex flex-col min-h-0">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 mb-2.5 shrink-0">
+              <span className="text-[13px] font-extrabold flex-1 text-success">{t('kds.col.ready')}</span>
+              <span className="text-xs font-extrabold bg-success text-white min-w-[22px] text-center px-1.5 py-0.5 rounded-full">
+                {readyOrders.length}
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto scrollbar-thin space-y-2.5 pr-0.5">
+              <AnimatePresence>
+                {readyOrders.map((o: any) => {
+                  const isDineIn = !!o.table;
+                  return (
+                    <motion.div
+                      key={o.id}
+                      layout
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className={`rounded-xl p-3 border ${
+                        isDineIn ? 'bg-card-hover border-border' : 'bg-card border-2 border-success/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <EntityBadge order={o} tone={isDineIn ? 'default' : 'success'} />
+                        <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
+                      </div>
+                      <TicketItems items={o.items} />
+                      {isDineIn ? (
+                        <div className="flex items-center justify-center gap-1.5 h-[38px] rounded-lg bg-muted text-muted-foreground text-xs font-semibold text-center">
+                          ⏳ {t('kds.waitingBillDineIn')}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => updateStatus.mutate({ id: o.id, status: 'COMPLETED' })}
+                          disabled={updateStatus.isPending}
+                          className="w-full h-11 rounded-lg bg-primary text-white font-extrabold text-sm disabled:opacity-50"
+                        >
+                          {t('kds.customerReceived')} ✓
+                        </button>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
       )}
     </div>

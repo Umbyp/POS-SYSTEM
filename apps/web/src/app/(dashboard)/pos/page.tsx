@@ -69,17 +69,17 @@ export default function POSPage() {
       <section className="col-span-12 lg:col-span-8 flex flex-col gap-3 overflow-hidden pb-24 lg:pb-0">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             ref={searchRef}
             placeholder={t('pos.searchPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="pl-10 h-12"
+            className="pl-10 h-11 rounded-xl"
           />
         </div>
 
-        {/* Categories — flat text chips, no decorative color/emoji */}
+        {/* Categories — flat pill chips, no decorative color/emoji */}
         <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-thin">
           {[{ id: null, name: t('pos.all') }, ...visibleCategories].map((c: any) => {
             const active = categoryId === c.id;
@@ -87,10 +87,10 @@ export default function POSPage() {
               <button
                 key={c.id ?? 'all'}
                 onClick={() => setCategoryId(c.id)}
-                className={`shrink-0 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`shrink-0 px-3.5 py-2 rounded-lg text-[13px] font-semibold transition-colors ${
                   active
                     ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    : 'bg-card border border-border text-muted-foreground hover:text-foreground hover:bg-muted'
                 }`}
               >
                 {c.name}

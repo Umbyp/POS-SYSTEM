@@ -8,6 +8,7 @@ import { formatCurrency } from '@/lib/format';
 import { computePricing, DEFAULT_TAX_CONFIG } from '@/lib/pricing';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { Cart } from './Cart';
 
 /**
@@ -20,6 +21,7 @@ import { Cart } from './Cart';
  */
 export function MobileCartSheet({ onCheckout }: { onCheckout: () => void }) {
   const [open, setOpen] = useState(false);
+  const t = useT();
   const items = useCart((s) => s.items);
   const subtotal = useCart((s) => s.subtotal);
   const discount = useCart((s) => s.discount);
@@ -62,7 +64,7 @@ export function MobileCartSheet({ onCheckout }: { onCheckout: () => void }) {
                   {itemCount}
                 </span>
               </div>
-              <span className="font-medium">View cart</span>
+              <span className="font-medium">{t('cart.viewCart')}</span>
             </div>
             <span className="text-lg font-bold tabular-nums">{formatCurrency(total)}</span>
           </button>
@@ -107,9 +109,9 @@ export function MobileCartSheet({ onCheckout }: { onCheckout: () => void }) {
 
                   {/* Title row */}
                   <div className="flex items-center justify-between px-4 pb-2 shrink-0">
-                    <DialogPrimitive.Title className="sr-only">Cart</DialogPrimitive.Title>
+                    <DialogPrimitive.Title className="sr-only">{t('cart.basket')}</DialogPrimitive.Title>
                     <span className="text-sm text-muted-foreground">
-                      {itemCount} item{itemCount !== 1 ? 's' : ''}
+                      {itemCount} {t('cart.items')}
                     </span>
                     <button
                       onClick={() => setOpen(false)}
@@ -145,11 +147,12 @@ export function MobileCartSheet({ onCheckout }: { onCheckout: () => void }) {
  */
 export function MobileCartEmptyHint() {
   const itemCount = useCart((s) => s.items.length);
+  const t = useT();
   if (itemCount > 0) return null;
   return (
     <div className="lg:hidden fixed bottom-4 left-4 right-4 z-20 h-12 rounded-2xl bg-muted/80 backdrop-blur-sm border border-border text-muted-foreground text-sm flex items-center justify-center gap-2 pointer-events-none">
       <ShoppingCart className="w-4 h-4" />
-      Tap a product to start
+      {t('cart.empty')}
     </div>
   );
 }

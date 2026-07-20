@@ -647,15 +647,19 @@ export default function SelfOrderPage() {
                   <span className="text-muted-foreground">{t('selfOrder.estimatedTotal')}</span>
                   <span className="font-bold tabular-nums text-lg">{formatCurrency(cartTotal)}</span>
                 </div>
-                <p className="text-[10px] text-muted-foreground">{t('selfOrder.estimateHint')}</p>
                 {submitError && <p className="text-xs text-danger">{submitError}</p>}
                 <button
                   onClick={submit}
                   disabled={submitting}
-                  className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60"
+                  className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 shadow-[0_8px_18px_-6px_rgba(255,107,53,0.6)]"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('selfOrder.submit')}
                 </button>
+                <p className="text-center text-[10.5px] text-muted-foreground leading-relaxed">
+                  {t('selfOrder.confirmHint')}
+                  <br />
+                  {t('selfOrder.noPaymentYetHint')}
+                </p>
               </div>
             )}
           </motion.div>
