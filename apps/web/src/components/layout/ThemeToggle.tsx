@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useT } from '@/lib/i18n';
+import { DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 type Theme = 'light' | 'dark';
 
@@ -11,7 +12,9 @@ function currentTheme(): Theme {
   return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
 }
 
+/** Row inside the Topbar user menu — toggles the `.dark` class on <html> and persists it. */
 export function ThemeToggle() {
+  const t = useT();
   const [theme, setTheme] = useState<Theme>('light');
   const [mounted, setMounted] = useState(false);
 
@@ -36,32 +39,12 @@ export function ThemeToggle() {
     window.setTimeout(() => root.classList.remove('theme-transition'), 300);
   };
 
-  const isDark = theme === 'dark';
+  const isDark = mounted && theme === 'dark';
 
   return (
-    <button
-      onClick={toggle}
-      className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors active:scale-95"
-      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      aria-label="Toggle theme"
-    >
-      {/* Avoid a hydration mismatch flash: render neutral until mounted */}
-      <span className="block w-4 h-4" aria-hidden>
-        {mounted && (
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.span
-              key={isDark ? 'moon' : 'sun'}
-              initial={{ scale: 0.5, opacity: 0, rotate: -90 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              exit={{ scale: 0.5, opacity: 0, rotate: 90 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              className="block"
-            >
-              {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-            </motion.span>
-          </AnimatePresence>
-        )}
-      </span>
-    </button>
+    <DropdownMenuItem onSelect={(e) => { e.preventDefault(); toggle(); }}>
+      {isDark ? <Moon className="w-4 h-4 shrink-0" /> : <Sun className="w-4 h-4 shrink-0" />}
+      <span className="flex-1">{isDark ? t('topbar.theme.light') : t('topbar.theme.dark')}</span>
+    </DropdownMenuItem>
   );
 }

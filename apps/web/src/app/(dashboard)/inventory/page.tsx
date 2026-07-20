@@ -1,15 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  AlertTriangle,
-  Boxes,
-  Search,
-  PackagePlus,
-  TrendingDown,
-  ClipboardCheck,
-  Edit3,
-} from 'lucide-react';
+import { Boxes, Search, Edit3 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -52,39 +44,40 @@ export default function InventoryPage() {
   const lowStock = inventory.filter((i: any) => i.quantity <= i.lowStockAt);
   const outOfStock = inventory.filter((i: any) => i.quantity === 0);
 
+  const urgent = filtered
+    .filter((i: any) => i.quantity <= i.lowStockAt)
+    .sort((a: any, b: any) => a.quantity - b.quantity);
+  const normal = filtered.filter((i: any) => i.quantity > i.lowStockAt);
+
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin space-y-5">
-      {/* KPIs — flat */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label={t('inventoryPage.totalSkus')} value={inventory.length} />
-        <Kpi
-          label={t('inventoryPage.lowStock')}
-          value={lowStock.length}
-          tone={lowStock.length > 0 ? 'warning' : 'default'}
-        />
-        <Kpi
-          label={t('inventoryPage.outOfStock')}
-          value={outOfStock.length}
-          tone={outOfStock.length > 0 ? 'warning' : 'default'}
-        />
-        <Kpi
-          label={t('inventoryPage.totalUnits')}
-          value={inventory.reduce((s: number, i: any) => s + i.quantity, 0)}
-        />
+      {/* Header + counts */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">
+          {t('inventoryPage.itemsTitle')}
+        </h2>
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-bold text-danger bg-danger/10 px-2.5 py-1.5 rounded-full">
+            {t('inventoryPage.statusOut')} {outOfStock.length}
+          </span>
+          <span className="font-bold text-warning bg-warning/10 px-2.5 py-1.5 rounded-full">
+            {t('inventoryPage.lowStock')} {lowStock.length}
+          </span>
+        </div>
       </div>
 
       {/* Filters + search */}
       <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder={t('inventoryPage.searchPlaceholder')}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            className="pl-10"
+            className="pl-10 h-10 rounded-lg"
           />
         </div>
-        <div className="flex border border-border rounded-md p-0.5 text-xs">
+        <div className="flex border border-border rounded-lg p-0.5 text-xs">
           {(
             [
               { k: 'all', label: t('pos.all') },
@@ -94,9 +87,9 @@ export default function InventoryPage() {
             <button
               key={f.k}
               onClick={() => setFilter(f.k)}
-              className={`px-3 py-1.5 rounded-sm transition-colors ${
+              className={`px-3 py-1.5 rounded-md transition-colors ${
                 filter === f.k
-                  ? 'bg-foreground text-background font-medium'
+                  ? 'bg-foreground text-background font-semibold'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -107,110 +100,99 @@ export default function InventoryPage() {
       </div>
 
       {/* Inventory list */}
-      <div>
-        <h3 className="font-semibold mb-3">{t('inventoryPage.itemsTitle')} ({filtered.length})</h3>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="shimmer h-16 rounded-xl" />
-            ))}
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-            <Boxes className="w-10 h-10 mb-2 opacity-30" />
-            <p className="text-sm">{t('inventoryPage.noneFound')}</p>
-          </div>
-        ) : (
-          <div className="bg-card rounded-2xl border border-border overflow-hidden">
-            {/* Desktop table */}
-            <table className="w-full text-sm hidden md:table">
-              <thead className="bg-muted text-left">
-                <tr>
-                  <th className="p-3">{t('inventoryPage.colProduct')}</th>
-                  <th className="p-3 text-right">{t('inventoryPage.colInStock')}</th>
-                  <th className="p-3 text-right">{t('inventoryPage.colMin')}</th>
-                  <th className="p-3">{t('inventoryPage.colStatus')}</th>
-                  <th className="p-3 text-right w-32">{t('inventoryPage.colAdjust')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((i: any) => {
-                  const low = i.quantity <= i.lowStockAt;
+      {isLoading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="shimmer h-16 rounded-xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+          <Boxes className="w-10 h-10 mb-2 opacity-30" />
+          <p className="text-sm">{t('inventoryPage.noneFound')}</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {urgent.length > 0 && (
+            <div>
+              <div className="text-[11.5px] font-extrabold text-muted-foreground uppercase tracking-wide mb-2">
+                {t('inventoryPage.needsAttention')}
+              </div>
+              <div className="space-y-2">
+                {urgent.map((i: any) => {
+                  const out = i.quantity === 0;
                   return (
-                    <tr key={i.id} className="border-t border-border hover:bg-card-hover">
-                      <td className="p-3">
-                        <div className="font-medium">{i.product.name}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">
-                          {i.product.sku}
+                    <div
+                      key={i.id}
+                      className={`bg-card border rounded-xl pl-3.5 pr-3.5 py-3 flex items-center gap-3.5 flex-wrap ${
+                        out ? 'border-danger/30 border-l-4 border-l-danger' : 'border-border border-l-4 border-l-warning'
+                      }`}
+                    >
+                      <div className="flex-1 min-w-[160px]">
+                        <div className="text-sm font-bold">{i.product.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {t('inventoryPage.remaining')}{' '}
+                          <b className={out ? 'text-danger' : 'text-warning'}>{i.quantity}</b>{' '}
+                          · {t('inventoryPage.colMin')} {i.lowStockAt}
                         </div>
-                      </td>
-                      <td className="p-3 text-right tabular-nums font-bold text-lg">
-                        {i.quantity}
-                      </td>
-                      <td className="p-3 text-right tabular-nums text-muted-foreground">
-                        {i.lowStockAt}
-                      </td>
-                      <td className="p-3">
-                        {i.quantity === 0 ? (
-                          <Badge variant="danger">{t('inventoryPage.statusOut')}</Badge>
-                        ) : low ? (
-                          <Badge variant="warning">{t('inventoryPage.statusLow')}</Badge>
-                        ) : (
-                          <Badge variant="success">{t('inventoryPage.statusNormal')}</Badge>
-                        )}
-                      </td>
-                      <td className="p-3 text-right">
-                        <Button size="sm" variant="outline" onClick={() => setAdjusting(i)}>
-                          <Edit3 className="w-3.5 h-3.5 mr-1" /> {t('inventoryPage.adjust')}
+                      </div>
+                      <span
+                        className={`text-xs font-bold px-2.5 py-1 rounded-full shrink-0 ${
+                          out ? 'text-danger bg-danger/10' : 'text-warning bg-warning/10'
+                        }`}
+                      >
+                        {out ? t('inventoryPage.statusOut') : t('inventoryPage.statusLow')}
+                      </span>
+                      {out ? (
+                        <Button size="sm" onClick={() => setAdjusting(i)}>
+                          {t('inventoryPage.receiveStock')}
                         </Button>
-                      </td>
-                    </tr>
+                      ) : (
+                        <Button size="sm" variant="outline" onClick={() => setAdjusting(i)}>
+                          <Edit3 className="w-3.5 h-3.5 mr-1.5" /> {t('inventoryPage.adjustStock')}
+                        </Button>
+                      )}
+                    </div>
                   );
                 })}
-              </tbody>
-            </table>
-
-            {/* Mobile cards */}
-            <div className="md:hidden divide-y divide-border">
-              {filtered.map((i: any) => {
-                const low = i.quantity <= i.lowStockAt;
-                return (
-                  <div key={i.id} className="p-3">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium truncate">{i.product.name}</div>
-                        <div className="flex gap-1 flex-wrap mt-0.5">
-                          {i.quantity === 0 ? (
-                            <Badge variant="danger" className="text-[10px]">{t('inventoryPage.statusOut')}</Badge>
-                          ) : low ? (
-                            <Badge variant="warning" className="text-[10px]">{t('inventoryPage.statusLow')}</Badge>
-                          ) : (
-                            <Badge variant="success" className="text-[10px]">{t('inventoryPage.statusNormal')}</Badge>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-2xl font-bold tabular-nums">{i.quantity}</div>
-                        <div className="text-[10px] text-muted-foreground">
-                          {t('inventoryPage.minShort')} {i.lowStockAt}
-                        </div>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline" className="w-full" onClick={() => setAdjusting(i)}>
-                      <Edit3 className="w-3.5 h-3.5 mr-1" /> {t('inventoryPage.adjustStock')}
-                    </Button>
-                  </div>
-                );
-              })}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+
+          {normal.length > 0 && (
+            <div>
+              <div className="text-[11.5px] font-extrabold text-muted-foreground uppercase tracking-wide mb-2">
+                {t('inventoryPage.normalSection')}
+              </div>
+              <div className="bg-card border border-border rounded-xl overflow-hidden divide-y divide-border">
+                {normal.map((i: any) => (
+                  <button
+                    key={i.id}
+                    onClick={() => setAdjusting(i)}
+                    className="w-full flex items-center gap-3 px-3.5 py-3 hover:bg-card-hover transition-colors text-left"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-success shrink-0" />
+                    <div className="flex-1 min-w-0 text-sm font-semibold truncate">{i.product.name}</div>
+                    <div className="text-xs text-muted-foreground shrink-0">
+                      {t('inventoryPage.colMin')} {i.lowStockAt}
+                    </div>
+                    <div className="text-sm font-bold tabular-nums w-11 text-right shrink-0">
+                      {i.quantity}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recent movements */}
       <div>
-        <h3 className="font-semibold mb-3">{t('inventoryPage.recentMovements')}</h3>
-        <div className="bg-card rounded-2xl border border-border overflow-hidden">
+        <h3 className="text-[11.5px] font-extrabold text-muted-foreground uppercase tracking-wide mb-2">
+          {t('inventoryPage.recentMovements')}
+        </h3>
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           {movements.length === 0 ? (
             <p className="text-sm text-muted-foreground p-6 text-center">
               {t('inventoryPage.noMovements')}
@@ -262,29 +244,6 @@ export default function InventoryPage() {
           onClose={() => setAdjusting(null)}
         />
       )}
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  tone = 'default',
-}: {
-  label: string;
-  value: number;
-  tone?: 'default' | 'warning';
-}) {
-  return (
-    <div
-      className={`bg-card border rounded-lg p-4 ${
-        tone === 'warning' ? 'border-warning/60' : 'border-border'
-      }`}
-    >
-      <div className="text-xs uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className="text-metric-md mt-1.5">
-        {value.toLocaleString()}
-      </div>
     </div>
   );
 }
