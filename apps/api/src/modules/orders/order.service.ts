@@ -431,6 +431,9 @@ export async function list(storeId: string, query: any) {
   if (query.q) {
     where.OR = [
       { orderNumber: { contains: query.q, mode: 'insensitive' } },
+      { table: { number: { contains: query.q, mode: 'insensitive' } } },
+      { customer: { phone: { contains: query.q, mode: 'insensitive' } } },
+      { customer: { name: { contains: query.q, mode: 'insensitive' } } },
     ];
   }
 
@@ -444,6 +447,7 @@ export async function list(storeId: string, query: any) {
         items: { include: { product: true } },
         payments: true,
         cashier: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true, phone: true } },
         table: true,
       },
       orderBy: { createdAt: 'desc' },

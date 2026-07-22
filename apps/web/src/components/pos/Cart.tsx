@@ -206,25 +206,23 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(items), sub, customer?.id, promoCode, products.length]);
 
+  const currentTable = (tables as any[]).find((tb) => tb.id === tableId);
+  const cartTitle =
+    type === 'DINE_IN' && currentTable
+      ? `${t('cart.tableWord')} ${currentTable.number} · ${items.length} ${t('cart.items')}`
+      : `${t('cart.basket')} · ${items.length} ${t('cart.items')}`;
+
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-medium tracking-wider uppercase text-muted-foreground">
-            Cart
-          </h2>
-          <div className="text-2xl font-semibold tabular-nums mt-0.5">
-            {items.length}{' '}
-            <span className="text-sm text-muted-foreground font-normal">item{items.length !== 1 ? 's' : ''}</span>
-          </div>
-        </div>
+        <h2 className="text-[15px] font-extrabold tracking-tight">{cartTitle}</h2>
         {items.length > 0 && (
           <button
             onClick={clear}
-            className="text-xs text-muted-foreground hover:text-danger transition-colors"
+            className="text-xs font-medium text-danger hover:text-danger/80 transition-colors"
           >
-            Clear all
+            {t('cart.clearAll')}
           </button>
         )}
       </div>
@@ -258,15 +256,15 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         </button>
       )}
 
-      {/* Order type — flat tabs */}
-      <div className="grid grid-cols-3 gap-1 mb-3 text-sm lg:text-xs border border-border rounded-md p-0.5">
+      {/* Order type — segmented control */}
+      <div className="grid grid-cols-3 gap-0.5 mb-3 text-sm lg:text-xs bg-muted rounded-lg p-1">
         {(['DINE_IN', 'TAKEAWAY', 'DELIVERY'] as const).map((tt) => (
           <button
             key={tt}
             onClick={() => setType(tt)}
-            className={`py-2.5 lg:py-1.5 rounded-sm transition-colors touch-manipulation ${
+            className={`py-2.5 lg:py-1.5 rounded-md transition-colors touch-manipulation ${
               type === tt
-                ? 'bg-foreground text-background font-medium'
+                ? 'bg-card text-foreground font-semibold shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -456,23 +454,23 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                 </div>
                 <div className="flex items-center justify-between">
                   {/* Touch-friendly +/- on tablet/mobile; compact on desktop to fit narrow sidebar */}
-                  <div className="flex items-center border border-border rounded-md">
+                  <div className="flex items-center border border-border rounded-lg">
                     <button
                       onClick={() => updateQty(item.productId, item.quantity - 1)}
-                      className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
+                      className="w-8 h-8 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
                       aria-label={t('cart.aria.decreaseQty')}
                     >
-                      <Minus className="w-4 h-4 lg:w-3 lg:h-3" />
+                      <Minus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="w-10 lg:w-8 text-center text-base lg:text-sm font-medium tabular-nums">
+                    <span className="w-8 text-center text-sm font-bold tabular-nums">
                       {item.quantity}
                     </span>
                     <button
                       onClick={() => updateQty(item.productId, item.quantity + 1)}
-                      className="w-9 h-9 lg:w-7 lg:h-7 flex items-center justify-center hover:bg-card-hover active:bg-muted text-muted-foreground hover:text-foreground touch-manipulation"
+                      className="w-8 h-8 flex items-center justify-center hover:bg-card-hover active:bg-muted text-primary touch-manipulation"
                       aria-label={t('cart.aria.increaseQty')}
                     >
-                      <Plus className="w-4 h-4 lg:w-3 lg:h-3" />
+                      <Plus className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   <div className="text-base lg:text-sm font-semibold tabular-nums">
@@ -656,9 +654,9 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
             <span className="tabular-nums">{formatCurrency(breakdown.tax)}</span>
           </div>
         )}
-        <div className="flex justify-between text-lg font-bold pt-2 mt-1 border-t border-border">
-          <span>{t('cart.total')}</span>
-          <span className="tabular-nums text-primary">{formatCurrency(breakdown.total)}</span>
+        <div className="flex justify-between items-baseline pt-2 mt-1 border-t border-border">
+          <span className="text-sm font-extrabold">{t('cart.total')}</span>
+          <span className="tabular-nums text-primary text-2xl font-extrabold">{formatCurrency(breakdown.total)}</span>
         </div>
         {cfg.priceIncludesTax && cfg.taxRate > 0 && breakdown.tax > 0 && (
           <div className="flex justify-between text-[10px] text-muted-foreground/60">
@@ -675,7 +673,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
           <div className="grid grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className="h-12 lg:h-10 font-semibold touch-manipulation"
+              className="h-[52px] rounded-xl font-semibold touch-manipulation"
               disabled={items.length === 0 || send.isPending}
               onClick={() => send.mutate()}
             >
@@ -689,7 +687,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
             </Button>
             <Button
               size="lg"
-              className="h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
+              className="h-[52px] rounded-xl text-base font-extrabold shadow-[0_10px_22px_-8px_rgba(255,107,53,0.55)] touch-manipulation"
               // With no bill open yet, Pay goes straight through (create + pay +
               // fire to kitchen in one step) — no separate "ส่งครัว" required,
               // for guests who are paying right away. Once a bill IS open, new
@@ -704,7 +702,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         ) : (
           <Button
             size="lg"
-            className="w-full h-12 lg:h-10 text-base lg:text-sm font-semibold touch-manipulation"
+            className="w-full h-[52px] rounded-xl text-base font-extrabold shadow-[0_10px_22px_-8px_rgba(255,107,53,0.55)] touch-manipulation"
             disabled={items.length === 0}
             onClick={onCheckout}
           >

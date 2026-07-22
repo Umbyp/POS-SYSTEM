@@ -1,5 +1,5 @@
 'use client';
-import { Menu, Volume2, VolumeX, Bell, Monitor, Link2 } from 'lucide-react';
+import { Menu, Volume2, VolumeX, Monitor, Link2, ChevronDown } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useOfflineQueue } from '@/hooks/useOfflineQueue';
@@ -8,6 +8,14 @@ import { StoreSwitcher } from '@/components/layout/StoreSwitcher';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
 import { BillCallBell } from '@/components/layout/BillCallBell';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { getMuted, setMuted, playCashRegister } from '@/lib/sounds';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/lib/i18n';
@@ -75,7 +83,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
   }, []);
 
   return (
-    <header className="h-16 bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 gap-3">
+    <header className="h-[58px] bg-card border-b border-border flex items-center justify-between px-4 sm:px-6 gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <button
           onClick={onMenuClick}
@@ -85,66 +93,60 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
           <Menu className="w-5 h-5" />
         </button>
         <div className="min-w-0">
-          <h1 className="text-base font-semibold truncate tracking-tight">{title}</h1>
-          <div className="text-[11px] text-muted-foreground">
-            {!online && '⚠ Offline · '}
-            {pending > 0 && `${pending} pending sync · `}
-            {now}
-          </div>
+          <h1 className="text-sm font-bold truncate tracking-tight">{title}</h1>
+          {(!online || pending > 0) && (
+            <div className="text-[11px] text-muted-foreground truncate">
+              {!online && `⚠ ${t('topbar.offline')} · `}
+              {pending > 0 && `${pending} ${t('topbar.pendingSync')} · `}
+              {now}
+            </div>
+          )}
         </div>
+        <ShiftButton />
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
         <StoreSwitcher />
 
-        <ShiftButton />
-
         <BillCallBell />
 
-        <button
-          onClick={openCustomerDisplay}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-          title={t('pay.openCustomerDisplay')}
-        >
-          <Monitor className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={copyDisplayLink}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-          title={t('pay.copyDisplayLink')}
-        >
-          <Link2 className="w-4 h-4" />
-        </button>
-
-        <LanguageToggle />
-
-        <ThemeToggle />
-
-        <button
-          onClick={togglePaymentSound}
-          className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
-          title={paymentMuted ? 'Enable payment sound' : 'Mute payment sound'}
-        >
-          {paymentMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-        </button>
-
-        {/* Status dot */}
-        <div
-          className={`w-2 h-2 rounded-full ${online ? 'bg-success' : 'bg-danger'}`}
-          title={online ? 'Online' : 'Offline'}
-        />
-
-        {/* Avatar */}
-        <div className="hidden sm:flex items-center gap-2.5 ml-2 pl-3 border-l border-border">
-          <div className="text-right">
-            <div className="text-xs font-medium leading-tight">{user?.name}</div>
-            <div className="text-[10px] text-muted-foreground leading-tight">{user?.role}</div>
-          </div>
-          <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
-            {user?.name?.[0] || '?'}
-          </div>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-2 pl-1 pr-1.5 sm:pl-2.5 sm:pr-2 py-1 rounded-lg sm:border sm:border-border hover:bg-muted transition-colors">
+              <div className="hidden sm:block text-right leading-tight">
+                <div className="text-xs font-semibold">{user?.name}</div>
+                <div className="text-[10px] text-muted-foreground">{user?.role}</div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm shrink-0">
+                {user?.name?.[0] || '?'}
+              </div>
+              <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuLabel>{t('topbar.account')}</DropdownMenuLabel>
+            <div className="px-2.5 pb-1.5 sm:hidden">
+              <div className="text-sm font-semibold">{user?.name}</div>
+              <div className="text-xs text-muted-foreground">{user?.role}</div>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={openCustomerDisplay}>
+              <Monitor className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{t('pay.openCustomerDisplay')}</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={copyDisplayLink}>
+              <Link2 className="w-4 h-4 shrink-0" />
+              <span className="flex-1">{t('pay.copyDisplayLink')}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <ThemeToggle />
+            <LanguageToggle />
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); togglePaymentSound(); }}>
+              {paymentMuted ? <VolumeX className="w-4 h-4 shrink-0" /> : <Volume2 className="w-4 h-4 shrink-0" />}
+              <span className="flex-1">{paymentMuted ? t('topbar.sound.unmute') : t('topbar.sound.mute')}</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );

@@ -754,10 +754,16 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
               )}
             </div>
 
-            {/* Confirm — hidden during PromptPay auto-flow (handled automatically once paid) */}
+            {/* Confirm — hidden during PromptPay auto-flow (handled automatically once paid).
+                Settling an open table bill reads as "collect & close" rather than a
+                generic "confirm payment", matching the self-order → pay-at-table flow. */}
             {showConfirm && (
               <Button size="xl" className="w-full" disabled={!canPay || loading} onClick={submit}>
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : `${t('pay.confirmPayment')} ${formatCurrency(total)}`}
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  `${settleId ? t('pay.receiveAndCloseBill') : t('pay.confirmPayment')} ${formatCurrency(total)}`
+                )}
               </Button>
             )}
           </>

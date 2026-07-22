@@ -23,8 +23,8 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
 
   if (loading) {
     return (
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5">
-        {Array.from({ length: 12 }).map((_, i) => (
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        {Array.from({ length: 9 }).map((_, i) => (
           <div key={i} className="shimmer aspect-[4/5] rounded-lg" />
         ))}
       </div>
@@ -59,10 +59,7 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
 
   return (
     <>
-      <motion.div
-        layout
-        className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2.5"
-      >
+      <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
         {products.map((p) => {
           const stock = p.inventory?.quantity ?? 0;
           const lowStock = p.trackStock && stock <= (p.inventory?.lowStockAt || 10);
@@ -76,10 +73,10 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
               whileTap={{ scale: 0.98 }}
               disabled={outOfStock}
               onClick={() => handleClick(p)}
-              className="group relative bg-card rounded-lg border border-border hover:border-primary/60 hover:bg-card-hover p-1.5 text-left transition-colors disabled:opacity-45 disabled:cursor-not-allowed overflow-hidden"
+              className="group relative bg-card rounded-lg border border-border hover:border-primary/60 hover:bg-card-hover text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
             >
               {/* Image / placeholder — single neutral surface, no decorative color */}
-              <div className="aspect-square rounded-md mb-1.5 overflow-hidden bg-muted relative flex items-center justify-center">
+              <div className="aspect-[5/3] overflow-hidden bg-muted relative flex items-center justify-center">
                 {p.image ? (
                   <img
                     src={resolveImageUrl(p.image)}
@@ -90,37 +87,37 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
                     }}
                   />
                 ) : (
-                  <span className="text-xl font-bold uppercase text-muted-foreground/50 select-none tracking-tight">
+                  <span className="text-lg font-extrabold uppercase text-muted-foreground/50 select-none tracking-tight">
                     {initials(p.name)}
                   </span>
                 )}
 
-                {/* Stock — the only status that earns a colored badge */}
-                {p.trackStock && (outOfStock || lowStock) && (
-                  <div className="absolute top-1 right-1">
-                    {outOfStock ? (
-                      <span className="px-1.5 py-0.5 rounded bg-danger text-white text-[10px] font-semibold">
-                        หมด
+                {/* Options / Set — monochrome label, top-left */}
+                {(hasVariants || p.isCombo) && (
+                  <div className="absolute top-2 left-2 flex gap-1">
+                    {hasVariants && (
+                      <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
+                        ตัวเลือก
                       </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-warning text-white text-[10px] font-semibold tabular-nums">
-                        เหลือ {stock}
+                    )}
+                    {p.isCombo && (
+                      <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
+                        เซ็ต
                       </span>
                     )}
                   </div>
                 )}
 
-                {/* Options / Set — monochrome labels, not attention-grabbing color */}
-                {(hasVariants || p.isCombo) && (
-                  <div className="absolute bottom-1 left-1 flex gap-1">
-                    {hasVariants && (
-                      <span className="px-1 py-0.5 rounded bg-foreground/75 text-background text-[9px] font-semibold uppercase tracking-wide">
-                        ตัวเลือก
+                {/* Stock — the only status that earns a colored badge, top-right */}
+                {p.trackStock && (outOfStock || lowStock) && (
+                  <div className="absolute top-2 right-2">
+                    {outOfStock ? (
+                      <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-semibold">
+                        หมด
                       </span>
-                    )}
-                    {p.isCombo && (
-                      <span className="px-1 py-0.5 rounded bg-foreground/75 text-background text-[9px] font-semibold uppercase tracking-wide">
-                        เซ็ต
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full bg-warning text-white text-[10px] font-semibold tabular-nums">
+                        เหลือ {stock}
                       </span>
                     )}
                   </div>
@@ -128,11 +125,11 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
               </div>
 
               {/* Name + price */}
-              <div className="px-0.5">
-                <div className="font-medium text-[13px] leading-snug line-clamp-2 min-h-[2.25rem]">
+              <div className="p-2.5">
+                <div className="font-semibold text-[13px] leading-snug line-clamp-2 min-h-[2.25rem]">
                   {p.name}
                 </div>
-                <div className="text-primary text-sm font-bold tabular-nums mt-0.5">
+                <div className="text-primary text-sm font-extrabold tabular-nums mt-0.5">
                   {formatCurrency(p.sellingPrice)}
                 </div>
               </div>

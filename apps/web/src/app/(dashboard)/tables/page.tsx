@@ -29,11 +29,22 @@ const STATUSES: Status[] = ['AVAILABLE', 'RESERVED', 'OCCUPIED', 'BILLING', 'DIR
 // a busy floor — only AVAILABLE stays calm/neutral (it's the "nothing to do"
 // state; coloring it too would drown out the tables that actually need attention).
 const STATUS_COLOR: Record<Status, string> = {
-  AVAILABLE: 'bg-card border-border hover:border-emerald-500/60 text-foreground',
+  AVAILABLE: 'bg-card border-dashed border-border hover:border-primary/50 text-foreground',
   RESERVED: 'bg-sky-500/20 border-sky-500 text-sky-700 dark:text-sky-300',
   OCCUPIED: 'bg-indigo-500/20 border-indigo-500 text-indigo-700 dark:text-indigo-300',
   BILLING: 'bg-amber-500/20 border-amber-500 text-amber-700 dark:text-amber-300',
   DIRTY: 'bg-rose-500/20 border-rose-500 text-rose-700 dark:text-rose-300',
+};
+
+// Solid tile fills used once a table is in a "state" (matches the handoff's
+// filled-card treatment for anything other than AVAILABLE, which stays an
+// outlined dashed affordance instead).
+const STATUS_FILL: Record<Status, string> = {
+  AVAILABLE: 'bg-card border-dashed border-border hover:border-primary/50',
+  RESERVED: 'bg-sky-500 border-sky-500 text-white',
+  OCCUPIED: 'bg-indigo-500 border-indigo-500 text-white',
+  BILLING: 'bg-warning border-warning text-white',
+  DIRTY: 'bg-danger border-danger text-white',
 };
 
 // Small dot color for legend/summary
@@ -195,7 +206,7 @@ export default function TablesPage() {
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">{t('tables.title')}</h2>
+          <h2 className="text-xl font-extrabold tracking-tight">{t('tables.title')}</h2>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2 text-xs text-muted-foreground">
             {STATUSES.map((s) => (
               <span key={s} className="flex items-center gap-1.5">
@@ -286,7 +297,11 @@ export default function TablesPage() {
             {visibleTables.map((t2: any) => {
               const status = t2.status as Status;
               const seated = IN_USE.includes(status);
+              const available = status === 'AVAILABLE';
               const elapsed = seated ? formatElapsed(t2.occupiedAt, nowMs) : null;
+              const subtitle = available
+                ? `${t(`tables.status.${status}`, STATUS_LABEL[status])} · ${t2.capacity} ${t('tables.seats')}`
+                : t(`tables.status.${status}`, STATUS_LABEL[status]);
               return (
                 <motion.button
                   key={t2.id}
@@ -302,25 +317,34 @@ export default function TablesPage() {
                     STATUS_LABEL[status]
                   )}${elapsed ? `, ${t('tables.seated')} ${elapsed}` : ''}`}
                   className={`aspect-square rounded-xl border-2 p-2 flex flex-col items-center justify-center transition-colors touch-manipulation relative ${
-                    STATUS_COLOR[status]
+                    STATUS_FILL[status]
                   }`}
                 >
-                  <span className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-background/60 backdrop-blur-sm tabular-nums">
-                    <Users className="w-2.5 h-2.5" />
-                    {t2.capacity}
-                  </span>
+                  {!available && (
+                    <span className="absolute top-1.5 left-1.5 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-black/20 tabular-nums">
+                      <Users className="w-2.5 h-2.5" />
+                      {t2.capacity}
+                    </span>
+                  )}
                   {elapsed && (
-                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-background/60 backdrop-blur-sm tabular-nums">
+                    <span className="absolute top-1.5 right-1.5 flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-black/20 tabular-nums">
                       <Clock className="w-2.5 h-2.5" />
                       {elapsed}
                     </span>
                   )}
-                  <div className="text-3xl sm:text-4xl font-bold leading-none tabular-nums tracking-tight">
+                  <div className="text-[28px] font-extrabold leading-none tabular-nums tracking-tight">
                     {t2.number}
                   </div>
-                  <div className="text-[10px] uppercase tracking-wider mt-1.5 font-semibold opacity-90">
-                    {t(`tables.status.${status}`, STATUS_LABEL[status])}
+                  <div
+                    className={`text-[11px] mt-1 font-semibold ${available ? 'text-muted-foreground' : 'opacity-95'}`}
+                  >
+                    {subtitle}
                   </div>
+                  {available && (
+                    <div className="text-[11px] font-bold text-primary mt-1.5">
+                      {t('tables.tapToOpen')}
+                    </div>
+                  )}
                 </motion.button>
               );
             })}
