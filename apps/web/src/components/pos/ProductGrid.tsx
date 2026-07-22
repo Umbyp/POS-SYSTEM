@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { ImageIcon } from 'lucide-react';
 import { useCart } from '@/stores/cart.store';
@@ -22,9 +22,18 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
   const [picking, setPicking] = useState<any>(null);
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // Grid: 2 columns on mobile, 3 on sm+. Each virtual row = 1 line of products.
-  const columns = 3; // matches sm:grid-cols-3; on mobile (2 cols) there's some
-                     // empty space but it's negligible vs. the render savings.
+  // Grid: 2 columns below the `sm` breakpoint, 3 at sm+ — must track
+  // grid-cols-2 sm:grid-cols-3 below exactly, or virtual rows (grouped in JS)
+  // stop matching the CSS line wraps and cards overlap.
+  const [columns, setColumns] = useState(3);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const update = () => setColumns(mq.matches ? 3 : 2);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   const rowCount = Math.ceil(products.length / columns);
   const rowVirtualizer = useVirtualizer({
     count: rowCount,
@@ -159,7 +168,9 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
             return (
               <div
                 key={virtualRow.key}
-                className="absolute top-0 left-0 w-full"
+                ref={rowVirtualizer.measureElement}
+                data-index={virtualRow.index}
+                className="absolute top-0 left-0 w-full pb-2.5"
                 style={{ transform: `translateY(${virtualRow.start}px)` }}
               >
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
