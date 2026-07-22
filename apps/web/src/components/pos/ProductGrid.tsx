@@ -1,6 +1,6 @@
 'use client';
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { ImageIcon } from 'lucide-react';
 import { useCart } from '@/stores/cart.store';
 import { useT } from '@/lib/i18n';
@@ -20,6 +20,18 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
   const add = useCart((s) => s.addItem);
   const t = useT();
   const [picking, setPicking] = useState<any>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  // Grid: 2 columns on mobile, 3 on sm+. Each virtual row = 1 line of products.
+  const columns = 3; // matches sm:grid-cols-3; on mobile (2 cols) there's some
+                     // empty space but it's negligible vs. the render savings.
+  const rowCount = Math.ceil(products.length / columns);
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 200, // approx row height (aspect-[5/3] image + text)
+    overscan: 3,
+  });
 
   if (loading) {
     return (
@@ -53,90 +65,111 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
         name: p.name,
         unitPrice: Number(p.sellingPrice),
         image: p.image,
+        categoryId: p.categoryId,
       });
     }
   };
 
+  const renderCard = (p: any) => {
+    const stock = p.inventory?.quantity ?? 0;
+    const lowStock = p.trackStock && stock <= (p.inventory?.lowStockAt || 10);
+    const outOfStock = p.trackStock && stock === 0;
+    const hasVariants = hasOptions(p);
+
+    return (
+      <button
+        key={p.id}
+        disabled={outOfStock}
+        onClick={() => handleClick(p)}
+        className="group relative bg-card rounded-lg border border-border hover:border-primary/60 hover:bg-card-hover text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
+      >
+        {/* Image / placeholder — single neutral surface, no decorative color */}
+        <div className="aspect-[5/3] overflow-hidden bg-muted relative flex items-center justify-center">
+          {p.image ? (
+            <img
+              src={resolveImageUrl(p.image)}
+              alt={p.name}
+              loading="lazy"
+              className="w-full h-full object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <span className="text-lg font-extrabold uppercase text-muted-foreground/50 select-none tracking-tight">
+              {initials(p.name)}
+            </span>
+          )}
+
+          {/* Options / Set — monochrome label, top-left */}
+          {(hasVariants || p.isCombo) && (
+            <div className="absolute top-2 left-2 flex gap-1">
+              {hasVariants && (
+                <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
+                  ตัวเลือก
+                </span>
+              )}
+              {p.isCombo && (
+                <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
+                  เซ็ต
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Stock — the only status that earns a colored badge, top-right */}
+          {p.trackStock && (outOfStock || lowStock) && (
+            <div className="absolute top-2 right-2">
+              {outOfStock ? (
+                <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-semibold">
+                  หมด
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full bg-warning text-white text-[10px] font-semibold tabular-nums">
+                  เหลือ {stock}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Name + price */}
+        <div className="p-2.5">
+          <div className="font-semibold text-[13px] leading-snug line-clamp-2 min-h-[2.25rem]">
+            {p.name}
+          </div>
+          <div className="text-primary text-sm font-extrabold tabular-nums mt-0.5">
+            {formatCurrency(p.sellingPrice)}
+          </div>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <>
-      <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-        {products.map((p) => {
-          const stock = p.inventory?.quantity ?? 0;
-          const lowStock = p.trackStock && stock <= (p.inventory?.lowStockAt || 10);
-          const outOfStock = p.trackStock && stock === 0;
-          const hasVariants = hasOptions(p);
-
-          return (
-            <motion.button
-              key={p.id}
-              layout
-              whileTap={{ scale: 0.98 }}
-              disabled={outOfStock}
-              onClick={() => handleClick(p)}
-              className="group relative bg-card rounded-lg border border-border hover:border-primary/60 hover:bg-card-hover text-left transition-colors disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden"
-            >
-              {/* Image / placeholder — single neutral surface, no decorative color */}
-              <div className="aspect-[5/3] overflow-hidden bg-muted relative flex items-center justify-center">
-                {p.image ? (
-                  <img
-                    src={resolveImageUrl(p.image)}
-                    alt={p.name}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = 'none';
-                    }}
-                  />
-                ) : (
-                  <span className="text-lg font-extrabold uppercase text-muted-foreground/50 select-none tracking-tight">
-                    {initials(p.name)}
-                  </span>
-                )}
-
-                {/* Options / Set — monochrome label, top-left */}
-                {(hasVariants || p.isCombo) && (
-                  <div className="absolute top-2 left-2 flex gap-1">
-                    {hasVariants && (
-                      <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
-                        ตัวเลือก
-                      </span>
-                    )}
-                    {p.isCombo && (
-                      <span className="px-2 py-0.5 rounded-full bg-foreground text-background text-[10px] font-semibold">
-                        เซ็ต
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Stock — the only status that earns a colored badge, top-right */}
-                {p.trackStock && (outOfStock || lowStock) && (
-                  <div className="absolute top-2 right-2">
-                    {outOfStock ? (
-                      <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-semibold">
-                        หมด
-                      </span>
-                    ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-warning text-white text-[10px] font-semibold tabular-nums">
-                        เหลือ {stock}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Name + price */}
-              <div className="p-2.5">
-                <div className="font-semibold text-[13px] leading-snug line-clamp-2 min-h-[2.25rem]">
-                  {p.name}
-                </div>
-                <div className="text-primary text-sm font-extrabold tabular-nums mt-0.5">
-                  {formatCurrency(p.sellingPrice)}
+      <div ref={parentRef} className="h-full overflow-y-auto scrollbar-thin pr-1">
+        <div
+          className="relative w-full"
+          style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+        >
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const start = virtualRow.index * columns;
+            const rowItems = products.slice(start, start + columns);
+            return (
+              <div
+                key={virtualRow.key}
+                className="absolute top-0 left-0 w-full"
+                style={{ transform: `translateY(${virtualRow.start}px)` }}
+              >
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {rowItems.map((p) => renderCard(p))}
                 </div>
               </div>
-            </motion.button>
-          );
-        })}
-      </motion.div>
+            );
+          })}
+        </div>
+      </div>
 
       <VariantPicker
         open={!!picking}
@@ -150,6 +183,7 @@ export function ProductGrid({ products, loading }: { products: any[]; loading: b
             name: picking.name,
             unitPrice: Number(picking.sellingPrice) + variantDelta,
             image: picking.image,
+            categoryId: picking.categoryId,
             notes,
             variants,
             quantity,

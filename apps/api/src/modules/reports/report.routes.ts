@@ -43,7 +43,7 @@ router.get('/summary', async (req, res, next) => {
       status: { notIn: ['CANCELLED', 'REFUNDED'] },
     };
 
-    const [agg, count, prevAgg, prevCount] = await Promise.all([
+    const [agg, count, prevAgg, prevCount, itemsAgg, costResult] = await Promise.all([
       prisma.order.aggregate({
         where,
         _sum: { total: true, tax: true, discount: true, serviceCharge: true },
@@ -54,41 +54,29 @@ router.get('/summary', async (req, res, next) => {
         _sum: { total: true },
       }),
       prisma.order.count({ where: wherePrev }),
+      prisma.orderItem.aggregate({
+        where: { order: where },
+        _sum: { quantity: true },
+      }),
+      prisma.$queryRaw<{ total_cost: number }[]>`
+        SELECT COALESCE(SUM(p."costPrice" * oi.quantity), 0)::float AS total_cost
+        FROM "OrderItem" oi
+        JOIN "Order" o ON o.id = oi."orderId"
+        JOIN "Product" p ON p.id = oi."productId"
+        WHERE o."storeId" = ${storeId}
+          AND o."createdAt" >= ${from}
+          AND o."createdAt" <= ${to}
+          AND o.status NOT IN ('CANCELLED', 'REFUNDED')
+      `,
     ]);
 
-    // จำนวนสินค้าที่ขายทั้งหมด
-    const itemsAgg = await prisma.orderItem.aggregate({
-      where: { order: where },
-      _sum: { quantity: true },
-    });
-
-    // ===== กำไร: ดึง items พร้อม cost ของ product =====
-    const itemsWithCost = await prisma.orderItem.findMany({
-      where: { order: where },
-      include: { product: { select: { costPrice: true, categoryId: true } } },
-    });
-    let totalCost = 0;
-    const costByCategory = new Map<string, number>();
-    const revenueByCategory = new Map<string, number>();
-    for (const it of itemsWithCost) {
-      const cost = Number(it.product.costPrice) * it.quantity;
-      const rev = Number(it.unitPrice) * it.quantity;
-      totalCost += cost;
-      costByCategory.set(
-        it.product.categoryId,
-        (costByCategory.get(it.product.categoryId) || 0) + cost
-      );
-      revenueByCategory.set(
-        it.product.categoryId,
-        (revenueByCategory.get(it.product.categoryId) || 0) + rev
-      );
-    }
+    const totalCost = Number(costResult[0]?.total_cost || 0);
     const grossProfit = Number(agg._sum.total || 0) - totalCost;
     const profitMargin = Number(agg._sum.total || 0) > 0
       ? (grossProfit / Number(agg._sum.total || 0)) * 100
       : 0;
 
-    // Top products (มี revenue ด้วย)
+    // Top products — single groupBy, no N+1
     const topProducts = await prisma.orderItem.groupBy({
       by: ['productId'],
       where: { order: where },
@@ -99,22 +87,15 @@ router.get('/summary', async (req, res, next) => {
     const products = await prisma.product.findMany({
       where: { id: { in: topProducts.map((t) => t.productId) } },
     });
-    const topProductsDetail = await Promise.all(
-      topProducts.map(async (tp) => {
-        const p = products.find((p) => p.id === tp.productId);
-        // คำนวณรายได้ของสินค้านี้
-        const rev = await prisma.orderItem.aggregate({
-          where: { productId: tp.productId, order: where },
-          _sum: { quantity: true },
-        });
-        const lineRev = p ? Number(p.sellingPrice) * Number(rev._sum.quantity || 0) : 0;
-        return {
-          product: p,
-          quantity: tp._sum.quantity,
-          revenue: lineRev,
-        };
-      })
-    );
+    const topProductsDetail = topProducts.map((tp) => {
+      const p = products.find((pr) => pr.id === tp.productId);
+      const lineRev = p ? Number(p.sellingPrice) * Number(tp._sum.quantity || 0) : 0;
+      return {
+        product: p,
+        quantity: tp._sum.quantity,
+        revenue: lineRev,
+      };
+    });
 
     // Payment methods breakdown
     const payments = await prisma.payment.groupBy({

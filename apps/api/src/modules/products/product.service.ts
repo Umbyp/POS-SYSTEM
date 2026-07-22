@@ -16,7 +16,7 @@ const PRODUCT_INCLUDE = {
   },
 } satisfies Prisma.ProductInclude;
 
-export async function list(storeId: string, query: { q?: string; categoryId?: string; includeIngredients?: boolean }) {
+export async function list(storeId: string, query: { q?: string; categoryId?: string; includeIngredients?: boolean; limit?: number }) {
   const where: Prisma.ProductWhereInput = {
     storeId,
     isActive: true,
@@ -32,10 +32,12 @@ export async function list(storeId: string, query: { q?: string; categoryId?: st
         }
       : {}),
   };
+  const limit = Math.min(query.limit ?? 200, 500);
   return prisma.product.findMany({
     where,
     include: PRODUCT_INCLUDE,
     orderBy: { name: 'asc' },
+    take: limit,
   });
 }
 

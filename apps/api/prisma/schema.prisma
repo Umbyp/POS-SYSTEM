@@ -25,6 +25,8 @@ model User {
   shifts     Shift[]
   store      Store         @relation(fields: [storeId], references: [id])
   memberOf   StoreMember[]
+
+  @@index([storeId])
 }
 
 // จับคู่ user กับ store ที่เขา access ได้ (สำหรับ multi-store)
@@ -142,6 +144,8 @@ model Category {
   createdAt DateTime  @default(now())
   store     Store     @relation(fields: [storeId], references: [id])
   products  Product[]
+
+  @@index([storeId])
 }
 
 model Product {
@@ -238,6 +242,8 @@ model ProductVariant {
   priceDelta Decimal @default(0) @db.Decimal(10, 2)
   sku        String?
   product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }
 
 model Inventory {
@@ -261,6 +267,9 @@ model StockMovement {
   userId      String?
   createdAt   DateTime     @default(now())
   inventory   Inventory    @relation(fields: [inventoryId], references: [id])
+
+  @@index([inventoryId])
+  @@index([orderId])
 }
 
 model Supplier {
@@ -324,8 +333,12 @@ model Order {
 
   @@unique([storeId, orderNumber])
   @@index([storeId, createdAt])
+  @@index([storeId, status, createdAt])
   @@index([status])
   @@index([customerId])
+  @@index([cashierId])
+  @@index([tableId])
+  @@index([promotionId])
 }
 
 model Customer {
@@ -397,6 +410,9 @@ model OrderItem {
   createdAt    DateTime @default(now()) // lets KDS tell "round 2 just fired" from the original order
   order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product      Product  @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model Payment {
@@ -411,6 +427,8 @@ model Payment {
   slipPayload     String?
   createdAt       DateTime      @default(now())
   order           Order         @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
 }
 
 model Table {
@@ -426,6 +444,8 @@ model Table {
   store    Store   @relation(fields: [storeId], references: [id])
   selfOrderRequests SelfOrderRequest[]
   billCallRequests  BillCallRequest[]
+
+  @@index([storeId])
 }
 
 // A cart a customer built themselves by scanning a table's QR code, awaiting
@@ -476,6 +496,7 @@ model BillCallRequest {
   table          Table         @relation(fields: [tableId], references: [id])
 
   @@index([storeId, status])
+  @@index([tableId])
 }
 
 enum BillCallStatus {
@@ -510,6 +531,8 @@ model Shift {
   totalSales  Decimal   @default(0) @db.Decimal(10, 2)
   notes       String?
   user        User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }
 
 model ActivityLog {

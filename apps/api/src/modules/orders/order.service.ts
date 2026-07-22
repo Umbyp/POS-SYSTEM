@@ -262,36 +262,31 @@ export async function create(input: CreateOrderInput, io: Server) {
     });
 
     // 6. ตัดสต็อก + log movement
-    // 6a. ตัดสต็อกของสินค้าเอง (ถ้า trackStock)
+    // 6a. ตัดสต็อกของสินค้าเอง + วัตถุดิบจาก recipe (รวมเป็น batch)
+    const stockMovements: any[] = [];
+    const inventoryUpdates = new Map<string, number>(); // inventoryId → total decrement
+
+    // 6a-1. สินค้าเอง
     for (const it of input.items) {
       const p = products.find((x) => x.id === it.productId)!;
       if (p.trackStock && p.inventory) {
-        await tx.inventory.update({
-          where: { id: p.inventory.id },
-          data: { quantity: { decrement: it.quantity } },
-        });
-        await tx.stockMovement.create({
-          data: {
-            inventoryId: p.inventory.id,
-            type: 'SALE',
-            quantity: -it.quantity,
-            orderId: order.id,
-            userId: input.cashierId,
-          },
+        const cur = inventoryUpdates.get(p.inventory.id) ?? 0;
+        inventoryUpdates.set(p.inventory.id, cur + it.quantity);
+        stockMovements.push({
+          inventoryId: p.inventory.id,
+          type: 'SALE',
+          quantity: -it.quantity,
+          orderId: order.id,
+          userId: input.cashierId,
         });
       }
     }
 
-    // 6b. ตัดสต็อกวัตถุดิบตาม recipe (สำหรับเมนูที่มีสูตร)
-    const recipes = await tx.recipeItem.findMany({
-      where: { productId: { in: productIds } },
-      include: { ingredient: { include: { inventory: true } } },
-    });
-    if (recipes.length > 0) {
-      // รวม qty ที่ใช้ต่อ ingredient จากทุก line ในออเดอร์
+    // 6b. ตัดสต็อกวัตถุดิบตาม recipe (ใช้ allRecipes ที่ query ไว้แล้ว ไม่ query ซ้ำ)
+    if (allRecipes.length > 0) {
       const ingredientUsage = new Map<string, { inventoryId: string; qty: number; name: string }>();
       for (const it of input.items) {
-        const productRecipes = recipes.filter((r) => r.productId === it.productId);
+        const productRecipes = allRecipes.filter((r) => r.productId === it.productId);
         for (const r of productRecipes) {
           if (!r.ingredient.inventory || !r.ingredient.trackStock) continue;
           const useQty = Number(r.quantity) * it.quantity;
@@ -308,24 +303,33 @@ export async function create(input: CreateOrderInput, io: Server) {
         }
       }
 
-      // ตัดสต็อกวัตถุดิบทั้งหมดในครั้งเดียว
       for (const usage of ingredientUsage.values()) {
-        const ceil = Math.ceil(usage.qty); // ปัดขึ้นเพราะ Inventory.quantity เป็น Int
-        await tx.inventory.update({
-          where: { id: usage.inventoryId },
-          data: { quantity: { decrement: ceil } },
-        });
-        await tx.stockMovement.create({
-          data: {
-            inventoryId: usage.inventoryId,
-            type: 'SALE',
-            quantity: -ceil,
-            orderId: order.id,
-            userId: input.cashierId,
-            reason: `ใช้ในออเดอร์ ${order.orderNumber}`,
-          },
+        const ceil = Math.ceil(usage.qty);
+        const cur = inventoryUpdates.get(usage.inventoryId) ?? 0;
+        inventoryUpdates.set(usage.inventoryId, cur + ceil);
+        stockMovements.push({
+          inventoryId: usage.inventoryId,
+          type: 'SALE',
+          quantity: -ceil,
+          orderId: order.id,
+          userId: input.cashierId,
+          reason: `ใช้ในออเดอร์ ${order.orderNumber}`,
         });
       }
+    }
+
+    // Batch: อัปเดต inventory ทีละตัว (Prisma ไม่รองรับ bulk decrement ต่างจำนวน)
+    // แต่ batch stock movements ทั้งหมดในครั้งเดียว
+    await Promise.all(
+      Array.from(inventoryUpdates.entries()).map(([invId, qty]) =>
+        tx.inventory.update({
+          where: { id: invId },
+          data: { quantity: { decrement: qty } },
+        })
+      )
+    );
+    if (stockMovements.length > 0) {
+      await tx.stockMovement.createMany({ data: stockMovements });
     }
 
     // 7. Activity log
@@ -356,46 +360,49 @@ export async function create(input: CreateOrderInput, io: Server) {
           lastVisitAt: new Date(),
         },
       });
+      // Parallelize independent loyalty writes
+      const loyaltyOps: Promise<any>[] = [];
       if (pointsToRedeem > 0) {
-        await recordPoints(tx, {
+        loyaltyOps.push(recordPoints(tx, {
           storeId: input.storeId,
           customerId: input.customerId,
           type: PointTxType.REDEEM,
           points: -pointsToRedeem,
           orderId: order.id,
           note: `ใช้แต้มในบิล ${orderNumber}`,
-        });
+        }));
       }
       if (earnedPoints > 0) {
-        await recordPoints(tx, {
+        loyaltyOps.push(recordPoints(tx, {
           storeId: input.storeId,
           customerId: input.customerId,
           type: PointTxType.EARN,
           points: earnedPoints,
           orderId: order.id,
           note: `ได้แต้มจากบิล ${orderNumber}`,
-        });
+        }));
       }
       if (stampsToRedeem > 0) {
-        await recordStamps(tx, {
+        loyaltyOps.push(recordStamps(tx, {
           storeId: input.storeId,
           customerId: input.customerId,
           type: PointTxType.STAMP_REDEEM,
           stamps: -stampsToRedeem,
           orderId: order.id,
           note: `ใช้ดวงแลกรางวัลในบิล ${orderNumber}`,
-        });
+        }));
       }
       if (earnedStamps > 0) {
-        await recordStamps(tx, {
+        loyaltyOps.push(recordStamps(tx, {
           storeId: input.storeId,
           customerId: input.customerId,
           type: PointTxType.STAMP_EARN,
           stamps: earnedStamps,
           orderId: order.id,
           note: `ได้ดวงจากบิล ${orderNumber}`,
-        });
+        }));
       }
+      if (loyaltyOps.length > 0) await Promise.all(loyaltyOps);
     }
 
     // 8c. Increment promotion usage
@@ -421,7 +428,11 @@ export async function create(input: CreateOrderInput, io: Server) {
 export async function list(storeId: string, query: any) {
   const where: Prisma.OrderWhereInput = { storeId };
 
-  if (query.status) where.status = query.status;
+  if (query.status) {
+    where.status = query.status.includes(',')
+      ? { in: query.status.split(',') }
+      : query.status;
+  }
   if (query.type) where.type = query.type;
   if (query.from || query.to) {
     where.createdAt = {};

@@ -29,7 +29,7 @@ router.get('/overview', async (req, res, next) => {
     });
 
     // ====== TODAY METRICS ======
-    const [todayAgg, todayItemsAgg, todayOrdersDetail] = await Promise.all([
+    const [todayAgg, todayItemsAgg, costResult, topItemsResult, hourlyResult] = await Promise.all([
       prisma.order.aggregate({
         where: { storeId, createdAt: { gte: startOfToday }, status: validStatus },
         _sum: { total: true, tax: true },
@@ -41,21 +41,40 @@ router.get('/overview', async (req, res, next) => {
         },
         _sum: { quantity: true },
       }),
-      prisma.order.findMany({
-        where: { storeId, createdAt: { gte: startOfToday }, status: validStatus },
-        include: {
-          items: { include: { product: { select: { id: true, name: true, costPrice: true } } } },
-        },
-      }),
+      prisma.$queryRaw<{ total_cost: number }[]>`
+        SELECT COALESCE(SUM(p."costPrice" * oi.quantity), 0)::float AS total_cost
+        FROM "OrderItem" oi
+        JOIN "Order" o ON o.id = oi."orderId"
+        JOIN "Product" p ON p.id = oi."productId"
+        WHERE o."storeId" = ${storeId}
+          AND o."createdAt" >= ${startOfToday}
+          AND o.status NOT IN ('CANCELLED', 'REFUNDED', 'DRAFT')
+      `,
+      prisma.$queryRaw<{ name: string; qty: number; revenue: number }[]>`
+        SELECT p.name, SUM(oi.quantity)::int as qty, SUM(oi."unitPrice" * oi.quantity)::float as revenue
+        FROM "OrderItem" oi
+        JOIN "Order" o ON o.id = oi."orderId"
+        JOIN "Product" p ON p.id = oi."productId"
+        WHERE o."storeId" = ${storeId}
+          AND o."createdAt" >= ${startOfToday}
+          AND o.status NOT IN ('CANCELLED', 'REFUNDED', 'DRAFT')
+        GROUP BY p.id, p.name
+        ORDER BY qty DESC
+        LIMIT 5
+      `,
+      prisma.$queryRaw<{ hour: number; revenue: number; orders: number }[]>`
+        SELECT EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'Asia/Bangkok')::int as hour,
+          SUM(total)::float as revenue, COUNT(*)::int as orders
+        FROM "Order"
+        WHERE "storeId" = ${storeId}
+          AND "createdAt" >= ${startOfToday}
+          AND status NOT IN ('CANCELLED', 'REFUNDED', 'DRAFT')
+        GROUP BY hour
+      `,
     ]);
 
     // Profit today = revenue - cost
-    let todayCost = 0;
-    for (const o of todayOrdersDetail) {
-      for (const it of o.items) {
-        todayCost += Number(it.product.costPrice) * it.quantity;
-      }
-    }
+    const todayCost = Number(costResult[0]?.total_cost || 0);
     const todayRevenue = Number(todayAgg._sum.total || 0);
     const todayProfit = todayRevenue - todayCost;
     const todayMargin = todayRevenue > 0 ? (todayProfit / todayRevenue) * 100 : 0;
@@ -117,34 +136,20 @@ router.get('/overview', async (req, res, next) => {
     const outOfStock = lowStockItems.filter((i) => i.quantity === 0).length;
 
     // ====== TOP ITEMS TODAY ======
-    const itemUsage = new Map<string, { name: string; qty: number; revenue: number }>();
-    for (const o of todayOrdersDetail) {
-      for (const it of o.items) {
-        const key = it.product.id;
-        const ex = itemUsage.get(key);
-        const rev = Number(it.unitPrice) * it.quantity;
-        if (ex) {
-          ex.qty += it.quantity;
-          ex.revenue += rev;
-        } else {
-          itemUsage.set(key, { name: it.product.name, qty: it.quantity, revenue: rev });
-        }
-      }
-    }
-    const topItems = Array.from(itemUsage.values())
-      .sort((a, b) => b.qty - a.qty)
-      .slice(0, 5);
+    const topItems = topItemsResult.map((t) => ({
+      name: t.name,
+      qty: Number(t.qty),
+      revenue: Number(t.revenue),
+    }));
 
     // ====== HOURLY TODAY ======
-    const hourly: { hour: number; orders: number; revenue: number }[] = [];
-    for (let h = 0; h < 24; h++) {
-      hourly.push({ hour: h, orders: 0, revenue: 0 });
-    }
-    for (const o of todayOrdersDetail) {
-      const h = new Date(o.createdAt).getHours();
-      hourly[h].orders += 1;
-      hourly[h].revenue += Number(o.total);
-    }
+    const hourly: { hour: number; orders: number; revenue: number }[] = Array.from(
+      { length: 24 },
+      (_, h) => {
+        const row = hourlyResult.find((r) => r.hour === h);
+        return { hour: h, orders: row ? Number(row.orders) : 0, revenue: row ? Number(row.revenue) : 0 };
+      }
+    );
 
     // ====== RECENT ORDERS (live feed) ======
     const recentOrders = await prisma.order.findMany({
