@@ -194,8 +194,11 @@ function MemberPortalContent() {
   const currentStampsProgress = stampsPerReward > 0 ? stamps % stampsPerReward : 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center p-4 py-8">
-      <div className="w-full max-w-md space-y-4">
+    <div className="min-h-screen bg-background flex flex-col items-center p-4 py-8 relative overflow-hidden">
+      {/* Soft brand glow behind the page — purely decorative */}
+      <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[36rem] h-[24rem] rounded-full bg-primary/20 blur-3xl opacity-60 dark:opacity-30" />
+
+      <div className="w-full max-w-md space-y-4 relative">
         {/* Header — brand mark + greeting, matches the store's own bottom-nav style */}
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-3">
@@ -222,8 +225,10 @@ function MemberPortalContent() {
 
         {/* Claim result banner — only when this visit came from a receipt QR */}
         {claimResult && (
-          <div className="rounded-2xl border-2 border-success bg-success/10 p-4 flex items-center gap-3 animate-fade-in">
-            <PartyPopper className="w-8 h-8 text-success shrink-0" />
+          <div className="relative overflow-hidden rounded-2xl border border-success/30 bg-gradient-to-br from-success/15 via-success/10 to-transparent p-4 flex items-center gap-3 animate-slide-up shadow-card">
+            <div className="w-11 h-11 rounded-full bg-success/20 flex items-center justify-center shrink-0">
+              <PartyPopper className="w-6 h-6 text-success" />
+            </div>
             <div className="text-sm">
               <div className="font-bold text-success">สะสมแต้มจากบิลนี้สำเร็จ!</div>
               <div className="text-muted-foreground">
@@ -234,15 +239,22 @@ function MemberPortalContent() {
           </div>
         )}
         {claimNotice && (
-          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning flex items-center gap-2">
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning flex items-center gap-2 animate-fade-in">
             <AlertCircle className="w-4 h-4 shrink-0" /> {claimNotice}
           </div>
         )}
 
         {/* State 1: Enter Phone Number */}
         {!member && !showRegisterForm && (
-          <Card>
-            <CardHeader>
+          <Card className="overflow-hidden shadow-card animate-slide-up">
+            <div className="bg-gradient-to-br from-primary to-primary-600 px-5 pt-6 pb-8 text-center text-primary-foreground">
+              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mx-auto mb-3">
+                <Sparkles className="w-7 h-7" />
+              </div>
+              <p className="text-base font-bold">สแกนแล้วสะสมแต้มได้เลย</p>
+              <p className="text-xs text-primary-foreground/80 mt-1">ระบบสมาชิก {store.name}</p>
+            </div>
+            <CardHeader className="pt-5">
               <CardTitle className="text-base flex items-center gap-2">
                 <Search className="w-4 h-4 text-primary" /> ค้นหาข้อมูลสมาชิก
               </CardTitle>
@@ -285,37 +297,51 @@ function MemberPortalContent() {
 
         {/* State 2: Member dashboard */}
         {member && (
-          <div className="space-y-4 animate-fade-in">
-            {/* Points/stamps summary — brown header bar + big number, ref-style */}
-            <div className="rounded-2xl overflow-hidden border border-border shadow-sm">
-              <div className="bg-foreground text-background px-4 py-2.5 flex items-center justify-between">
-                <span className="text-sm font-medium">บัตรสมาชิก · {member.name}</span>
-                <span className="text-xs font-mono opacity-70">{member.phone}</span>
+          <div className="space-y-4 animate-slide-up">
+            {/* Digital membership card — dark gradient "wallet pass" look */}
+            <div className="relative rounded-3xl overflow-hidden shadow-pop bg-gradient-to-br from-foreground via-[#1c2333] to-foreground text-background p-5">
+              {/* Decorative rings, purely visual */}
+              <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 rounded-full border border-background/10" />
+              <div className="pointer-events-none absolute -right-4 -bottom-8 w-28 h-28 rounded-full bg-primary/20 blur-2xl" />
+
+              <div className="relative flex items-center justify-between">
+                <span className="text-xs font-semibold tracking-widest uppercase opacity-70">บัตรสมาชิก</span>
+                <Sparkles className="w-4 h-4 opacity-70" />
               </div>
-              <div className="bg-card">
+              <p className="relative text-lg font-bold mt-3 truncate">{member.name}</p>
+              <p className="relative text-xs font-mono opacity-60 tracking-wider">{member.phone}</p>
+
+              <div className={`relative mt-5 grid ${showPoints && showStamps ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
                 {showPoints && (
-                  <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-                    <div className="w-11 h-11 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                  <div className="rounded-2xl bg-background/10 backdrop-blur-sm px-4 py-3 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
                       <Coins className="w-5 h-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-2xl font-bold tabular-nums leading-tight">{member.points ?? 0}</div>
-                      <div className="text-xs text-muted-foreground uppercase tracking-wide">แต้มสะสม</div>
+                      <div className="text-[11px] opacity-70 uppercase tracking-wide">แต้มสะสม</div>
                     </div>
                   </div>
                 )}
                 {showStamps && (
-                  <div className="flex items-center gap-3 px-4 py-4">
-                    <div className="w-11 h-11 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                  <div className="rounded-2xl bg-background/10 backdrop-blur-sm px-4 py-3 flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-400/20 text-indigo-300 flex items-center justify-center shrink-0">
                       <Stamp className="w-5 h-5" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="text-2xl font-bold tabular-nums leading-tight">{member.stamps ?? 0}</div>
-                      <div className="text-xs text-muted-foreground uppercase tracking-wide">ดวงบัตรสะสม</div>
+                      <div className="text-[11px] opacity-70 uppercase tracking-wide">ดวงสะสม</div>
                     </div>
                   </div>
                 )}
               </div>
+
+              {showPoints && Number(store.pointValue) > 0 && (member.points ?? 0) > 0 && (
+                <p className="relative mt-3 text-[11px] opacity-60">
+                  แลกได้สูงสุด {formatCurrency((member.points ?? 0) * Number(store.pointValue))}
+                  {Number(store.minRedeemPoints) > 0 && ` · ใช้ขั้นต่ำ ${store.minRedeemPoints} แต้ม`}
+                </p>
+              )}
             </div>
 
             {/* Stamp card progress */}
@@ -387,7 +413,7 @@ function MemberPortalContent() {
 
         {/* State 3: Self Registration Form */}
         {showRegisterForm && !member && (
-          <Card className="animate-fade-in">
+          <Card className="animate-slide-up shadow-card">
             <CardHeader className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg p-2.5 leading-relaxed mb-1">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
