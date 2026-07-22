@@ -10,7 +10,6 @@ import {
   ShoppingBag,
   Loader2,
   CheckCircle2,
-  XCircle,
   UtensilsCrossed,
   X,
   Search,
@@ -36,14 +35,13 @@ interface Category {
   icon: string | null;
 }
 
-type Phase = 'menu' | 'cart' | 'waiting' | 'approved' | 'rejected';
+type Phase = 'menu' | 'cart' | 'approved';
 
 /**
  * Customer's own phone, reached by scanning a table's QR code — no login.
- * Builds a cart locally, submits it, then waits for a staff member to
- * approve (merged into the table's real bill) or reject it. See
- * self-order.service.ts on the API for why approval is required: it keeps a
- * prank/mistaken order from ever reaching the kitchen unattended.
+ * Builds a cart locally and submits it; it's merged into the table's real
+ * bill and hits the kitchen immediately, no staff approval step. See
+ * self-order.service.ts on the API.
  *
  * Layout is capped at max-w-lg and centered — full-bleed on a phone, a
  * comfortable reading column if opened on a tablet/desktop browser instead.
@@ -66,7 +64,8 @@ export default function SelfOrderPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [requestId, setRequestId] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
+  const [orderId, setOrderId] = useState<string | null>(null);
+  const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [billCallState, setBillCallState] = useState<'idle' | 'sending' | 'sent'>('idle');
 
   // Customer Loyalty member points states
@@ -121,11 +120,8 @@ export default function SelfOrderPage() {
         customerId: member?.id || undefined,
       });
       setRequestId(data.id);
-      if (data.status === 'APPROVED') {
-        setPhase('approved');
-      } else {
-        setPhase('waiting');
-      }
+      setOrderId(data.orderId || null);
+      setPhase('approved');
     } catch (e: any) {
       setSubmitError(e.response?.data?.error || t('selfOrder.submitFailed'));
     } finally {
@@ -148,33 +144,24 @@ export default function SelfOrderPage() {
     }
   };
 
-  // Realtime resolution (socket) + light polling fallback in case the
-  // socket never connects (some guest wifi blocks websockets outright).
+  // Live kitchen status (PREPARING/READY/COMPLETED) via socket, with a light
+  // polling fallback in case the socket never connects (some guest wifi
+  // blocks websockets outright).
   useEffect(() => {
-    if (!requestId) return;
+    if (!requestId || !orderId) return;
     const socketBase =
       process.env.NEXT_PUBLIC_SOCKET_URL || `${window.location.protocol}//${window.location.hostname}:4000`;
     const socket: Socket = io(`${socketBase}/self-order`, {
       transports: ['websocket', 'polling'],
       reconnection: true,
     });
-    socket.on('connect', () => socket.emit('join', { requestId }));
-    socket.on('resolved', (msg: { status: 'APPROVED' | 'REJECTED'; rejectReason?: string }) => {
-      if (msg.status === 'APPROVED') setPhase('approved');
-      else {
-        setRejectReason(msg.rejectReason || '');
-        setPhase('rejected');
-      }
-    });
+    socket.on('connect', () => socket.emit('join', { orderId }));
+    socket.on('order:status', (msg: { status: string }) => setOrderStatus(msg.status));
 
     const poll = setInterval(async () => {
       try {
         const { data } = await api.get(`/self-order/status/${requestId}`);
-        if (data.status === 'APPROVED') setPhase('approved');
-        else if (data.status === 'REJECTED') {
-          setRejectReason(data.rejectReason || '');
-          setPhase('rejected');
-        }
+        if (data.orderStatus) setOrderStatus(data.orderStatus);
       } catch {
         /* keep polling */
       }
@@ -184,13 +171,14 @@ export default function SelfOrderPage() {
       socket.disconnect();
       clearInterval(poll);
     };
-  }, [requestId]);
+  }, [requestId, orderId]);
 
   const startOver = () => {
     setCart({});
     setNote('');
     setRequestId(null);
-    setRejectReason('');
+    setOrderId(null);
+    setOrderStatus(null);
     setPhase('menu');
   };
 
@@ -219,7 +207,7 @@ export default function SelfOrderPage() {
   return (
     <div className="min-h-[100dvh] bg-background">
       <AnimatePresence mode="wait">
-        {(phase === 'waiting' || phase === 'approved' || phase === 'rejected') && (
+        {phase === 'approved' && (
           <motion.div
             key="status"
             initial={{ opacity: 0 }}
@@ -227,54 +215,33 @@ export default function SelfOrderPage() {
             exit={{ opacity: 0 }}
             className="min-h-[100dvh] flex flex-col items-center justify-center text-center p-6"
           >
-            {phase === 'waiting' && (
-              <>
-                <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6"
-                >
-                  <Loader2 className="w-9 h-9 text-primary animate-spin" />
-                </motion.div>
-                <h1 className="text-xl font-bold mb-2">{t('selfOrder.waitingTitle')}</h1>
-                <p className="text-muted-foreground text-sm max-w-xs">{t('selfOrder.waitingHint')}</p>
-              </>
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+              className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mb-6"
+            >
+              <CheckCircle2 className="w-11 h-11 text-success" />
+            </motion.div>
+            <h1 className="text-xl font-bold mb-2">{t('selfOrder.approvedTitle')}</h1>
+            <p className="text-muted-foreground text-sm max-w-xs mb-3">
+              {orderStatus === 'READY'
+                ? t('selfOrder.readyHint')
+                : orderStatus === 'COMPLETED'
+                ? t('selfOrder.completedHint')
+                : t('selfOrder.approvedHint')}
+            </p>
+            {orderStatus === 'READY' && (
+              <span className="mb-4 px-3 py-1 rounded-full bg-success/15 text-success text-xs font-semibold">
+                {t('selfOrder.readyBadge')}
+              </span>
             )}
-            {phase === 'approved' && (
-              <>
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-                  className="w-20 h-20 rounded-full bg-success/10 flex items-center justify-center mb-6"
-                >
-                  <CheckCircle2 className="w-11 h-11 text-success" />
-                </motion.div>
-                <h1 className="text-xl font-bold mb-2">{t('selfOrder.approvedTitle')}</h1>
-                <p className="text-muted-foreground text-sm max-w-xs mb-7">{t('selfOrder.approvedHint')}</p>
-                <button
-                  onClick={startOver}
-                  className="px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-transform"
-                >
-                  {t('selfOrder.orderMore')}
-                </button>
-              </>
-            )}
-            {phase === 'rejected' && (
-              <>
-                <div className="w-20 h-20 rounded-full bg-danger/10 flex items-center justify-center mb-6">
-                  <XCircle className="w-11 h-11 text-danger" />
-                </div>
-                <h1 className="text-xl font-bold mb-2">{t('selfOrder.rejectedTitle')}</h1>
-                {rejectReason && <p className="text-muted-foreground text-sm max-w-xs mb-1">{rejectReason}</p>}
-                <button
-                  onClick={startOver}
-                  className="mt-6 px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-transform"
-                >
-                  {t('selfOrder.tryAgain')}
-                </button>
-              </>
-            )}
+            <button
+              onClick={startOver}
+              className="px-6 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-semibold active:scale-95 transition-transform"
+            >
+              {t('selfOrder.orderMore')}
+            </button>
           </motion.div>
         )}
 

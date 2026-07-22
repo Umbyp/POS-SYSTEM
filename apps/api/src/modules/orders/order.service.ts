@@ -490,6 +490,9 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server) 
 
   io.to(`store:${order.storeId}`).emit('order:status', { id: order.id, status });
   io.to(`store:${order.storeId}:kds`).emit('kds:status', { id: order.id, status });
+  // Let a customer's self-order status page (if still open) reflect real
+  // kitchen progress instead of freezing at "order received".
+  io.of('/self-order').to(`order:${order.id}`).emit('order:status', { status });
   // Ready-board is public/unauthenticated, so it lives on its own socket
   // namespace (see socket.ts) — only ping it for the two transitions it
   // actually cares about (an order becoming ready, or leaving the board).

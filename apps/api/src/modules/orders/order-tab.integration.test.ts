@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { prisma } from '../../config/prisma';
 import * as tabService from './order-tab.service';
 
-const fakeIo = { to: () => ({ emit: () => {} }) } as any;
+const fakeIo = { to: () => ({ emit: () => {} }), of: () => ({ to: () => ({ emit: () => {} }) }) } as any;
 
 describe('open-tab money path (integration)', () => {
   let storeId: string;

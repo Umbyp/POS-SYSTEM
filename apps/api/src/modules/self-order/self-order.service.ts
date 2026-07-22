@@ -1,10 +1,9 @@
 /**
  * QR self-order: a customer scans a table's QR code, builds a cart on their
- * own phone (no login), and submits it. Nothing touches stock, the kitchen,
- * or the table's bill until a staff member approves it — approval merges the
- * items into the table's open tab via the existing order-tab flow (openTab /
- * addRound), so pricing/stock/recipe logic stays in one place. This keeps a
- * prank or mistaken submission from ever reaching the kitchen unattended.
+ * own phone (no login), and submits it. It's merged straight into the
+ * table's open tab via the existing order-tab flow (openTab / addRound) and
+ * hits the kitchen immediately — no staff approval step — so pricing/stock/
+ * recipe logic stays in one place without adding a wait for the customer.
  */
 import { Server } from 'socket.io';
 import { PointTxType } from '@prisma/client';
@@ -119,12 +118,14 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
   const items = input.items as unknown as SelfOrderItemInput[];
   const existing = await orderTabService.getOpenByTable(table.storeId, table.id);
 
+  let orderId: string;
   if (existing) {
     await orderTabService.addRound(
       existing.id,
       { storeId: table.storeId, cashierId, items },
       io
     );
+    orderId = existing.id;
     if (input.customerId && !existing.customerId) {
       await prisma.order.update({
         where: { id: existing.id },
@@ -132,7 +133,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       });
     }
   } else {
-    await orderTabService.openTab(
+    const created = await orderTabService.openTab(
       {
         storeId: table.storeId,
         cashierId,
@@ -144,12 +145,14 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       },
       io
     );
+    orderId = created.id;
   }
 
   const request = await prisma.selfOrderRequest.create({
     data: {
       storeId: table.storeId,
       tableId: table.id,
+      orderId,
       items: input.items as any,
       note: input.note,
       status: 'APPROVED',
@@ -158,125 +161,18 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
     },
   });
 
-  // Emit resolved event so that customer client listening to socket room gets instant approval
-  io.of('/self-order').to(`req:${request.id}`).emit('resolved', { status: 'APPROVED' });
-
-  // Update store clients that a self-order was updated
-  io.to(`store:${table.storeId}`).emit('selforder:update', request);
-
   return request;
 }
 
-/** Customer-side polling fallback (in case the socket connection drops). */
-export function getStatus(id: string) {
-  return prisma.selfOrderRequest.findUnique({
+/** Customer-side polling fallback for live kitchen status (in case the socket connection drops). */
+export async function getStatus(id: string) {
+  const request = await prisma.selfOrderRequest.findUnique({
     where: { id },
-    select: { id: true, status: true, rejectReason: true },
+    select: { id: true, status: true, orderId: true, order: { select: { status: true } } },
   });
-}
-
-/** Staff-side: pending requests for the store, oldest first, items enriched with product names. */
-export async function listPending(storeId: string) {
-  const requests = await prisma.selfOrderRequest.findMany({
-    where: { storeId, status: 'PENDING' },
-    include: { table: true },
-    orderBy: { createdAt: 'asc' },
-  });
-  if (requests.length === 0) return requests;
-
-  const productIds = [
-    ...new Set(
-      requests.flatMap((r) => (r.items as unknown as SelfOrderItemInput[]).map((i) => i.productId))
-    ),
-  ];
-  const products = await prisma.product.findMany({
-    where: { id: { in: productIds } },
-    select: { id: true, name: true },
-  });
-  const nameById = new Map(products.map((p) => [p.id, p.name]));
-
-  return requests.map((r) => ({
-    ...r,
-    items: (r.items as unknown as SelfOrderItemInput[]).map((i) => ({
-      ...i,
-      name: nameById.get(i.productId) || i.productId,
-    })),
-  }));
-}
-
-interface ApproveInput {
-  storeId: string;
-  cashierId: string;
-}
-
-/** Approve — merge into the table's open tab (or open a new one), then mark resolved. */
-export async function approve(id: string, input: ApproveInput, io: Server) {
-  const request = await prisma.selfOrderRequest.findUnique({ where: { id } });
-  if (!request) throw NotFound('Request not found');
-  if (request.storeId !== input.storeId) throw BadRequest('Wrong store');
-  if (request.status !== 'PENDING') throw BadRequest('Request already resolved');
-
-  const items = request.items as unknown as SelfOrderItemInput[];
-  const existing = await orderTabService.getOpenByTable(input.storeId, request.tableId);
-
-  if (existing) {
-    await orderTabService.addRound(
-      existing.id,
-      { storeId: input.storeId, cashierId: input.cashierId, items },
-      io
-    );
-    if (request.customerId && !existing.customerId) {
-      await prisma.order.update({
-        where: { id: existing.id },
-        data: { customerId: request.customerId },
-      });
-    }
-  } else {
-    await orderTabService.openTab(
-      {
-        storeId: input.storeId,
-        cashierId: input.cashierId,
-        tableId: request.tableId,
-        type: 'DINE_IN',
-        items,
-        customerId: request.customerId || undefined,
-      },
-      io
-    );
-  }
-
-  const updated = await prisma.selfOrderRequest.update({
-    where: { id },
-    data: { status: 'APPROVED', resolvedAt: new Date() },
-  });
-
-  io.of('/self-order').to(`req:${id}`).emit('resolved', { status: 'APPROVED' });
-  io.to(`store:${input.storeId}`).emit('selforder:update', updated);
-  return updated;
-}
-
-interface RejectInput {
-  storeId: string;
-  reason?: string;
-}
-
-export async function reject(id: string, input: RejectInput, io: Server) {
-  const request = await prisma.selfOrderRequest.findUnique({ where: { id } });
-  if (!request) throw NotFound('Request not found');
-  if (request.storeId !== input.storeId) throw BadRequest('Wrong store');
-  if (request.status !== 'PENDING') throw BadRequest('Request already resolved');
-
-  const updated = await prisma.selfOrderRequest.update({
-    where: { id },
-    data: { status: 'REJECTED', rejectReason: input.reason, resolvedAt: new Date() },
-  });
-
-  io.of('/self-order').to(`req:${id}`).emit('resolved', {
-    status: 'REJECTED',
-    rejectReason: input.reason,
-  });
-  io.to(`store:${input.storeId}`).emit('selforder:update', updated);
-  return updated;
+  if (!request) return null;
+  const { order, ...rest } = request;
+  return { ...rest, orderStatus: order?.status ?? null };
 }
 
 /**
