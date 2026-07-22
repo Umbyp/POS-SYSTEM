@@ -320,6 +320,7 @@ model Order {
   table         Table?      @relation(fields: [tableId], references: [id])
   items         OrderItem[]
   payments      Payment[]
+  selfOrderRequests SelfOrderRequest[]
 
   @@unique([storeId, orderNumber])
   @@index([storeId, createdAt])
@@ -436,6 +437,8 @@ model SelfOrderRequest {
   storeId      String
   tableId      String
   customerId   String?
+  orderId      String?  // the table's tab this got merged into — lets the customer's
+                         // status page (page 15) track real kitchen/ready status
   items        Json     // [{ productId, quantity, notes? }]
   note         String?
   status       SelfOrderStatus @default(PENDING)
@@ -445,9 +448,11 @@ model SelfOrderRequest {
   store        Store    @relation(fields: [storeId], references: [id])
   table        Table    @relation(fields: [tableId], references: [id])
   customer     Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  order        Order?   @relation(fields: [orderId], references: [id])
 
   @@index([storeId, status])
   @@index([customerId])
+  @@index([orderId])
 }
 
 enum SelfOrderStatus {

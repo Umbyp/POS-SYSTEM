@@ -7,7 +7,7 @@ import { ShiftButton } from '@/components/shifts/ShiftButton';
 import { StoreSwitcher } from '@/components/layout/StoreSwitcher';
 import { ThemeToggle } from '@/components/layout/ThemeToggle';
 import { LanguageToggle } from '@/components/layout/LanguageToggle';
-import { PendingSelfOrders } from '@/components/layout/PendingSelfOrders';
+import { BillCallBell } from '@/components/layout/BillCallBell';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -108,7 +108,7 @@ export function Topbar({ title, onMenuClick }: TopbarProps) {
       <div className="flex items-center gap-2 shrink-0">
         <StoreSwitcher />
 
-        <PendingSelfOrders />
+        <BillCallBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

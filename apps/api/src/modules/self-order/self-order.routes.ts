@@ -40,10 +40,6 @@ const registerSchema = z.object({
   email: z.string().email().optional().or(z.literal('')),
 });
 
-const rejectSchema = z.object({
-  reason: z.string().optional(),
-});
-
 const claimPointsSchema = z.object({
   phone: z.string().min(1),
   name: z.string().optional(),
@@ -67,7 +63,7 @@ publicRouter.post('/:qrCode/submit', writeLimiter, validate(submitSchema), async
   try {
     const io = req.app.get('io');
     const request = await service.submitRequest(req.params.qrCode, req.body, io);
-    res.status(201).json({ id: request.id, status: request.status });
+    res.status(201).json({ id: request.id, status: request.status, orderId: request.orderId });
   } catch (e) { next(e); }
 });
 
@@ -141,37 +137,6 @@ publicRouter.post('/order/:orderId/claim-points', writeLimiter, validate(claimPo
 /** Staff-side — authenticated, scoped to the cashier's own store. */
 const router = Router();
 router.use(authMiddleware);
-
-router.get('/pending', async (req, res, next) => {
-  try {
-    const pending = await service.listPending(req.user!.storeId);
-    res.json(pending);
-  } catch (e) { next(e); }
-});
-
-router.post('/:id/approve', async (req, res, next) => {
-  try {
-    const io = req.app.get('io');
-    const updated = await service.approve(
-      req.params.id,
-      { storeId: req.user!.storeId, cashierId: req.user!.id },
-      io
-    );
-    res.json(updated);
-  } catch (e) { next(e); }
-});
-
-router.post('/:id/reject', validate(rejectSchema), async (req, res, next) => {
-  try {
-    const io = req.app.get('io');
-    const updated = await service.reject(
-      req.params.id,
-      { storeId: req.user!.storeId, reason: req.body.reason },
-      io
-    );
-    res.json(updated);
-  } catch (e) { next(e); }
-});
 
 router.get('/bill-calls/pending', async (req, res, next) => {
   try {

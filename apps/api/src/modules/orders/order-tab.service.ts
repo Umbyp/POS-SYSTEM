@@ -235,6 +235,7 @@ export async function addRound(
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.updated);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
   io.to(`store:${input.storeId}`).emit('order:status', { id: orderId, status: result.updated.status });
+  io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: result.updated.status });
   if (result.wasReady) {
     io.of('/display').to(`store:${input.storeId}:display`).emit('ready-board:update');
   }
@@ -410,6 +411,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
 
   io.to(`store:${input.storeId}`).emit('order:created', result.updated); // payment sound + toast
   io.to(`store:${input.storeId}:kds`).emit('kds:status', { id: orderId, status: 'COMPLETED' });
+  io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: 'COMPLETED' });
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
   return result.updated;
 }
