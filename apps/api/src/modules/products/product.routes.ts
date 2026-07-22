@@ -55,6 +55,24 @@ router.get('/categories', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /products/category-presence - lightweight: which categories have at least
+// one active, non-ingredient product? Returns [{ categoryId }] via groupBy
+// instead of loading every product row.
+router.get('/category-presence', async (req, res, next) => {
+  try {
+    const rows = await prisma.product.groupBy({
+      by: ['categoryId'],
+      where: {
+        storeId: req.user!.storeId,
+        isActive: true,
+        isIngredient: false,
+      },
+      _count: { _all: true },
+    });
+    res.json(rows.map((r) => r.categoryId));
+  } catch (e) { next(e); }
+});
+
 // POST /products/categories
 router.post('/categories', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
@@ -127,6 +145,7 @@ router.get('/', async (req, res, next) => {
       q: req.query.q as string,
       categoryId: req.query.categoryId as string,
       includeIngredients: req.query.includeIngredients === '1',
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
     });
     res.json(data);
   } catch (e) { next(e); }

@@ -43,7 +43,19 @@ interface PpIntent {
 
 export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
-  const cart = useCart();
+  // Individual selectors avoid re-rendering on every store change
+  const cartItems = useCart((s) => s.items);
+  const cartType = useCart((s) => s.type);
+  const cartTableId = useCart((s) => s.tableId);
+  const cartCustomer = useCart((s) => s.customer);
+  const cartDiscount = useCart((s) => s.discount);
+  const cartPointsToRedeem = useCart((s) => s.pointsToRedeem);
+  const cartUseStampReward = useCart((s) => s.useStampReward);
+  const cartPromotion = useCart((s) => s.promotion);
+  const cartOpenOrderId = useCart((s) => s.openOrderId);
+  const cartCustomerNote = useCart((s) => s.customerNote);
+  const cartClear = useCart((s) => s.clear);
+  const cartSubtotal = useCart((s) => s.subtotal);
   const t = useT();
   const METHOD_LABEL: Record<Method, string> = { CASH: t('pay.cash'), PROMPTPAY: t('pay.promptpay') };
   const EXTRA_METHOD_LABEL: Record<ExtraMethod, string> = {
@@ -78,8 +90,8 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   // Settle mode: paying an existing open (dine-in) bill instead of creating one.
   // Items were already cleared from the cart when they were sent to the
   // kitchen, so the subtotal must come from the server's running bill —
-  // cart.subtotal() would read as 0 here.
-  const settleId = cart.openOrderId;
+  // cartSubtotal() would read as 0 here.
+  const settleId = cartOpenOrderId;
   const { data: settleOrder } = useQuery({
     queryKey: ['settle-order', settleId],
     queryFn: () => api.get(`/orders/${settleId}`).then((r) => r.data),
@@ -87,20 +99,20 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   });
   const settleNotReady = !!settleId && !settleOrder;
 
-  const sub = settleId ? Number(settleOrder?.subtotal ?? 0) : cart.subtotal();
+  const sub = settleId ? Number(settleOrder?.subtotal ?? 0) : cartSubtotal();
   // 1 point = 1 baht, matching Cart.tsx's own redeem logic
-  const pointDiscount = cart.pointsToRedeem || 0;
+  const pointDiscount = cartPointsToRedeem || 0;
   // Stamp-card reward discount — only if enabled, a member is selected, and
   // they hold enough stamps (mirror of Cart.tsx's guard, re-checked here so the
   // amount due matches what the backend will compute).
   const stampsPerReward = Number(store?.stampsPerReward ?? 10);
   const stampsEnabled = store?.loyaltyMode === 'STAMPS' || store?.loyaltyMode === 'BOTH';
   const useStampReward =
-    !!cart.useStampReward && stampsEnabled && stampsPerReward > 0 &&
-    (cart.customer?.stamps ?? 0) >= stampsPerReward;
+    !!cartUseStampReward && stampsEnabled && stampsPerReward > 0 &&
+    (cartCustomer?.stamps ?? 0) >= stampsPerReward;
   const stampDiscount = useStampReward ? Number(store?.stampRewardValue ?? 0) : 0;
-  const promoDiscount = cart.promotion?.discountAmount || 0;
-  const breakdown = computePricing(sub, cart.discount + pointDiscount + stampDiscount + promoDiscount, cfg);
+  const promoDiscount = cartPromotion?.discountAmount || 0;
+  const breakdown = computePricing(sub, cartDiscount + pointDiscount + stampDiscount + promoDiscount, cfg);
   const total = breakdown.total;
 
   const [method, setMethod] = useState<Method>('CASH');
@@ -180,7 +192,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
       sendToCustomerDisplay({
         type: 'cart',
         storeName: store?.name,
-        items: cart.items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
+        items: cartItems.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
         subtotal: sub,
         discount: breakdown.discount,
         total,
@@ -195,7 +207,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     try {
       const r = await api.post('/payments/promptpay/intent', {
         amount: Number(remaining.toFixed(2)),
-        orderRef: cart.tableId || undefined,
+        orderRef: cartTableId || undefined,
       });
       setPpIntent(r.data);
       setPpStatus('waiting');
@@ -307,13 +319,13 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
       if (settleId) {
         const settlePayload: any = {
           payments,
-          discount: cart.discount,
-          pointsToRedeem: cart.pointsToRedeem || undefined,
+          discount: cartDiscount,
+          pointsToRedeem: cartPointsToRedeem || undefined,
           useStampReward: useStampReward || undefined,
-          customerId: cart.customer?.id,
-          promotionId: cart.promotion?.promotionId,
-          promotionDiscount: cart.promotion?.discountAmount,
-          promotionName: cart.promotion?.promotionName,
+          customerId: cartCustomer?.id,
+          promotionId: cartPromotion?.promotionId,
+          promotionDiscount: cartPromotion?.discountAmount,
+          promotionName: cartPromotion?.promotionName,
         };
         if (showCustomerInfo) {
           settlePayload.customerName = customerName || undefined;
@@ -325,7 +337,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
         if (result.offline) {
           toast.success(t('pay.offlineSaved'));
-          cart.clear();
+          cartClear();
           onClose();
           return;
         }
@@ -336,28 +348,28 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         qc.invalidateQueries({ queryKey: ['tables'] });
         qc.invalidateQueries({ queryKey: ['open-bill'] });
         playCashRegister();
-        cart.clear();
+        cartClear();
         return;
       }
 
       const payload: any = {
-        type: cart.type,
-        tableId: cart.tableId,
-        customerId: cart.customer?.id,
-        items: cart.items.map((i) => ({
+        type: cartType,
+        tableId: cartTableId,
+        customerId: cartCustomer?.id,
+        items: cartItems.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
           notes: i.notes,
           variants: i.variants,
         })),
-        discount: cart.discount,
-        pointsToRedeem: cart.pointsToRedeem || undefined,
+        discount: cartDiscount,
+        pointsToRedeem: cartPointsToRedeem || undefined,
         useStampReward: useStampReward || undefined,
-        promotionId: cart.promotion?.promotionId,
-        promotionDiscount: cart.promotion?.discountAmount,
-        promotionName: cart.promotion?.promotionName,
+        promotionId: cartPromotion?.promotionId,
+        promotionDiscount: cartPromotion?.discountAmount,
+        promotionName: cartPromotion?.promotionName,
         payments,
-        notes: cart.customerNote,
+        notes: cartCustomerNote,
       };
 
       if (showCustomerInfo) {
@@ -370,14 +382,14 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
       if (result.offline) {
         toast.success(t('pay.offlineSaved'));
-        cart.clear();
+        cartClear();
         onClose();
       } else {
         setSuccess(result.data);
         qc.invalidateQueries({ queryKey: ['orders'] });
         qc.invalidateQueries({ queryKey: ['products'] });
         playCashRegister();
-        cart.clear();
+        cartClear();
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || t('pay.failed'));

@@ -1,6 +1,7 @@
 import express, { type RequestHandler } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { errorMiddleware } from './middleware/error.middleware';
@@ -39,6 +40,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
+app.use(compression());
 app.use(
   cors({
     origin: env.WEB_URL.split(',').map((s) => s.trim()),

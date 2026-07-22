@@ -16,34 +16,32 @@ import { VoidItemDialog } from '@/components/pos/VoidItemDialog';
 import { sendToCustomerDisplay } from '@/lib/customerDisplay';
 
 export function Cart({ onCheckout }: { onCheckout: () => void }) {
-  const {
-    items,
-    discount,
-    pointsToRedeem,
-    useStampReward,
-    promotion,
-    promoCode,
-    type,
-    tableId,
-    customer,
-    gpFeePct,
-    setType,
-    setGpFeePct,
-    setTable,
-    setDiscount,
-    setPointsToRedeem,
-    setUseStampReward,
-    setPromotion,
-    setPromoCode,
-    setCustomer,
-    openOrderId,
-    setOpenOrder,
-    updateQty,
-    removeItem,
-    clearItems,
-    clear,
-    subtotal,
-  } = useCart();
+  // Individual selectors — each state value only triggers re-render when it
+  // actually changes. Actions are stable references (never cause re-renders).
+  const items = useCart((s) => s.items);
+  const discount = useCart((s) => s.discount);
+  const pointsToRedeem = useCart((s) => s.pointsToRedeem);
+  const useStampReward = useCart((s) => s.useStampReward);
+  const promotion = useCart((s) => s.promotion);
+  const promoCode = useCart((s) => s.promoCode);
+  const type = useCart((s) => s.type);
+  const tableId = useCart((s) => s.tableId);
+  const customer = useCart((s) => s.customer);
+  const gpFeePct = useCart((s) => s.gpFeePct);
+  const setType = useCart((s) => s.setType);
+  const setGpFeePct = useCart((s) => s.setGpFeePct);
+  const setTable = useCart((s) => s.setTable);
+  const setDiscount = useCart((s) => s.setDiscount);
+  const setPointsToRedeem = useCart((s) => s.setPointsToRedeem);
+  const setUseStampReward = useCart((s) => s.setUseStampReward);
+  const setPromotion = useCart((s) => s.setPromotion);
+  const setPromoCode = useCart((s) => s.setPromoCode);
+  const setCustomer = useCart((s) => s.setCustomer);
+  const setOpenOrder = useCart((s) => s.setOpenOrder);
+  const updateQty = useCart((s) => s.updateQty);
+  const removeItem = useCart((s) => s.removeItem);
+  const clearItems = useCart((s) => s.clearItems);
+  const clear = useCart((s) => s.clear);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false); // discounts & promotions section
   const t = useT();
@@ -130,7 +128,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     (customer.stamps ?? 0) >= stampsPerReward;
   const stampReward = useStampReward && canRedeemStamp;
 
-  const sub = subtotal();
+  const sub = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const pointDiscount = pointsToRedeem; // 1pt = 1 baht
   const stampDiscount = stampReward ? stampRewardValue : 0;
   const promoDiscount = promotion?.discountAmount || 0;
@@ -161,12 +159,6 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   }, [items, sub, breakdown.total, store?.name]);
 
   // Auto-apply promotion when cart/customer/code changes
-  const { data: products = [] } = useQuery({
-    queryKey: ['products-meta-promo'],
-    queryFn: () => api.get('/products').then((r) => r.data),
-    staleTime: 60_000,
-  });
-
   useEffect(() => {
     if (items.length === 0) {
       setPromotion(undefined);
@@ -174,15 +166,12 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     }
     const handler = setTimeout(async () => {
       try {
-        const enriched = items.map((i) => {
-          const p = products.find((x: any) => x.id === i.productId);
-          return {
-            productId: i.productId,
-            quantity: i.quantity,
-            unitPrice: i.unitPrice,
-            categoryId: p?.categoryId,
-          };
-        });
+        const enriched = items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          categoryId: i.categoryId,
+        }));
         const { data } = await api.post('/promotions/apply', {
           items: enriched,
           subtotal: sub,
@@ -204,7 +193,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     }, 400);
     return () => clearTimeout(handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [JSON.stringify(items), sub, customer?.id, promoCode, products.length]);
+  }, [JSON.stringify(items), sub, customer?.id, promoCode]);
 
   const currentTable = (tables as any[]).find((tb) => tb.id === tableId);
   const cartTitle =

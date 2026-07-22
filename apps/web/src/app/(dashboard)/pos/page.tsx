@@ -10,18 +10,30 @@ import { MobileCartSheet, MobileCartEmptyHint } from '@/components/pos/MobileCar
 import { PaymentDialog } from './PaymentDialog';
 import { Input } from '@/components/ui/input';
 import { useT } from '@/lib/i18n';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 export default function POSPage() {
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [payOpen, setPayOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const t = useT();
+  // `lg:hidden`/`hidden lg:flex` only toggle CSS display — the Cart component
+  // (with its own queries, mutations, and customer-display effect) stays
+  // mounted either way. Gate the actual mount on the same breakpoint so only
+  // one Cart instance ever runs at a time (desktop sidebar vs mobile sheet).
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(id);
+  }, [q]);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ['products', q, categoryId],
+    queryKey: ['products', debouncedQ, categoryId],
     queryFn: () =>
-      api.get('/products', { params: { q: q || undefined, categoryId: categoryId || undefined } })
+      api.get('/products', { params: { q: debouncedQ || undefined, categoryId: categoryId || undefined } })
         .then((r) => r.data),
   });
 
@@ -30,17 +42,17 @@ export default function POSPage() {
     queryFn: () => api.get('/products/categories').then((r) => r.data),
   });
 
-  // All sellable products (ingredients are already excluded by the API), used
-  // only to figure out which categories actually have something to sell — so a
-  // category that holds only ingredients (e.g. "วัตถุดิบ") isn't shown as an
-  // empty tab in the POS.
-  const { data: allProducts = [] } = useQuery({
-    queryKey: ['products', 'category-presence'],
-    queryFn: () => api.get('/products').then((r) => r.data),
+  // Lightweight: just the category IDs that have at least one sellable
+  // product, so empty categories aren't shown as pill chips. Uses a groupBy
+  // endpoint instead of loading every product.
+  const { data: nonEmptyCategoryIdsRaw = [] } = useQuery({
+    queryKey: ['product-category-presence'],
+    queryFn: () => api.get('/products/category-presence').then((r) => r.data),
+    staleTime: 60_000,
   });
   const nonEmptyCategoryIds = useMemo(
-    () => new Set((allProducts as any[]).map((p) => p.categoryId)),
-    [allProducts]
+    () => new Set(nonEmptyCategoryIdsRaw as string[]),
+    [nonEmptyCategoryIdsRaw]
   );
   const visibleCategories = useMemo(
     () => (categories as any[]).filter((c) => nonEmptyCategoryIds.has(c.id)),
@@ -99,20 +111,27 @@ export default function POSPage() {
           })}
         </div>
 
-        {/* Product grid */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin pr-1">
+        {/* Product grid — virtualized, manages its own scroll */}
+        <div className="flex-1 min-h-0">
           <ProductGrid products={products} loading={isLoading} />
         </div>
       </section>
 
-      {/* Cart sidebar — desktop only (lg+) */}
-      <aside className="hidden lg:flex col-span-4 bg-card rounded-xl p-4 flex-col overflow-hidden border border-border shadow-card">
-        <Cart onCheckout={() => setPayOpen(true)} />
-      </aside>
+      {/* Cart sidebar — desktop only (lg+). Only mounted when isDesktop so it
+          doesn't run alongside the mobile sheet's own Cart instance. */}
+      {isDesktop && (
+        <aside className="hidden lg:flex col-span-4 bg-card rounded-xl p-4 flex-col overflow-hidden border border-border shadow-card">
+          <Cart onCheckout={() => setPayOpen(true)} />
+        </aside>
+      )}
 
       {/* Mobile/Tablet — floating cart button + bottom sheet */}
-      <MobileCartSheet onCheckout={() => setPayOpen(true)} />
-      <MobileCartEmptyHint />
+      {!isDesktop && (
+        <>
+          <MobileCartSheet onCheckout={() => setPayOpen(true)} />
+          <MobileCartEmptyHint />
+        </>
+      )}
 
       <PaymentDialog open={payOpen} onClose={() => setPayOpen(false)} />
       <CrossSellSuggest />

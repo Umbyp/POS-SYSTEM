@@ -93,31 +93,16 @@ export default function KDSPage() {
   const [connected, setConnected] = useState(false);
 
   const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ['kds-pending'] });
-    qc.invalidateQueries({ queryKey: ['kds-preparing'] });
-    qc.invalidateQueries({ queryKey: ['kds-ready'] });
+    qc.invalidateQueries({ queryKey: ['kds-board'] });
   };
 
-  // Not started yet — kitchen hasn't picked it up.
-  const { data: pendingData, isLoading: pendingLoading } = useQuery({
-    queryKey: ['kds-pending'],
-    queryFn: () => api.get('/orders', { params: { status: 'PENDING', limit: 50 } }).then((r) => r.data),
-    refetchInterval: 10_000,
-  });
-
-  // Actively cooking.
-  const { data: preparingData, isLoading: preparingLoading } = useQuery({
-    queryKey: ['kds-preparing'],
-    queryFn: () => api.get('/orders', { params: { status: 'PREPARING', limit: 50 } }).then((r) => r.data),
-    refetchInterval: 10_000,
-  });
-
-  // Ready queue — food is done, waiting to be served/picked up. Also shown on
-  // the public ready-board (see /ready-board), but staff need an actionable
-  // view too, especially for takeaway/delivery pickup confirmation.
-  const { data: readyData, isLoading: readyLoading } = useQuery({
-    queryKey: ['kds-ready'],
-    queryFn: () => api.get('/orders', { params: { status: 'READY', limit: 50 } }).then((r) => r.data),
+  // Pending (not started) + preparing (cooking) + ready (done, awaiting
+  // pickup/serve) in one request instead of three separate polls — split by
+  // status client-side below.
+  const { data: boardData, isLoading } = useQuery({
+    queryKey: ['kds-board'],
+    queryFn: () =>
+      api.get('/orders', { params: { status: 'PENDING,PREPARING,READY', limit: 150 } }).then((r) => r.data),
     refetchInterval: 10_000,
   });
 
@@ -188,10 +173,10 @@ export default function KDSPage() {
     }
   };
 
-  const pendingOrders = pendingData?.data || [];
-  const preparingOrders = preparingData?.data || [];
-  const readyOrders = readyData?.data || [];
-  const isLoading = pendingLoading || preparingLoading || readyLoading;
+  const boardOrders = boardData?.data || [];
+  const pendingOrders = boardOrders.filter((o: any) => o.status === 'PENDING');
+  const preparingOrders = boardOrders.filter((o: any) => o.status === 'PREPARING');
+  const readyOrders = boardOrders.filter((o: any) => o.status === 'READY');
   const isEmpty = pendingOrders.length === 0 && preparingOrders.length === 0 && readyOrders.length === 0;
 
   return (

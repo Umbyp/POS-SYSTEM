@@ -7,6 +7,7 @@ export interface CartItem {
   unitPrice: number;
   quantity: number;
   image?: string;
+  categoryId?: string;
   notes?: string;
   variants?: { name: string; priceDelta: number }[];
 }

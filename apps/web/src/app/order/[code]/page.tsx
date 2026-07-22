@@ -224,13 +224,19 @@ export default function SelfOrderPage() {
               <CheckCircle2 className="w-11 h-11 text-success" />
             </motion.div>
             <h1 className="text-xl font-bold mb-2">{t('selfOrder.approvedTitle')}</h1>
-            <p className="text-muted-foreground text-sm max-w-xs mb-3">
+            <p className="text-muted-foreground text-sm max-w-xs mb-2">
               {orderStatus === 'READY'
                 ? t('selfOrder.readyHint')
                 : orderStatus === 'COMPLETED'
                 ? t('selfOrder.completedHint')
                 : t('selfOrder.approvedHint')}
             </p>
+            {orderStatus !== 'READY' && orderStatus !== 'COMPLETED' && (
+              <div className="flex items-center gap-2 mb-4 text-xs text-muted-foreground">
+                <UtensilsCrossed className="w-3.5 h-3.5 text-primary animate-pulse" />
+                <span>{t('selfOrder.approvedDetail')}</span>
+              </div>
+            )}
             {orderStatus === 'READY' && (
               <span className="mb-4 px-3 py-1 rounded-full bg-success/15 text-success text-xs font-semibold">
                 {t('selfOrder.readyBadge')}

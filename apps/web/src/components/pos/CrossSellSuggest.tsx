@@ -25,7 +25,8 @@ interface Suggestion {
  */
 export function CrossSellSuggest() {
   const t = useT();
-  const { items, addItem } = useCart();
+  const items = useCart((s) => s.items);
+  const addItem = useCart((s) => s.addItem);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState<boolean>(false);
