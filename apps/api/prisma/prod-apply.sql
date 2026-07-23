@@ -156,6 +156,18 @@ CREATE INDEX IF NOT EXISTS "Shift_userId_idx" ON "Shift"("userId");
 
 ALTER TABLE "Store" ADD COLUMN IF NOT EXISTS "stampsEarnBaht" INTEGER NOT NULL DEFAULT 0;
 
+-- ---------- migration 20260723010000_self_order_request_customer_link ----------
+-- schema.prisma gained SelfOrderRequest.customerId in the member-portal work but
+-- a migration file was never generated for it, so it never made it into this
+-- script either — caught live via a P2022 on prisma.selfOrderRequest.create().
+
+ALTER TABLE "SelfOrderRequest" ADD COLUMN IF NOT EXISTS "customerId" TEXT;
+CREATE INDEX IF NOT EXISTS "SelfOrderRequest_customerId_idx" ON "SelfOrderRequest"("customerId");
+DO $$ BEGIN
+  ALTER TABLE "SelfOrderRequest" ADD CONSTRAINT "SelfOrderRequest_customerId_fkey"
+    FOREIGN KEY ("customerId") REFERENCES "Customer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- ---------- Record migration history (baseline 0_init + everything above) ----------
 -- So Prisma's `migrate deploy` on future Render builds sees these as applied
 -- and never tries to re-create them.
@@ -183,7 +195,8 @@ FROM (VALUES
   ('20260716010000_onboarding_flag',                 '2bdaaf72ee6158f094dfe22000bd6ec33e68b9c56911175399f6a51855e2efb6'),
   ('20260721000000_self_order_request_order_link',   '86ad3afc3f5887906f3429ea4f84a2df5cd58977d8f2699d9b909eb388b5a5c2'),
   ('20260722000000_add_missing_fk_indexes',          '5568c431e3f71b312a1d8265eee650aaea17cb13f6fa9b8ac88025877041225b'),
-  ('20260723000000_stamps_earn_baht',                '42dac82fb5cd943f421dcf5bcb2677707be1a066fb3874ebca880d3d54c29b64')
+  ('20260723000000_stamps_earn_baht',                '42dac82fb5cd943f421dcf5bcb2677707be1a066fb3874ebca880d3d54c29b64'),
+  ('20260723010000_self_order_request_customer_link', 'afee45ad3f99be69d94cd87c3e47d0fefb027aa12a9b6def17b9655a859ff9f1')
 ) AS v(name, checksum)
 WHERE NOT EXISTS (
   SELECT 1 FROM "_prisma_migrations" m WHERE m.migration_name = v.name
