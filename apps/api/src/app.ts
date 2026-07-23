@@ -41,9 +41,22 @@ app.set('trust proxy', 1);
 
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(compression());
+
+const allowedWebOrigins = env.WEB_URL.split(',').map((s) => s.trim());
+// Vercel mints a unique URL per deployment (preview + production), so a static
+// WEB_URL alone breaks on every new deploy. Allow any deployment under our own
+// Vercel project/team scope in addition to the fixed origin(s) from WEB_URL.
+const vercelPreviewOrigin = /^https:\/\/pos-system-[a-z0-9]+-umbyps-projects\.vercel\.app$/;
+
 app.use(
   cors({
-    origin: env.WEB_URL.split(',').map((s) => s.trim()),
+    origin(origin, callback) {
+      if (!origin || allowedWebOrigins.includes(origin) || vercelPreviewOrigin.test(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`Not allowed by CORS: ${origin}`));
+      }
+    },
     credentials: true,
   })
 );
