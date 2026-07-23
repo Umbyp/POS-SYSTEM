@@ -197,6 +197,7 @@ function LoyaltySettings({ store, t }: { store: any; t: (k: string, f?: string) 
         pointsEarnBaht: String(store.pointsEarnBaht ?? 100),
         pointValue: String(store.pointValue ?? 1),
         minRedeemPoints: String(store.minRedeemPoints ?? 0),
+        stampsEarnBaht: String(store.stampsEarnBaht ?? 0),
         stampsPerReward: String(store.stampsPerReward ?? 10),
         stampRewardValue: String(store.stampRewardValue ?? 0),
         stampRewardName: store.stampRewardName ?? '',
@@ -230,6 +231,7 @@ function LoyaltySettings({ store, t }: { store: any; t: (k: string, f?: string) 
       pointsEarnBaht: parseInt(form.pointsEarnBaht) || 0,
       pointValue: parseFloat(form.pointValue) || 0,
       minRedeemPoints: parseInt(form.minRedeemPoints) || 0,
+      stampsEarnBaht: parseInt(form.stampsEarnBaht) || 0,
       stampsPerReward: parseInt(form.stampsPerReward) || 1,
       stampRewardValue: parseFloat(form.stampRewardValue) || 0,
       stampRewardName: form.stampRewardName || null,
@@ -243,6 +245,8 @@ function LoyaltySettings({ store, t }: { store: any; t: (k: string, f?: string) 
   const earnedPoints = pointsEarnBaht > 0 ? Math.floor(PREVIEW_BILL / pointsEarnBaht) : 0;
   const totalPoints = PREVIEW_EXISTING_POINTS + earnedPoints;
   const worthDiscount = totalPoints * pointValue;
+  const stampsEarnBaht = parseInt(form.stampsEarnBaht) || 0;
+  const earnedStamps = stampsEarnBaht > 0 ? Math.floor(PREVIEW_BILL / stampsEarnBaht) : 1;
 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 space-y-5">
@@ -306,9 +310,15 @@ function LoyaltySettings({ store, t }: { store: any; t: (k: string, f?: string) 
               <>
                 {showPoints && <div className="h-px bg-border my-1" />}
                 <div className="flex items-center gap-2 flex-wrap text-[13.5px]">
-                  <span>{t('loyalty.everyVisit')}</span>
+                  <span>{t('loyalty.everyBaht')}</span>
+                  <InlinePill value={form.stampsEarnBaht} onChange={(v) => setForm({ ...form, stampsEarnBaht: v })} suffix="฿" />
+                  <span>{t('loyalty.thatSpent')}</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap text-[13.5px]">
+                  <span>{t('loyalty.customerGets')}</span>
                   <StaticPill value="1" suffix={t('loyalty.stampsUnit')} />
                 </div>
+                <p className="text-[11px] text-muted-foreground">{t('loyalty.stampsEarnBahtHint')}</p>
                 <div className="flex items-center gap-2 flex-wrap text-[13.5px]">
                   <span>{t('loyalty.collectStamps')}</span>
                   <InlinePill value={form.stampsPerReward} onChange={(v) => setForm({ ...form, stampsPerReward: v })} suffix={t('loyalty.stampsUnit')} />
@@ -363,10 +373,12 @@ function LoyaltySettings({ store, t }: { store: any; t: (k: string, f?: string) 
                 </>
               ) : (
                 <>
-                  <div className="text-[13px] opacity-85">{t('loyalty.everyVisit')}</div>
+                  <div className="text-[13px] opacity-85">
+                    {t('loyalty.previewBill')} {formatCurrency(PREVIEW_BILL)}
+                  </div>
                   <div className="flex items-center gap-2 my-2">
                     <span className="text-[26px] font-extrabold" style={{ color: '#FFB088' }}>
-                      +1
+                      +{earnedStamps}
                     </span>
                     <span className="text-sm font-bold">{t('loyalty.stampsUnit')}</span>
                   </div>

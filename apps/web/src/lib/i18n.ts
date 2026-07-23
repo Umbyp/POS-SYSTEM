@@ -380,7 +380,7 @@ const DICT: Record<string, Entry> = {
   'loyalty.pointsUnit': { th: 'แต้ม', en: 'points' },
   'loyalty.pointWorth': { th: '1 แต้มใช้แทนเงิน', en: '1 point is worth' },
   'loyalty.stampRuleHeading': { th: 'ตั้งกติกาดวง', en: 'Stamp rule' },
-  'loyalty.everyVisit': { th: 'ทุกครั้งที่มาซื้อ ลูกค้าได้', en: 'Every visit, customer gets' },
+  'loyalty.stampsEarnBahtHint': { th: 'ใส่ 0 = แบบเดิม ได้ 1 ดวงทุกครั้งที่มาซื้อ ไม่ว่ายอดเท่าไหร่', en: 'Set 0 for the classic rule: 1 stamp per visit, regardless of bill amount' },
   'loyalty.stampsUnit': { th: 'ดวง', en: 'stamps' },
   'loyalty.collectStamps': { th: 'สะสมครบ', en: 'Collect' },
   'loyalty.getsReward': { th: 'แลก', en: 'get' },

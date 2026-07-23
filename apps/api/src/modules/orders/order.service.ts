@@ -4,7 +4,7 @@ import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, OrderType, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
 import * as stripeService from '../payments/stripe.service';
 import {
-  recordPoints, recordStamps, calcEarnedPoints, reverseOrderPoints,
+  recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, reverseOrderPoints,
   pointsEnabled, stampsEnabled,
 } from './points.service';
 
@@ -216,7 +216,8 @@ export async function create(input: CreateOrderInput, io: Server) {
     // 5. สร้าง order
     const earnedPoints = input.customerId && pointsEnabled(store.loyaltyMode)
       ? calcEarnedPoints(total.toNumber(), store.pointsEarnBaht) : 0;
-    const earnedStamps = input.customerId && stampsEnabled(store.loyaltyMode) ? 1 : 0;
+    const earnedStamps = input.customerId && stampsEnabled(store.loyaltyMode)
+      ? calcEarnedStamps(total.toNumber(), store.stampsEarnBaht) : 0;
     const orderNumber = await generateOrderNumber(tx, input.storeId);
     const order = await tx.order.create({
       data: {

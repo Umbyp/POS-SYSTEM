@@ -93,6 +93,15 @@ export function calcEarnedPoints(total: number, pointsEarnBaht: number): number 
 }
 
 /**
+ * ดวงที่จะได้จากยอดบิล ตาม config ของร้าน
+ * stampsEarnBaht = 0 → แบบเดิม คือ 1 ดวงต่อบิล (ไม่ว่ายอดเท่าไหร่)
+ */
+export function calcEarnedStamps(total: number, stampsEarnBaht: number): number {
+  if (!stampsEarnBaht || stampsEarnBaht <= 0) return 1;
+  return Math.floor(total / stampsEarnBaht);
+}
+
+/**
  * คืนเงินบิล → กลับทั้งแต้มและดวง:
  *  - คืนสิ่งที่ลูกค้าเคย "ใช้" (redeemed) กลับให้
  *  - ดึงสิ่งที่เคย "ได้" (earned) กลับ แต่ไม่ให้ยอดติดลบ (ดึงเท่าที่เหลืออยู่)
