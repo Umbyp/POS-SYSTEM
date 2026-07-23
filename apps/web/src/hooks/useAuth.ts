@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { api } from '@/lib/api';
 import { useAuth as useAuthStore } from '@/stores/auth.store';
 
@@ -9,7 +10,7 @@ export function useRequireAuth(roles?: string[]) {
   const router = useRouter();
   const { user, token, hasHydrated, setAuth, logout } = useAuthStore();
 
-  const { isLoading, data, isError } = useQuery({
+  const { isLoading, data, isError, error } = useQuery({
     queryKey: ['me'],
     queryFn: async () => {
       const r = await api.get('/auth/me');
@@ -39,13 +40,16 @@ export function useRequireAuth(roles?: string[]) {
     }
   }, [data, token, setAuth]);
 
-  // If /auth/me explicitly fails (e.g. 401), logout
+  // If /auth/me explicitly rejects the token (401), logout.
+  // Other failures (500, network) are transient server/connectivity issues —
+  // don't wipe a valid token over them, or one flaky response cascades into
+  // every other authenticated request failing too.
   useEffect(() => {
-    if (isError && hasHydrated) {
+    if (isError && hasHydrated && isAxiosError(error) && error.response?.status === 401) {
       logout();
       router.replace('/login');
     }
-  }, [isError, hasHydrated, logout, router]);
+  }, [isError, error, hasHydrated, logout, router]);
 
   // Role-based redirect
   useEffect(() => {
