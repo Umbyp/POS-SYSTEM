@@ -10,7 +10,7 @@ import { PointTxType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import * as orderTabService from '../orders/order-tab.service';
-import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from '../orders/points.service';
+import { recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, pointsEnabled, stampsEnabled } from '../orders/points.service';
 
 export interface SelfOrderItemInput {
   productId: string;
@@ -353,7 +353,8 @@ export async function claimOrderPoints(orderId: string, phone: string, name?: st
     const earnedPoints = pointsEnabled(store.loyaltyMode)
       ? calcEarnedPoints(Number(order.total), store.pointsEarnBaht)
       : 0;
-    const earnedStamps = stampsEnabled(store.loyaltyMode) ? 1 : 0;
+    const earnedStamps = stampsEnabled(store.loyaltyMode)
+      ? calcEarnedStamps(Number(order.total), store.stampsEarnBaht) : 0;
 
     await tx.order.update({
       where: { id: order.id },

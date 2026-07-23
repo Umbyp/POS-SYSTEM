@@ -67,7 +67,8 @@ model Store {
   pointsEarnBaht   Int     @default(100) // ใช้จ่ายกี่บาทได้ 1 แต้ม (0 = ปิดการสะสม)
   pointValue       Decimal @default(1) @db.Decimal(10, 2) // 1 แต้ม แลกส่วนลดกี่บาท
   minRedeemPoints  Int     @default(0)  // ใช้แต้มขั้นต่ำต่อครั้ง (0 = ไม่จำกัด)
-  // บัตรสะสมดวง (stamp card) — มา 1 ครั้ง = 1 ดวง
+  // บัตรสะสมดวง (stamp card) — ค่าเริ่มต้น: มา 1 ครั้ง = 1 ดวง
+  stampsEarnBaht   Int     @default(0)  // ใช้จ่ายกี่บาทได้ 1 ดวง (0 = แบบเดิม คือ 1 ดวงต่อบิล)
   stampsPerReward  Int     @default(10) // ครบกี่ดวงได้ 1 รางวัล
   stampRewardValue Decimal @default(0) @db.Decimal(10, 2) // รางวัล = ส่วนลดกี่บาทต่อ 1 ใบเต็ม
   stampRewardName  String? // ชื่อรางวัล เช่น "กาแฟฟรี 1 แก้ว"
