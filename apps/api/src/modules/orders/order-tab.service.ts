@@ -193,7 +193,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
 /** Append another round of items to an existing open bill and fire them. */
 export async function addRound(
   orderId: string,
-  input: { storeId: string; cashierId: string; items: TabItem[] },
+  input: { storeId: string; cashierId: string; items: TabItem[]; notes?: string },
   io: Server,
 ) {
   if (!input.items?.length) throw BadRequest('No items');
@@ -220,10 +220,16 @@ export async function addRound(
     // public ready-board instead of wrongly lingering there.
     const wasReady = order.status === 'READY';
 
+    // A later round can carry its own note (e.g. "no chili this time") — append
+    // it rather than overwrite so earlier rounds' notes stay visible to the kitchen.
+    const mergedNotes = input.notes
+      ? order.notes ? `${order.notes}\n${input.notes}` : input.notes
+      : order.notes;
+
     const updated = await tx.order.update({
       where: { id: orderId },
       data: {
-        subtotal: newSubtotal, tax, serviceCharge, total,
+        subtotal: newSubtotal, tax, serviceCharge, total, notes: mergedNotes,
         ...(wasReady ? { status: 'PENDING' } : {}),
       },
       include: ORDER_INCLUDE,

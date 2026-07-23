@@ -122,7 +122,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
   if (existing) {
     await orderTabService.addRound(
       existing.id,
-      { storeId: table.storeId, cashierId, items },
+      { storeId: table.storeId, cashierId, items, notes: input.note },
       io
     );
     orderId = existing.id;

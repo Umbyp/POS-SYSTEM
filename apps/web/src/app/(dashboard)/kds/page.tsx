@@ -62,6 +62,16 @@ function TicketItems({ items }: { items: any[] }) {
   );
 }
 
+/** Order-level note from the customer (e.g. self-order checkout note) — distinct from per-item notes. */
+function OrderNote({ notes }: { notes?: string | null }) {
+  if (!notes) return null;
+  return (
+    <div className="mb-2 text-[12px] font-semibold text-warning bg-warning/10 px-2 py-1 rounded-lg whitespace-pre-line">
+      📝 {notes}
+    </div>
+  );
+}
+
 /** Small square badge showing the table number, or the order's short tail for non-table tickets. */
 function EntityBadge({ order, tone }: { order: any; tone: 'default' | 'danger' | 'success' }) {
   const label = order.table ? order.table.number : order.orderNumber?.slice(-2);
@@ -258,6 +268,7 @@ export default function KDSPage() {
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">{t('kds.justIn')}</span>
                     </div>
+                    <OrderNote notes={o.notes} />
                     <TicketItems items={o.items} />
                     <button
                       onClick={() => updateStatus.mutate({ id: o.id, status: 'PREPARING' })}
@@ -312,6 +323,7 @@ export default function KDSPage() {
                           </span>
                         )}
                       </div>
+                      <OrderNote notes={o.notes} />
                       <TicketItems items={o.items} />
                       <button
                         onClick={() => updateStatus.mutate({ id: o.id, status: 'READY' })}
@@ -354,6 +366,7 @@ export default function KDSPage() {
                         <EntityBadge order={o} tone={isDineIn ? 'default' : 'success'} />
                         <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
                       </div>
+                      <OrderNote notes={o.notes} />
                       <TicketItems items={o.items} />
                       {isDineIn ? (
                         <div className="flex items-center justify-center gap-1.5 h-[38px] rounded-lg bg-muted text-muted-foreground text-xs font-semibold text-center">
