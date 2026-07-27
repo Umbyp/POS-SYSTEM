@@ -107,6 +107,9 @@ const DICT: Record<string, Entry> = {
   'cart.newRound': { th: 'รอบใหม่', en: 'New round' },
   'cart.sendFirst': { th: 'กด "ส่งครัว" ก่อนรับเงิน', en: 'Send to kitchen before paying' },
   'cart.sendFailed': { th: 'ส่งครัวไม่สำเร็จ', en: 'Failed to send to kitchen' },
+  'cart.addNote': { th: '+ เพิ่มโน้ต', en: '+ Add note' },
+  'cart.notePlaceholder': { th: 'เช่น ไม่ใส่น้ำตาล, เผ็ดน้อย...', en: 'e.g. no sugar, less spicy...' },
+  'cart.aria.editNote': { th: 'แก้ไขโน้ตรายการนี้', en: 'Edit item note' },
 
   // Tables
   'tables.title': { th: 'โต๊ะ', en: 'Tables' },

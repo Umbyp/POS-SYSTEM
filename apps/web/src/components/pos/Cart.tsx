@@ -40,10 +40,12 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   const setOpenOrder = useCart((s) => s.setOpenOrder);
   const updateQty = useCart((s) => s.updateQty);
   const removeItem = useCart((s) => s.removeItem);
+  const setNotes = useCart((s) => s.setNotes);
   const clearItems = useCart((s) => s.clearItems);
   const clear = useCart((s) => s.clear);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [advOpen, setAdvOpen] = useState(false); // discounts & promotions section
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const t = useT();
   const qc = useQueryClient();
 
@@ -466,6 +468,37 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
                     {formatCurrency(item.unitPrice * item.quantity)}
                   </div>
                 </div>
+                {editingNoteId === item.productId ? (
+                  <input
+                    autoFocus
+                    defaultValue={item.notes ?? ''}
+                    placeholder={t('cart.notePlaceholder')}
+                    aria-label={t('cart.aria.editNote')}
+                    onBlur={(e) => {
+                      setNotes(item.productId, e.target.value.trim());
+                      setEditingNoteId(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') setEditingNoteId(null);
+                    }}
+                    className="mt-1.5 w-full text-xs bg-muted/50 border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                ) : item.notes ? (
+                  <button
+                    onClick={() => setEditingNoteId(item.productId)}
+                    className="mt-1.5 text-[11px] font-medium text-warning bg-warning/10 hover:bg-warning/20 px-1.5 py-0.5 rounded truncate max-w-full text-left"
+                  >
+                    {item.notes}
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setEditingNoteId(item.productId)}
+                    className="mt-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    {t('cart.addNote')}
+                  </button>
+                )}
               </motion.div>
             ))
           )}
