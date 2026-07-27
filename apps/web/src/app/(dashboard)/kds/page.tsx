@@ -32,9 +32,14 @@ function groupByRound(items: any[]) {
   return groups;
 }
 
-function TicketItems({ items }: { items: any[] }) {
+function TicketItems({ items, notes }: { items: any[]; notes?: string | null }) {
   return (
     <div className="space-y-1.5 mb-3 border-t border-border pt-2.5 text-[13.5px] leading-relaxed">
+      {notes && (
+        <div className="text-[12px] font-semibold text-danger bg-danger/10 px-2 py-1 rounded-md">
+          ✎ {notes}
+        </div>
+      )}
       {groupByRound(items).map((round, i) => (
         <div
           key={round.firedAt}
@@ -258,7 +263,7 @@ export default function KDSPage() {
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">{t('kds.justIn')}</span>
                     </div>
-                    <TicketItems items={o.items} />
+                    <TicketItems items={o.items} notes={o.notes} />
                     <button
                       onClick={() => updateStatus.mutate({ id: o.id, status: 'PREPARING' })}
                       disabled={updateStatus.isPending}
@@ -312,7 +317,7 @@ export default function KDSPage() {
                           </span>
                         )}
                       </div>
-                      <TicketItems items={o.items} />
+                      <TicketItems items={o.items} notes={o.notes} />
                       <button
                         onClick={() => updateStatus.mutate({ id: o.id, status: 'READY' })}
                         disabled={updateStatus.isPending}
@@ -354,7 +359,7 @@ export default function KDSPage() {
                         <EntityBadge order={o} tone={isDineIn ? 'default' : 'success'} />
                         <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
                       </div>
-                      <TicketItems items={o.items} />
+                      <TicketItems items={o.items} notes={o.notes} />
                       {isDineIn ? (
                         <div className="flex items-center justify-center gap-1.5 h-[38px] rounded-lg bg-muted text-muted-foreground text-xs font-semibold text-center">
                           ⏳ {t('kds.waitingBillDineIn')}

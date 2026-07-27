@@ -117,7 +117,7 @@ const openTabSchema = z.object({
   notes: z.string().optional(),
 });
 
-const roundSchema = z.object({ items: tabItems });
+const roundSchema = z.object({ items: tabItems, notes: z.string().optional() });
 
 const settleSchema = z.object({
   payments: z.array(z.object({
@@ -188,7 +188,7 @@ router.post('/:id/items', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(roundSchem
     const io = req.app.get('io');
     const order = await tabService.addRound(
       req.params.id,
-      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items },
+      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items, notes: req.body.notes },
       io
     );
     res.json(order);
