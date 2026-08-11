@@ -437,7 +437,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
               </DialogTitle>
             </DialogHeader>
 
-            <div className="rounded-lg overflow-hidden border border-border">
+            <div className="rounded-lg overflow-hidden border border-border print:overflow-visible print:rounded-none print:border-0">
               <Receipt order={success} store={store} format="thermal" />
             </div>
 

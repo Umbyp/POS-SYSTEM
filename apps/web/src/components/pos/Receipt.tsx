@@ -85,6 +85,21 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           }
           body * { visibility: hidden; }
           #receipt-printable, #receipt-printable * { visibility: visible; }
+          /* PaymentDialog previews this inside a Radix dialog — a fixed,
+             transformed, max-height + overflow-auto box that otherwise clips
+             the receipt to one screen-height page and anchors the absolute
+             positioning below to itself instead of the page. */
+          [role='dialog'] {
+            position: static !important;
+            transform: none !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            border: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
+          }
           #receipt-printable {
             position: absolute;
             left: 0;
