@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Minus, Plus, X, ShoppingBag, Trash2, UserPlus, Sparkles, Tag, Bike, ChevronDown, Send, Loader2, Ban } from 'lucide-react';
+import { Minus, Plus, X, ShoppingBag, Trash2, UserPlus, Sparkles, Tag, Bike, ChevronDown, Send, Loader2, Ban, Printer } from 'lucide-react';
 import { useCart } from '@/stores/cart.store';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { CustomerPicker } from '@/components/customers/CustomerPicker';
 import { VoidItemDialog } from '@/components/pos/VoidItemDialog';
+import { OrderSlipDialog } from '@/components/pos/OrderSlipDialog';
 import { sendToCustomerDisplay } from '@/lib/customerDisplay';
 
 export function Cart({ onCheckout }: { onCheckout: () => void }) {
@@ -63,23 +64,33 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
     setOpenOrder(isDineInTable ? openBill?.id : undefined);
   }, [isDineInTable, openBill?.id, setOpenOrder]);
 
+  // Slip to preview/print — set the moment a round is accepted by the kitchen.
+  const [slip, setSlip] = useState<{ order: any; roundItemIds?: string[] } | null>(null);
+
   const send = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       const payloadItems = items.map((i) => ({
         productId: i.productId,
         quantity: i.quantity,
         notes: i.notes,
         variants: i.variants,
       }));
-      if (openBill?.id) {
-        return api.post(`/orders/${openBill.id}/items`, { items: payloadItems }).then((r) => r.data);
-      }
-      return api
-        .post('/orders/open', { tableId, type, customerId: customer?.id, items: payloadItems })
-        .then((r) => r.data);
+      // Snapshot the bill's existing lines first so the response tells us which
+      // items belong to *this* round — the kitchen copy must only list those.
+      const beforeIds = new Set<string>((openBill?.items ?? []).map((i: any) => i.id));
+      const order = openBill?.id
+        ? await api.post(`/orders/${openBill.id}/items`, { items: payloadItems }).then((r) => r.data)
+        : await api
+            .post('/orders/open', { tableId, type, customerId: customer?.id, items: payloadItems })
+            .then((r) => r.data);
+      const roundItemIds = ((order?.items ?? []) as any[])
+        .filter((i) => !beforeIds.has(i.id))
+        .map((i) => i.id);
+      return { order, roundItemIds };
     },
-    onSuccess: () => {
+    onSuccess: ({ order, roundItemIds }) => {
       toast.success(t('cart.sentToKitchen'));
+      setSlip({ order, roundItemIds });
       clearItems();
       qc.invalidateQueries({ queryKey: ['open-bill', tableId] });
       qc.invalidateQueries({ queryKey: ['tables'] });
@@ -370,7 +381,18 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
             <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
               {t('cart.runningBill')}
             </span>
-            <span className="text-[11px] text-muted-foreground tabular-nums">{openBill.orderNumber}</span>
+            <span className="flex items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground tabular-nums">{openBill.orderNumber}</span>
+              {/* Reprint the whole bill's slip (guest lost theirs, kitchen ticket jammed, …) */}
+              <button
+                onClick={() => setSlip({ order: openBill })}
+                className="p-1 -m-1 text-muted-foreground/60 hover:text-foreground touch-manipulation"
+                title={t('cart.printSlip')}
+                aria-label={t('cart.printSlip')}
+              >
+                <Printer className="w-3.5 h-3.5" />
+              </button>
+            </span>
           </div>
           <div className="space-y-1 max-h-28 overflow-y-auto scrollbar-thin">
             {openBill.items.map((it: any) => {
@@ -737,6 +759,13 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         onSelect={setCustomer}
+      />
+
+      <OrderSlipDialog
+        open={!!slip}
+        order={slip?.order}
+        roundItemIds={slip?.roundItemIds}
+        onClose={() => setSlip(null)}
       />
 
       <VoidItemDialog

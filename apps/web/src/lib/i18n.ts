@@ -110,6 +110,21 @@ const DICT: Record<string, Entry> = {
   'cart.addNote': { th: '+ เพิ่มโน้ต', en: '+ Add note' },
   'cart.notePlaceholder': { th: 'เช่น ไม่ใส่น้ำตาล, เผ็ดน้อย...', en: 'e.g. no sugar, less spicy...' },
   'cart.aria.editNote': { th: 'แก้ไขโน้ตรายการนี้', en: 'Edit item note' },
+  'cart.printSlip': { th: 'พิมพ์ใบรายการอาหาร', en: 'Print order slip' },
+
+  // Order slip — printed right after an order is fired to the kitchen (unpaid)
+  'slip.title': { th: 'ใบรายการอาหาร', en: 'Order slip' },
+  'slip.sentTitle': { th: 'ส่งเข้าครัวแล้ว', en: 'Sent to kitchen' },
+  'slip.customerCopy': { th: 'ใบลูกค้า', en: 'Customer copy' },
+  'slip.kitchenCopy': { th: 'ใบครัว', en: 'Kitchen copy' },
+  'slip.print': { th: 'พิมพ์', en: 'Print' },
+  'slip.printCustomer': { th: 'พิมพ์ใบลูกค้า', en: 'Print customer copy' },
+  'slip.printKitchen': { th: 'พิมพ์ใบครัว', en: 'Print kitchen copy' },
+  'slip.close': { th: 'ปิด', en: 'Close' },
+  'slip.hint': {
+    th: 'ตรวจสอบก่อนพิมพ์ — ใบครัวจะพิมพ์เฉพาะรายการรอบนี้',
+    en: 'Check before printing — the kitchen copy prints this round only',
+  },
 
   // Tables
   'tables.title': { th: 'โต๊ะ', en: 'Tables' },
