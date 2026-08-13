@@ -446,6 +446,10 @@ model Table {
   selfOrderRequests SelfOrderRequest[]
   billCallRequests  BillCallRequest[]
 
+  // Staff pick a table by its number, so two rows sharing one inside a store are
+  // indistinguishable in the POS and split a party's bill in two. Safe to enforce
+  // in the DB here because table deletes are real deletes, not a soft flag.
+  @@unique([storeId, number])
   @@index([storeId])
 }
 
