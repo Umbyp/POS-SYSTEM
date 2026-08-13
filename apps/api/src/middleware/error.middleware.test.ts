@@ -82,6 +82,36 @@ describe('errorMiddleware', () => {
     expect(body.details.status).toBeTruthy();
   });
 
+  it('maps an unreachable database to 503 DB_UNAVAILABLE, not 500', () => {
+    const err = new Prisma.PrismaClientInitializationError(
+      "Can't reach database server at `db.example.supabase.co:5432`",
+      'test',
+      'P1001',
+    );
+    const { status, body } = run(err);
+    expect(status).toBe(503);
+    expect(body.code).toBe('DB_UNAVAILABLE');
+    expect(body.prismaCode).toBe('P1001');
+  });
+
+  it('maps a closed connection (P1017) to 503 DB_UNAVAILABLE', () => {
+    const err = new Prisma.PrismaClientKnownRequestError('Server has closed the connection', {
+      code: 'P1017', clientVersion: 'test',
+    });
+    expect(run(err).body.code).toBe('DB_UNAVAILABLE');
+  });
+
+  it('calls out schema drift (missing column) rather than hiding it in a 500', () => {
+    const err = new Prisma.PrismaClientKnownRequestError(
+      'The column `Store.stampsEarnBaht` does not exist in the current database.',
+      { code: 'P2022', clientVersion: 'test', meta: { column: 'Store.stampsEarnBaht' } },
+    );
+    const { status, body } = run(err);
+    expect(status).toBe(503);
+    expect(body.code).toBe('DB_SCHEMA_DRIFT');
+    expect(body.error).toMatch(/migrate deploy/);
+  });
+
   it('maps a unique-constraint violation to 409', () => {
     const err = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
       code: 'P2002', clientVersion: 'test', meta: { target: ['storeId', 'number'] },

@@ -4,6 +4,8 @@ import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
+import { prisma } from './config/prisma';
+import { logger } from './utils/logger';
 import { errorMiddleware } from './middleware/error.middleware';
 import uploadRoutes, { UPLOADS_DIR } from './modules/uploads/upload.routes';
 
@@ -100,7 +102,33 @@ for (const path of ['/api/auth/login', '/api/auth/register', '/api/auth/google']
   app.use(path, authAttemptLimiter);
 }
 
+// Liveness: is the process up and serving? Deliberately does NOT touch the
+// database — Render restarts the service when this fails, and a restart loop is
+// no help when the DB is the thing that's down.
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// Readiness: can we actually serve a request that needs data? The shallow check
+// above stayed green through a full outage where every DB-backed endpoint 500'd,
+// which is precisely the signal that was missing. Point uptime monitoring here.
+app.get('/health/db', async (_req, res) => {
+  const started = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, db: 'up', ms: Date.now() - started });
+  } catch (err) {
+    // Prisma puts the code on errorCode for init failures and code for request
+    // errors; fall back to the class name so the response always says something.
+    const e = err as { errorCode?: string; code?: string; name?: string; message?: string };
+    logger.error({ err }, 'Health check: database unreachable');
+    res.status(503).json({
+      ok: false,
+      db: 'unreachable',
+      ms: Date.now() - started,
+      prismaCode: e.errorCode ?? e.code ?? e.name ?? null,
+      detail: e.message?.split('\n')[0]?.slice(0, 160) ?? null,
+    });
+  }
+});
 
 // Serve uploaded images statically at /uploads/* (long browser cache; filenames are content-hashed)
 app.use(
