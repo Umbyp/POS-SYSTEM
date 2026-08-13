@@ -33,6 +33,12 @@
    - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` = (สำหรับเก็บรูปสินค้าถาวร — ดูข้อ 6.5)
 3. Deploy → รอจน health check `/health` เขียว → **คัดลอก URL** (เช่น `https://pos-api.onrender.com`)
 
+> **เช็คฐานข้อมูลด้วย: `GET /health/db`**
+> `/health` บอกแค่ว่าโปรเซสยังตอบอยู่ (ไม่แตะ DB — เจตนา เพราะถ้าให้ Render เช็ค DB
+> แล้ว DB ล่ม service จะถูก restart วนไม่จบ) ส่วน `/health/db` ยิง `SELECT 1` จริง
+> ตอบ `503 {"ok":false,"db":"unreachable"}` เมื่อต่อ DB ไม่ได้ — เอา URL นี้ไปผูก
+> uptime monitor ไว้ ไม่งั้นจะเจอเคส "`/health` เขียวแต่ทุกหน้าใช้งานไม่ได้"
+
 > Build command/Start command ถูกตั้งไว้แล้วใน `render.yaml`:
 > build = `npm install && npm run build --workspace=apps/api` (รัน `prisma generate` อัตโนมัติผ่าน postinstall),
 > start = `npm run start --workspace=apps/api`
