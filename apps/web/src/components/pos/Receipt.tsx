@@ -60,15 +60,21 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
     QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setClaimQrUrl).catch(() => {});
   }, [order, store]);
 
-  // General "join our loyalty program" QR — not tied to this order, so it
-  // shows regardless of whether a member is already linked (pure marketing,
-  // same link as the printable QR on the staff /loyalty page).
+  // Plain member-portal QR — the same link either way, but it means two
+  // different things depending on who is holding the receipt:
+  //   no member → "join the programme" (gated by receiptShowSignupQr)
+  //   member    → "scan to see your points" (gated by receiptShowPointsQr, the
+  //               toggle that governs the points QRs; pitching signup to someone
+  //               who is already a member is what this replaces)
+  const memberOnBill = !!order?.customer;
+  const showPortalQr =
+    loyaltyOn &&
+    (memberOnBill ? store?.receiptShowPointsQr !== false : store?.receiptShowSignupQr !== false);
   useEffect(() => {
-    if (typeof window === 'undefined' || !store?.id) return setSignupQrUrl('');
-    if (!loyaltyOn || store.receiptShowSignupQr === false) return setSignupQrUrl('');
+    if (typeof window === 'undefined' || !store?.id || !showPortalQr) return setSignupQrUrl('');
     const url = `${window.location.origin}/member?storeId=${store.id}`;
     QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setSignupQrUrl).catch(() => {});
-  }, [store]);
+  }, [store?.id, showPortalQr]);
 
   if (!order || !store) return null;
 
@@ -414,12 +420,8 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
         {/* ==================== LOYALTY ==================== */}
         {order.customer && (order.pointsEarned > 0 || order.pointsRedeemed > 0) && (
           <div
-            className="mt-3 p-2 rounded text-center"
-            style={{
-              border: '1px dashed #999',
-              backgroundColor: '#fff8e1',
-              fontSize: isThermal ? '10.5px' : '12px',
-            }}
+            className="mt-3 text-center"
+            style={{ fontSize: isThermal ? '10.5px' : '12px' }}
           >
             <div style={{ fontWeight: 600, marginBottom: 2 }}>
               Member: {order.customer.name}
@@ -435,26 +437,24 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           </div>
         )}
 
-        {/* ==================== JOIN THE LOYALTY PROGRAM ==================== */}
+        {/* ============ MEMBER PORTAL — see your points / join ============ */}
         {signupQrUrl && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
-          >
+          <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
-              {store.receiptSignupHeadline || 'สมัครสมาชิก เพื่อรับสิทธิพิเศษมากมาย!'}
+              {memberOnBill
+                ? 'สแกนดูแต้มสะสม / Scan for your points'
+                : store.receiptSignupHeadline || 'สมัครสมาชิก เพื่อรับสิทธิพิเศษมากมาย!'}
             </div>
-            <img src={signupQrUrl} alt="join membership" className="mx-auto" />
-            <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>สแกนสมัครสมาชิกที่นี่</div>
+            <img src={signupQrUrl} alt="member portal" className="mx-auto" />
+            <div style={{ fontSize: 9, color: '#888', marginTop: 4 }}>
+              {memberOnBill ? 'ดูแต้มและดวงคงเหลือของคุณ' : 'สแกนสมัครสมาชิกที่นี่'}
+            </div>
           </div>
         )}
 
         {/* ==================== SCAN TO COLLECT POINTS ==================== */}
         {claimQrUrl && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
-          >
+          <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
               สแกนสะสมแต้ม / Scan to collect points
             </div>

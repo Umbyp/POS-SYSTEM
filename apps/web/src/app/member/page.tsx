@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -28,8 +28,9 @@ function MemberPortalContent() {
   const searchParams = useSearchParams();
   const storeId = searchParams.get('storeId') || searchParams.get('s');
   // Present when this page was opened via the "scan to collect points" QR
-  // printed on a receipt (see Receipt.tsx) — the order hasn't been linked to
-  // any member yet, so once we know who's asking we claim it for them.
+  // printed on a receipt (Receipt.tsx) or on the order slip handed over at the
+  // table (OrderSlip.tsx) — the order has no member linked yet, so once we know
+  // who's asking we claim it for them.
   const orderId = searchParams.get('order');
 
   const [phone, setPhone] = useState('');
@@ -42,6 +43,7 @@ function MemberPortalContent() {
 
   const [claimResult, setClaimResult] = useState<{ earnedPoints: number; earnedStamps: number } | null>(null);
   const [claimNotice, setClaimNotice] = useState('');
+  const [claimRetryable, setClaimRetryable] = useState(false);
   const claimedRef = useRef(false);
 
   const { data: store, isLoading: storeLoading, isError: storeError } = useQuery({
@@ -61,14 +63,23 @@ function MemberPortalContent() {
     claimedRef.current = false;
     setClaimResult(null);
     setClaimNotice('');
+    setClaimRetryable(false);
   }, [storeId]);
 
+  // Remembers, on this device, that this order was collected here — so a
+  // reload of the same link reads as "you already collected this" instead of
+  // the flat "someone already claimed it" a stranger's scan should get.
+  const claimedHereKey = orderId ? `pos-claimed-order:${orderId}` : '';
+  const claimedHere = () => !!claimedHereKey && !!localStorage.getItem(claimedHereKey);
+
   // Once we know who the member is (via lookup or fresh registration) and
-  // this visit came from a receipt QR, silently claim that order's points —
-  // exactly what checkout would have earned had a cashier linked the member.
-  useEffect(() => {
-    if (!member || !orderId || claimedRef.current) return;
+  // this visit came from a printed QR, claim that order's points — exactly
+  // what checkout would have earned had a cashier linked the member.
+  const claimPoints = useCallback(() => {
+    if (!member || !orderId) return;
     claimedRef.current = true;
+    setClaimNotice('');
+    setClaimRetryable(false);
     api
       .post(`/self-order/order/${orderId}/claim-points`, { phone: member.phone })
       .then(({ data }) => {
@@ -76,14 +87,41 @@ function MemberPortalContent() {
         if (data.earnedPoints > 0 || data.earnedStamps > 0) {
           setClaimResult({ earnedPoints: data.earnedPoints, earnedStamps: data.earnedStamps });
         }
+        try {
+          localStorage.setItem(claimedHereKey, member.phone);
+        } catch {
+          /* private mode — we just lose the "collected here" hint */
+        }
       })
       .catch((err) => {
         const code = err.response?.data?.code;
-        if (code !== 'ALREADY_CLAIMED') {
-          setClaimNotice(err.response?.data?.error || 'สะสมแต้มจากบิลนี้ไม่สำเร็จ');
+        if (code === 'ALREADY_CLAIMED') {
+          // One bill, one collect — say so, rather than leaving the guest
+          // staring at a portal that looks like nothing happened.
+          setClaimNotice(
+            claimedHere()
+              ? 'คุณเก็บแต้มจากบิลนี้ไปแล้ว — 1 บิลเก็บได้ครั้งเดียว'
+              : 'บิลนี้ถูกเก็บแต้มไปแล้ว — 1 บิลเก็บได้ครั้งเดียว'
+          );
+          return;
         }
+        // Scanned from the order slip before paying: the earn is still waiting,
+        // so keep the door open instead of dead-ending them.
+        const unpaid = err.response?.status === 400 && /ยังไม่ได้ชำระเงิน/.test(err.response?.data?.error || '');
+        setClaimNotice(
+          unpaid
+            ? 'บิลนี้ยังไม่ได้ชำระเงิน — ชำระเงินแล้วกด "เก็บแต้มอีกครั้ง" หรือสแกน QR บนใบเสร็จ'
+            : err.response?.data?.error || 'สะสมแต้มจากบิลนี้ไม่สำเร็จ'
+        );
+        setClaimRetryable(true);
       });
-  }, [member, orderId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [member, orderId, claimedHereKey]);
+
+  useEffect(() => {
+    if (!member || !orderId || claimedRef.current) return;
+    claimPoints();
+  }, [member, orderId, claimPoints]);
 
   const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -138,6 +176,7 @@ function MemberPortalContent() {
     claimedRef.current = false;
     setClaimResult(null);
     setClaimNotice('');
+    setClaimRetryable(false);
   };
 
   if (!storeId) {
@@ -239,8 +278,15 @@ function MemberPortalContent() {
           </div>
         )}
         {claimNotice && (
-          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning flex items-center gap-2 animate-fade-in">
-            <AlertCircle className="w-4 h-4 shrink-0" /> {claimNotice}
+          <div className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs text-warning animate-fade-in space-y-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" /> {claimNotice}
+            </div>
+            {claimRetryable && (
+              <Button size="sm" variant="outline" className="w-full h-8" onClick={claimPoints}>
+                เก็บแต้มอีกครั้ง
+              </Button>
+            )}
           </div>
         )}
 
