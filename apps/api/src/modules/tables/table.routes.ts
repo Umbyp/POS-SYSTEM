@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { prisma } from '../../config/prisma';
+import { Conflict } from '../../utils/errors';
 
 const router = Router();
 router.use(authMiddleware);
@@ -17,8 +18,20 @@ router.get('/', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+/** Two tables sharing a number is indistinguishable to staff — they pick one at
+ *  random in the POS and the guests' bills split across both. The DB now has a
+ *  unique index; this check is only here to answer with something readable. */
+async function assertNumberFree(storeId: string, number: string, exceptId?: string) {
+  const clash = await prisma.table.findFirst({
+    where: { storeId, number, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    select: { id: true },
+  });
+  if (clash) throw Conflict(`มีโต๊ะหมายเลข ${number} อยู่แล้ว`, 'TABLE_NUMBER_TAKEN');
+}
+
 router.post('/', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
+    if (req.body?.number) await assertNumberFree(req.user!.storeId, String(req.body.number));
     const table = await prisma.table.create({
       data: { ...req.body, storeId: req.user!.storeId },
     });
@@ -74,7 +87,10 @@ router.patch('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
 
     const { number, capacity, size } = req.body;
     const data: any = {};
-    if (number !== undefined) data.number = number;
+    if (number !== undefined) {
+      await assertNumberFree(req.user!.storeId, String(number), existing.id);
+      data.number = number;
+    }
     if (capacity !== undefined) data.capacity = Number(capacity);
     if (size !== undefined && ['SMALL', 'MEDIUM', 'LARGE'].includes(size)) data.size = size;
     const table = await prisma.table.update({

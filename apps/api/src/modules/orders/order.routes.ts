@@ -175,12 +175,23 @@ router.get('/:id', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.patch('/:id/status', rbac('OWNER', 'ADMIN', 'CASHIER', 'KITCHEN'), async (req, res, next) => {
-  try {
-    const io = req.app.get('io');
-    res.json(await service.updateStatus(req.params.id, req.body.status, io));
-  } catch (e) { next(e); }
+// The status went straight to Prisma before, so a typo from a client came back
+// as a 500 (Prisma validation error) instead of telling the caller what's wrong.
+const updateStatusSchema = z.object({
+  status: z.enum(['DRAFT', 'PENDING', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED', 'REFUNDED']),
 });
+
+router.patch(
+  '/:id/status',
+  rbac('OWNER', 'ADMIN', 'CASHIER', 'KITCHEN'),
+  validate(updateStatusSchema),
+  async (req, res, next) => {
+    try {
+      const io = req.app.get('io');
+      res.json(await service.updateStatus(req.params.id, req.body.status, io));
+    } catch (e) { next(e); }
+  },
+);
 
 // Append another round to an open bill and fire it to the kitchen
 router.post('/:id/items', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(roundSchema), async (req, res, next) => {
@@ -238,8 +249,17 @@ router.post('/:id/settle', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(settleSch
   } catch (e) { next(e); }
 });
 
+// Refunds the WHOLE bill. It takes no body, and used to ignore one silently —
+// so a caller aiming at /refund-items but landing here (the names differ by a
+// word) got a full refund and a full restock, with a 200 to say it went fine.
 router.post('/:id/refund', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
   try {
+    if (req.body && typeof req.body === 'object' && 'items' in req.body) {
+      throw BadRequest(
+        'This endpoint refunds the entire bill and takes no items. Use POST /orders/:id/refund-items to refund selected lines.',
+        'FULL_REFUND_ONLY',
+      );
+    }
     const io = req.app.get('io');
     res.json(await service.refund(req.params.id, req.user!.id, io));
   } catch (e) { next(e); }

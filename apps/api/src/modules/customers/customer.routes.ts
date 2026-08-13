@@ -6,6 +6,7 @@ import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
 import { PointTxType } from '@prisma/client';
 import { recordPoints, recordStamps } from '../orders/points.service';
+import { Conflict } from '../../utils/errors';
 
 const router = Router();
 router.use(authMiddleware);
@@ -116,10 +117,34 @@ router.post('/:id/adjust', rbac('OWNER', 'ADMIN'), validate(adjustSchema), async
 });
 
 // POST /customers
+/**
+ * Loyalty is keyed on the phone number: the member portal looks a customer up
+ * by phone (findFirst) to show a card and to claim a bill's points. Two active
+ * customers on one number make that lookup a coin toss — earns land on whichever
+ * row happens to come first. The self-order signup route already refused a
+ * taken number; the staff routes did not, so duplicates arrived through the back
+ * door. There's no DB unique index to lean on here: deletes are soft
+ * (isActive: false), and a blanket constraint would make a former customer's
+ * number unusable forever.
+ */
+async function assertPhoneFree(storeId: string, phone: string, exceptId?: string) {
+  const clash = await prisma.customer.findFirst({
+    where: { storeId, phone, isActive: true, ...(exceptId ? { id: { not: exceptId } } : {}) },
+    select: { id: true, name: true },
+  });
+  if (clash) {
+    throw Conflict(
+      `เบอร์ ${phone} เป็นของสมาชิก "${clash.name}" อยู่แล้ว`,
+      'PHONE_TAKEN',
+    );
+  }
+}
+
 router.post('/', validate(upsertSchema), async (req, res, next) => {
   try {
     const data: any = { ...req.body, storeId: req.user!.storeId };
     if (data.email === '') data.email = null;
+    if (data.phone) await assertPhoneFree(req.user!.storeId, String(data.phone));
     const customer = await prisma.customer.create({ data });
     res.status(201).json(customer);
   } catch (e) { next(e); }
@@ -133,6 +158,15 @@ router.patch('/:id', async (req, res, next) => {
     delete data.points; // ไม่ให้แก้คะแนนตรงๆ
     delete data.totalSpent;
     delete data.visitCount;
+
+    if (data.phone) {
+      const target = await prisma.customer.findFirst({
+        where: { id: req.params.id, storeId: req.user!.storeId },
+        select: { id: true },
+      });
+      if (!target) return res.status(404).json({ error: 'Customer not found' });
+      await assertPhoneFree(req.user!.storeId, String(data.phone), target.id);
+    }
 
     const customer = await prisma.customer.update({
       where: { id: req.params.id },

@@ -69,11 +69,36 @@ app.post(
 
 app.use(express.json({ limit: '10mb' }));
 
+// Brute-force guard on credential *attempts* only.
+//
+// This used to sit on the whole /api/auth router, which also serves
+// GET /auth/me — a request every dashboard page fires on load. Thirty page
+// loads inside the window (an ordinary morning, and shared by every device
+// behind the shop's NAT) burned the budget, and the next 429 hit
+// POST /auth/login: nobody could sign in for up to fifteen minutes. Keep the
+// limiter on the endpoints where a guess costs something, and leave reads out.
+//
 // Cast: express-rate-limit@7 ships Express-5-aligned handler types; runtime is Express 4
-app.use(
-  '/api/auth',
-  rateLimit({ windowMs: 15 * 60_000, max: 30, standardHeaders: true, legacyHeaders: false }) as unknown as RequestHandler,
-);
+const authAttemptLimiter = rateLimit({
+  windowMs: 15 * 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, // a staff member signing in shouldn't spend the budget
+  // Default handler answers with plain text; the web client reads {error}.
+  handler: (req, res) => {
+    const retryAfter = Number(res.getHeader('Retry-After')) || 900;
+    res.status(429).json({
+      error: `ลองเข้าสู่ระบบหลายครั้งเกินไป — กรุณารออีก ${Math.ceil(retryAfter / 60)} นาทีแล้วลองใหม่`,
+      code: 'TOO_MANY_ATTEMPTS',
+      retryAfter,
+    });
+  },
+}) as unknown as RequestHandler;
+
+for (const path of ['/api/auth/login', '/api/auth/register', '/api/auth/google']) {
+  app.use(path, authAttemptLimiter);
+}
 
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 

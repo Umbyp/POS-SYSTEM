@@ -589,12 +589,26 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                   value={received} onChange={(e) => setReceived(e.target.value)}
                   className="text-2xl h-14 text-right tabular-nums"
                 />
+                {/* Exact is its own button, and a note that happens to equal the
+                    amount due drops out — otherwise a ฿100 bill rendered
+                    ["พอดี", "฿500", "฿1000", "พอดี"], losing the ฿100 shortcut
+                    and handing React two children with the same key. */}
                 <div className="grid grid-cols-4 gap-1 mt-2">
-                  {[100, 500, 1000, remaining].map((amt) => (
-                    <Button key={amt} variant="outline" size="sm" onClick={() => setReceived(String(amt))}>
-                      {amt === remaining ? t('pay.exact') : `฿${amt}`}
-                    </Button>
-                  ))}
+                  {[100, 500, 1000]
+                    .filter((amt) => amt !== remaining)
+                    .map((amt) => (
+                      <Button key={amt} variant="outline" size="sm" onClick={() => setReceived(String(amt))}>
+                        ฿{amt}
+                      </Button>
+                    ))}
+                  <Button
+                    key="exact"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setReceived(String(remaining))}
+                  >
+                    {t('pay.exact')}
+                  </Button>
                 </div>
                 {received && parseFloat(received) >= remaining && (
                   <div className="mt-3 p-3 bg-success/10 rounded-lg text-center">
