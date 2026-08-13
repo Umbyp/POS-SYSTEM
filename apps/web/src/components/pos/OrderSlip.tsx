@@ -44,31 +44,36 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
   const pointsOn = store?.loyaltyMode === 'POINTS' || store?.loyaltyMode === 'BOTH';
   const stampsOn = store?.loyaltyMode === 'STAMPS' || store?.loyaltyMode === 'BOTH';
 
-  // One QR does the whole job, same as the receipt's: the member portal
-  // registers a new phone or just looks up an existing one, then claims this
-  // one order's points — and only ever once (claimOrderPoints sets
-  // order.customerId, so a second scan comes back ALREADY_CLAIMED).
+  // The guest copy always carries a points QR; which one depends on whether a
+  // member is on the bill (the kitchen copy never gets one):
   //
-  // Only on the guest's copy, only when nobody is linked to the bill yet (a
-  // member's earn is already handled at checkout), and only while the store
-  // keeps the receipt's own points-QR toggle on. If that toggle is off but
-  // signup QRs are still wanted, fall back to the plain join link.
-  const noMemberYet = variant === 'customer' && loyaltyOn && !order?.customer;
-  const showClaimQr = noMemberYet && store?.receiptShowPointsQr !== false;
-  const showSignupQr = noMemberYet && !showClaimQr && store?.receiptShowSignupQr !== false;
+  //   no member  → the order-scoped claim link, same as the receipt's. The
+  //                portal registers a new phone or looks up an existing one,
+  //                then credits this one order — once only (claimOrderPoints
+  //                sets order.customerId, so a second scan is ALREADY_CLAIMED).
+  //   member     → the plain portal link, so they can scan and see their card.
+  //                Their earn is applied at checkout, and the claim endpoint
+  //                would (correctly) refuse an order that already has a member,
+  //                so pointing this QR at the order would only show an error.
+  const onGuestCopy = variant === 'customer' && loyaltyOn;
+  const pointsQrOn = store?.receiptShowPointsQr !== false;
+  const showClaimQr = onGuestCopy && !order?.customer && pointsQrOn;
+  const showMemberQr = onGuestCopy && !!order?.customer && pointsQrOn;
+  const showSignupQr =
+    onGuestCopy && !order?.customer && !pointsQrOn && store?.receiptShowSignupQr !== false;
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !store?.id || !(showClaimQr || showSignupQr)) {
+    if (typeof window === 'undefined' || !store?.id || !(showClaimQr || showMemberQr || showSignupQr)) {
       return setQrUrl('');
     }
-    // The claim link carries the order; scanning it before the bill is settled
-    // tells the guest to come back after paying (see member/page.tsx), so they
-    // can register at the table and collect the moment they've paid.
+    // Only the claim link carries the order. Scanning it before the bill is
+    // settled tells the guest to come back after paying (see member/page.tsx),
+    // so they can register at the table and collect the moment they've paid.
     const url = showClaimQr
       ? `${window.location.origin}/member?storeId=${store.id}&order=${order.id}`
       : `${window.location.origin}/member?storeId=${store.id}`;
     QRCode.toDataURL(url, { width: 140, margin: 0 }).then(setQrUrl).catch(() => {});
-  }, [store?.id, order?.id, showClaimQr, showSignupQr]);
+  }, [store?.id, order?.id, showClaimQr, showMemberQr, showSignupQr]);
 
   if (!order || !store) return null;
 
@@ -386,16 +391,18 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
           </div>
         )}
 
-        {/* No member on the bill — one QR to sign up / log in and collect. */}
+        {/* The points QR — claim link for a walk-in, card link for a member. */}
         {qrUrl && (
           <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: '11px', marginBottom: 4 }}>
               {showClaimQr
                 ? 'สแกนสะสมแต้ม / Scan to collect points'
+                : showMemberQr
+                ? 'สแกนดูแต้มสะสม / Scan for your points'
                 : store.receiptSignupHeadline || 'สมัครสมาชิก เพื่อรับสิทธิพิเศษมากมาย!'}
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={qrUrl} alt="scan to collect points" className="mx-auto" />
+            <img src={qrUrl} alt="loyalty qr" className="mx-auto" />
             {showClaimQr ? (
               <>
                 <div style={{ fontSize: 9.5, color: '#555', marginTop: 4 }}>
@@ -407,6 +414,10 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
                   <div style={{ fontSize: 9, color: '#888', marginTop: 3 }}>{store.receiptPointsTerms}</div>
                 )}
               </>
+            ) : showMemberQr ? (
+              <div style={{ fontSize: 9.5, color: '#555', marginTop: 4 }}>
+                แต้มของบิลนี้เข้าบัญชีอัตโนมัติเมื่อชำระเงิน
+              </div>
             ) : (
               <div style={{ fontSize: 9.5, color: '#555', marginTop: 4, fontWeight: 600 }}>
                 สแกนสมัครก่อนชำระเงิน แล้วแจ้งพนักงาน
