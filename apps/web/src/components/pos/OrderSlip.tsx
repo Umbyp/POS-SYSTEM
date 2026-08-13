@@ -366,12 +366,13 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
         )}
 
         {/* ==================== LOYALTY (customer copy only) ==================== */}
+        {/* No panels here on purpose: a tinted, bordered box is screen styling
+            that a thermal printer renders as a grey smear at best. The totals
+            block above already ends in a rule, so these blocks just need air. */}
+
         {/* A member is already on the bill — tell them what settling it earns. */}
         {!isKitchen && loyaltyOn && order.customer && (pointsWillEarn > 0 || stampsWillEarn > 0) && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1', fontSize: '10.5px' }}
-          >
+          <div className="mt-3 text-center" style={{ fontSize: '10.5px' }}>
             <div style={{ fontWeight: 600, marginBottom: 2 }}>สมาชิก: {order.customer.name}</div>
             <div>
               ชำระเงินแล้วจะได้รับ
@@ -387,10 +388,7 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
 
         {/* No member on the bill — one QR to sign up / log in and collect. */}
         {qrUrl && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
-          >
+          <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: '11px', marginBottom: 4 }}>
               {showClaimQr
                 ? 'สแกนสะสมแต้ม / Scan to collect points'
@@ -400,10 +398,7 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
             <img src={qrUrl} alt="scan to collect points" className="mx-auto" />
             {showClaimQr ? (
               <>
-                <div style={{ fontSize: 9.5, color: '#555', marginTop: 4, fontWeight: 600 }}>
-                  ยังไม่เป็นสมาชิก? สแกนแล้วสมัครได้เลย · เป็นสมาชิกแล้วใส่เบอร์เพื่อเก็บแต้ม
-                </div>
-                <div style={{ fontSize: 9.5, color: '#555' }}>
+                <div style={{ fontSize: 9.5, color: '#555', marginTop: 4 }}>
                   เก็บได้หลังชำระเงิน · 1 บิลเก็บได้ครั้งเดียว
                   {pointsWillEarn > 0 && ` — บิลนี้ได้ ${pointsWillEarn} แต้ม`}
                   {pointsWillEarn <= 0 && stampsWillEarn > 0 && ` — บิลนี้ได้ ${stampsWillEarn} ดวง`}

@@ -414,12 +414,8 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
         {/* ==================== LOYALTY ==================== */}
         {order.customer && (order.pointsEarned > 0 || order.pointsRedeemed > 0) && (
           <div
-            className="mt-3 p-2 rounded text-center"
-            style={{
-              border: '1px dashed #999',
-              backgroundColor: '#fff8e1',
-              fontSize: isThermal ? '10.5px' : '12px',
-            }}
+            className="mt-3 text-center"
+            style={{ fontSize: isThermal ? '10.5px' : '12px' }}
           >
             <div style={{ fontWeight: 600, marginBottom: 2 }}>
               Member: {order.customer.name}
@@ -437,10 +433,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
 
         {/* ==================== JOIN THE LOYALTY PROGRAM ==================== */}
         {signupQrUrl && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
-          >
+          <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
               {store.receiptSignupHeadline || 'สมัครสมาชิก เพื่อรับสิทธิพิเศษมากมาย!'}
             </div>
@@ -451,10 +444,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
 
         {/* ==================== SCAN TO COLLECT POINTS ==================== */}
         {claimQrUrl && (
-          <div
-            className="mt-3 p-2 rounded text-center"
-            style={{ border: '1px dashed #999', backgroundColor: '#fff8e1' }}
-          >
+          <div className="mt-3 text-center">
             <div style={{ fontWeight: 600, fontSize: isThermal ? '11px' : '13px', marginBottom: 4 }}>
               สแกนสะสมแต้ม / Scan to collect points
             </div>
