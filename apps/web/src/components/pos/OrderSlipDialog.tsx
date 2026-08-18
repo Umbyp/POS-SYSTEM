@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { OrderSlip } from '@/components/pos/OrderSlip';
 
+const AUTO_PRINT_KEY = 'pos-slip-autoprint';
+
 /**
  * Preview + print the slip for an order that was just fired to the kitchen.
  * Opens straight after "ส่งครัว" so the cashier can hand the guest their copy
@@ -15,6 +17,14 @@ import { OrderSlip } from '@/components/pos/OrderSlip';
  *
  * window.print() prints whichever copy is on screen — OrderSlip's print CSS
  * hides everything except #slip-printable, and only one copy is mounted.
+ *
+ * Auto-print: with the toggle on, sending a round fires the kitchen copy at the
+ * printer by itself. How silent that is depends on the browser, not on us — no
+ * page can bypass the print dialog. Launch the POS browser with
+ * `--kiosk-printing` (Chrome/Edge) and window.print() goes straight to the
+ * default printer with no dialog at all; without it, the dialog still opens on
+ * its own and someone presses Enter. The toggle is remembered per device, since
+ * which machine has the kitchen printer attached is a property of the counter.
  */
 export function OrderSlipDialog({
   open,
@@ -31,6 +41,29 @@ export function OrderSlipDialog({
   const t = useT();
   const [variant, setVariant] = useState<'customer' | 'kitchen'>('customer');
   const printRef = useRef<HTMLButtonElement>(null);
+  const [autoPrint, setAutoPrint] = useState(false);
+  const autoPrintedRef = useRef(false);
+  const freshRound = !!roundItemIds?.length;
+
+  // Remembered per device (localStorage), not per store: the printer is wired to
+  // one machine at the counter, and a phone that opens the POS shouldn't inherit
+  // its setting.
+  useEffect(() => {
+    try {
+      setAutoPrint(localStorage.getItem(AUTO_PRINT_KEY) === '1');
+    } catch {
+      /* private mode — the toggle just stays off */
+    }
+  }, []);
+
+  const toggleAutoPrint = (on: boolean) => {
+    setAutoPrint(on);
+    try {
+      localStorage.setItem(AUTO_PRINT_KEY, on ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
 
   const { data: store } = useQuery({
     queryKey: ['store-me'],
@@ -44,9 +77,27 @@ export function OrderSlipDialog({
     if (open) setVariant('customer');
   }, [open]);
 
-  if (!order) return null;
+  // Fire the kitchen copy on its own once per opening, and only for a round that
+  // was just sent — a reprint is someone already standing at the printer, so it
+  // must never start printing by itself. Waits for the store (the slip renders
+  // nothing without it) and for the kitchen copy to actually be on screen,
+  // because window.print() captures the DOM as it stands at that moment.
+  useEffect(() => {
+    if (!open) {
+      autoPrintedRef.current = false;
+      return;
+    }
+    if (!autoPrint || !freshRound || !store || autoPrintedRef.current) return;
+    if (variant !== 'kitchen') {
+      setVariant('kitchen');
+      return;
+    }
+    autoPrintedRef.current = true;
+    const id = window.setTimeout(() => window.print(), 150);
+    return () => window.clearTimeout(id);
+  }, [open, autoPrint, freshRound, store, variant]);
 
-  const isFreshRound = !!roundItemIds?.length;
+  if (!order) return null;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -64,7 +115,7 @@ export function OrderSlipDialog({
             <DialogTitle className="flex items-center gap-2 text-lg">
               {/* No round = a reprint of the whole bill, so don't claim we just
                   sent anything to the kitchen. */}
-              {isFreshRound ? (
+              {freshRound ? (
                 <>
                   <CheckCircle2 className="w-5 h-5 text-success shrink-0" />
                   {t('slip.sentTitle')}
@@ -99,6 +150,19 @@ export function OrderSlipDialog({
           </div>
 
           <p className="no-print text-[11px] text-muted-foreground">{t('slip.hint')}</p>
+
+          <label className="no-print flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={autoPrint}
+              onChange={(e) => toggleAutoPrint(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-primary shrink-0"
+            />
+            <span className="text-xs leading-snug">
+              <span className="font-medium">{t('slip.autoPrint')}</span>
+              <span className="block text-[11px] text-muted-foreground">{t('slip.autoPrintHint')}</span>
+            </span>
+          </label>
 
           {/* print:* — the preview frame is screen chrome; it must not clip or
               outline the slip on paper */}
