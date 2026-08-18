@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { formatCurrency, formatDate, formatTime } from '@/lib/format';
+import { usePrintIsolation } from '@/lib/printIsolation';
 
 /**
  * 80mm thermal slip for an order that has been fired to the kitchen but not
@@ -39,6 +40,9 @@ const TYPE_LABEL: Record<string, string> = {
 // ไม่ใช้ emoji — เครื่องปริ้นความร้อนปริ้น emoji ไม่ออก (ขึ้นเป็นกล่อง)
 export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: Props) {
   const [qrUrl, setQrUrl] = useState('');
+
+  // Keeps the printed page as long as the ticket and no longer.
+  usePrintIsolation('slip-printable');
 
   const loyaltyOn = !!store?.loyaltyMode && store.loyaltyMode !== 'OFF';
   const pointsOn = store?.loyaltyMode === 'POINTS' || store?.loyaltyMode === 'BOTH';
@@ -115,13 +119,21 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
             size: 80mm auto;
             margin: 0;
           }
+
+          /* Fallback path, for a browser that never fires beforeprint: the slip
+             is the only visible thing and sits at the top of the page. Costs a
+             tail of blank roll, but prints the right ticket. */
           body * { visibility: hidden; }
           #slip-printable, #slip-printable * { visibility: visible; }
+          #slip-printable {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 80mm;
+          }
           /* The slip is previewed inside a Radix dialog: a fixed, transformed,
-             max-height + overflow-auto box. Left alone that box clips the slip
-             to one screen-height page (a 10-line order prints half-cut), and
-             its transform makes it the containing block for the absolutely
-             positioned slip below. Flatten it for print. */
+             max-height + overflow-auto box, which would otherwise clip a long
+             ticket to one screen-height page. */
           [role='dialog'] {
             position: static !important;
             transform: none !important;
@@ -133,12 +145,36 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
             box-shadow: none !important;
             background: #fff !important;
           }
-          #slip-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+
+          /* Real path (usePrintIsolation marked the tree): everything off the
+             slip's branch leaves the flow, so the page ends where the slip ends
+             and its length follows the order instead of the POS layout. */
+          [data-print-hide] { display: none !important; }
+          [data-print-keep] {
+            display: block !important;
+            position: static !important;
+            transform: none !important;
+            width: auto !important;
+            max-width: none !important;
+            /* height too, not just max-height: the dashboard shell is h-[100dvh],
+               which would otherwise hold the page to one screen and clip a long
+               ticket. */
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
           }
+          #slip-printable[data-print-keep] {
+            position: static !important;
+            width: 80mm !important;
+          }
+
           .no-print { display: none !important; }
         }
         #slip-printable {
