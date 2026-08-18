@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { formatCurrency, formatDate, formatTime } from '@/lib/format';
 import { usePrintIsolation } from '@/lib/printIsolation';
+import { THERMAL_CONTENT_WIDTH, THERMAL_PAPER_WIDTH } from '@/lib/paper';
 
 /**
  * 80mm thermal slip for an order that has been fired to the kitchen but not
@@ -116,7 +117,7 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
       <style jsx global>{`
         @media print {
           @page {
-            size: 80mm auto;
+            size: ${THERMAL_PAPER_WIDTH} auto;
             margin: 0;
           }
 
@@ -129,7 +130,7 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
             position: absolute;
             left: 0;
             top: 0;
-            width: 80mm;
+            width: ${THERMAL_CONTENT_WIDTH};
           }
           /* The slip is previewed inside a Radix dialog: a fixed, transformed,
              max-height + overflow-auto box, which would otherwise clip a long
@@ -172,7 +173,12 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
           }
           #slip-printable[data-print-keep] {
             position: static !important;
-            width: 80mm !important;
+            /* Centred on the roll, inside what the head can actually image. The
+               flatten rule above zeroes padding for the ancestors it unwraps —
+               the slip needs its own back, or the text runs into the paper edge. */
+            width: ${THERMAL_CONTENT_WIDTH} !important;
+            margin: 0 auto !important;
+            padding: 8px 10px !important;
           }
 
           .no-print { display: none !important; }
@@ -190,7 +196,7 @@ export function OrderSlip({ order, store, variant = 'customer', roundItemIds }: 
         id="slip-printable"
         className="mx-auto bg-white"
         style={{
-          width: '80mm',
+          width: THERMAL_CONTENT_WIDTH,
           fontSize: isKitchen ? '13px' : '12px',
           padding: '8px 10px',
           lineHeight: 1.45,

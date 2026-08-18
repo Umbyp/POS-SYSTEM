@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { generatePromptPayPayload } from '@/lib/promptpay';
 import { usePrintIsolation } from '@/lib/printIsolation';
+import { THERMAL_CONTENT_WIDTH, THERMAL_PAPER_WIDTH } from '@/lib/paper';
 
 interface Props {
   order: any;
@@ -90,7 +91,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
       <style jsx global>{`
         @media print {
           @page {
-            size: ${isThermal ? '80mm auto' : 'A4'};
+            size: ${isThermal ? `${THERMAL_PAPER_WIDTH} auto` : 'A4'};
             margin: ${isThermal ? '0' : '12mm'};
           }
 
@@ -145,7 +146,12 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
           }
           #receipt-printable[data-print-keep] {
             position: static !important;
-            width: ${isThermal ? '80mm' : '100%'} !important;
+            /* Thermal: centred inside what the head can image, not the full roll.
+               Padding comes back for the same reason as the slip — the flatten
+               rule strips it from every kept node, edges included. */
+            width: ${isThermal ? THERMAL_CONTENT_WIDTH : '100%'} !important;
+            margin: ${isThermal ? '0 auto' : '0'} !important;
+            padding: ${isThermal ? '8px 10px' : '24px 28px'} !important;
           }
 
           .no-print { display: none !important; }
@@ -168,7 +174,7 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
         id="receipt-printable"
         className={isThermal ? 'mx-auto bg-white' : 'mx-auto bg-white shadow-sm'}
         style={{
-          width: isThermal ? '80mm' : '210mm',
+          width: isThermal ? THERMAL_CONTENT_WIDTH : '210mm',
           minHeight: isThermal ? 'auto' : '297mm',
           fontSize: isThermal ? '12px' : '13px',
           padding: isThermal ? '8px 10px' : '24px 28px',
