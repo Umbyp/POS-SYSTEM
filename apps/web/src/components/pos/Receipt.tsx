@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { generatePromptPayPayload } from '@/lib/promptpay';
+import { usePrintIsolation } from '@/lib/printIsolation';
 
 interface Props {
   order: any;
@@ -31,6 +32,9 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
   const [qrUrl, setQrUrl] = useState<string>('');
   const [claimQrUrl, setClaimQrUrl] = useState<string>('');
   const [signupQrUrl, setSignupQrUrl] = useState<string>('');
+
+  // Keeps the printed page as long as the receipt and no longer.
+  usePrintIsolation('receipt-printable');
 
   const loyaltyOn = !!store?.loyaltyMode && store.loyaltyMode !== 'OFF';
 
@@ -89,12 +93,20 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             size: ${isThermal ? '80mm auto' : 'A4'};
             margin: ${isThermal ? '0' : '12mm'};
           }
+
+          /* Fallback for a browser that never fires beforeprint — same shape as
+             before: only the receipt shows, pinned to the top of the page. */
           body * { visibility: hidden; }
           #receipt-printable, #receipt-printable * { visibility: visible; }
+          #receipt-printable {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
           /* PaymentDialog previews this inside a Radix dialog — a fixed,
-             transformed, max-height + overflow-auto box that otherwise clips
-             the receipt to one screen-height page and anchors the absolute
-             positioning below to itself instead of the page. */
+             transformed, max-height + overflow-auto box that would otherwise clip
+             a long receipt to one screen-height page. */
           [role='dialog'] {
             position: static !important;
             transform: none !important;
@@ -106,12 +118,36 @@ export function Receipt({ order, store, format = 'thermal', invoiceType = 'abbre
             box-shadow: none !important;
             background: #fff !important;
           }
-          #receipt-printable {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
+
+          /* Real path (usePrintIsolation marked the tree): with everything else
+             out of the flow the roll is cut where the receipt ends, instead of
+             carrying the height of whatever screen it was printed from. */
+          [data-print-hide] { display: none !important; }
+          [data-print-keep] {
+            display: block !important;
+            position: static !important;
+            transform: none !important;
+            width: auto !important;
+            max-width: none !important;
+            /* height too, not just max-height: the dashboard shell is h-[100dvh],
+               which would otherwise hold the page to one screen and clip a long
+               ticket. */
+            height: auto !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: #fff !important;
           }
+          #receipt-printable[data-print-keep] {
+            position: static !important;
+            width: ${isThermal ? '80mm' : '100%'} !important;
+          }
+
           .no-print { display: none !important; }
         }
         #receipt-printable {

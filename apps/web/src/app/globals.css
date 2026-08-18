@@ -117,6 +117,17 @@
 
 /* Print styles for reports — force light regardless of active theme */
 @media print {
+  /* Receipts print onto a continuous roll (@page size: 80mm auto), so the paper
+     is cut at the document's height. Anything holding the document to a screen
+     height — the layout's h-[100dvh], the browser's own viewport floor — turns
+     into blank roll after every ticket. Measured before this: a 500px kitchen
+     ticket printed a 950px page. */
+  html, body {
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   aside, header, .no-print { display: none !important; }
   body, html { background: white !important; color: black !important; }
   .bg-card, .bg-background, .bg-muted { background: white !important; }
