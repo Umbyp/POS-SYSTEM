@@ -122,6 +122,11 @@ const DICT: Record<string, Entry> = {
   'slip.printKitchen': { th: 'พิมพ์ใบครัว', en: 'Print kitchen copy' },
   'slip.close': { th: 'ปิด', en: 'Close' },
   'slip.autoPrint': { th: 'พิมพ์ใบครัวอัตโนมัติเมื่อส่งครัว', en: 'Auto-print the kitchen copy on send' },
+  'slip.autoPrintFired': {
+    th: 'ส่งไปเครื่องพิมพ์แล้ว — ถ้ากระดาษไม่ออก กดปุ่มพิมพ์ด้านล่างซ้ำได้เลย',
+    en: 'Sent to the printer — if no paper came out, press Print below again',
+  },
+  'kds.reprintSlip': { th: 'พิมพ์ใบครัวซ้ำ', en: 'Reprint kitchen ticket' },
   'slip.autoPrintHint': {
     th: 'จำไว้เฉพาะเครื่องนี้ · เปิดเบราว์เซอร์ด้วย --kiosk-printing จะพิมพ์ออกเลยไม่มีหน้าต่างยืนยัน (ไม่งั้นหน้าต่างพิมพ์จะเด้งขึ้นเองให้กดยืนยัน)',
     en: 'Remembered on this device · launch the browser with --kiosk-printing to print with no dialog (otherwise the print dialog opens by itself)',
