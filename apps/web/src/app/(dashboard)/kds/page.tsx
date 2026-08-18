@@ -2,13 +2,34 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChefHat, CheckCircle2, Volume2, VolumeX, Link2, Tv } from 'lucide-react';
+import { ChefHat, CheckCircle2, Volume2, VolumeX, Link2, Tv, Printer } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '@/lib/api';
 import { getSocket } from '@/lib/socket';
 import { useAuth } from '@/stores/auth.store';
 import { useT } from '@/lib/i18n';
 import { playBeep } from '@/lib/sounds';
+import { OrderSlipDialog } from '@/components/pos/OrderSlipDialog';
+
+/**
+ * Reprint this ticket. Auto-print can come up empty for reasons the browser
+ * never tells the page about — printer offline, out of paper, someone dismissed
+ * the dialog — and the kitchen is who finds out. Rather than walking to the till
+ * to ask, the cook reprints from the card in front of them.
+ */
+function ReprintTicketButton({ order, onPick }: { order: any; onPick: (o: any) => void }) {
+  const t = useT();
+  return (
+    <button
+      onClick={() => onPick(order)}
+      title={t('kds.reprintSlip')}
+      aria-label={t('kds.reprintSlip')}
+      className="p-1.5 -m-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted touch-manipulation"
+    >
+      <Printer className="w-4 h-4" />
+    </button>
+  );
+}
 
 /**
  * Group order items by when they were fired. Items created within ~2s of
@@ -92,6 +113,7 @@ export default function KDSPage() {
     if (typeof window === 'undefined') return false;
     return localStorage.getItem('kds-muted') === '1';
   });
+  const [slipOrder, setSlipOrder] = useState<any>(null);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
   const [tick, setTick] = useState(0);
@@ -260,6 +282,7 @@ export default function KDSPage() {
                       <div className="flex items-center gap-2">
                         <EntityBadge order={o} tone="default" />
                         <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
+                        <ReprintTicketButton order={o} onPick={setSlipOrder} />
                       </div>
                       <span className="text-xs font-semibold text-muted-foreground">{t('kds.justIn')}</span>
                     </div>
@@ -310,6 +333,7 @@ export default function KDSPage() {
                         <div className="flex items-center gap-2">
                           <EntityBadge order={o} tone={urgent ? 'danger' : 'default'} />
                           <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
+                          <ReprintTicketButton order={o} onPick={setSlipOrder} />
                         </div>
                         {!urgent && (
                           <span className="text-xs font-semibold text-muted-foreground tabular-nums">
@@ -358,6 +382,7 @@ export default function KDSPage() {
                       <div className="flex items-center gap-2 mb-2">
                         <EntityBadge order={o} tone={isDineIn ? 'default' : 'success'} />
                         <span className="text-sm font-extrabold">{entityLabel(t, o)}</span>
+                        <ReprintTicketButton order={o} onPick={setSlipOrder} />
                       </div>
                       <TicketItems items={o.items} notes={o.notes} />
                       {isDineIn ? (
@@ -381,6 +406,15 @@ export default function KDSPage() {
           </div>
         </div>
       )}
+
+      {/* Reprint — kitchen copy first, since a cook is the one asking for it.
+          No roundItemIds: this prints the whole ticket, not just a later round. */}
+      <OrderSlipDialog
+        open={!!slipOrder}
+        order={slipOrder}
+        defaultVariant="kitchen"
+        onClose={() => setSlipOrder(null)}
+      />
     </div>
   );
 }

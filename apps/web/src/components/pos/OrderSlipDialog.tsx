@@ -30,18 +30,23 @@ export function OrderSlipDialog({
   open,
   order,
   roundItemIds,
+  defaultVariant = 'customer',
   onClose,
 }: {
   open: boolean;
   order: any;
   /** OrderItem ids fired in this round — the kitchen copy prints only these. */
   roundItemIds?: string[];
+  /** Which copy to land on. The kitchen reprints its own ticket, so KDS passes
+   *  'kitchen' rather than making a cook switch tabs first. */
+  defaultVariant?: 'customer' | 'kitchen';
   onClose: () => void;
 }) {
   const t = useT();
-  const [variant, setVariant] = useState<'customer' | 'kitchen'>('customer');
+  const [variant, setVariant] = useState<'customer' | 'kitchen'>(defaultVariant);
   const printRef = useRef<HTMLButtonElement>(null);
   const [autoPrint, setAutoPrint] = useState(false);
+  const [autoPrintFired, setAutoPrintFired] = useState(false);
   const autoPrintedRef = useRef(false);
   const freshRound = !!roundItemIds?.length;
 
@@ -74,8 +79,8 @@ export function OrderSlipDialog({
 
   // Fresh dialog every time — a new round shouldn't inherit the last copy shown.
   useEffect(() => {
-    if (open) setVariant('customer');
-  }, [open]);
+    if (open) setVariant(defaultVariant);
+  }, [open, defaultVariant]);
 
   // Fire the kitchen copy on its own once per opening, and only for a round that
   // was just sent — a reprint is someone already standing at the printer, so it
@@ -85,6 +90,7 @@ export function OrderSlipDialog({
   useEffect(() => {
     if (!open) {
       autoPrintedRef.current = false;
+      setAutoPrintFired(false);
       return;
     }
     if (!autoPrint || !freshRound || !store || autoPrintedRef.current) return;
@@ -93,7 +99,10 @@ export function OrderSlipDialog({
       return;
     }
     autoPrintedRef.current = true;
-    const id = window.setTimeout(() => window.print(), 150);
+    const id = window.setTimeout(() => {
+      window.print();
+      setAutoPrintFired(true);
+    }, 150);
     return () => window.clearTimeout(id);
   }, [open, autoPrint, freshRound, store, variant]);
 
@@ -163,6 +172,10 @@ export function OrderSlipDialog({
               <span className="block text-[11px] text-muted-foreground">{t('slip.autoPrintHint')}</span>
             </span>
           </label>
+
+          {autoPrintFired && (
+            <p className="no-print text-[11px] text-success font-medium">{t('slip.autoPrintFired')}</p>
+          )}
 
           {/* print:* — the preview frame is screen chrome; it must not clip or
               outline the slip on paper */}
