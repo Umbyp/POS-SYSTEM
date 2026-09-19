@@ -1,7 +1,7 @@
 'use client';
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Banknote, QrCode, CheckCircle2, Loader2, Printer, ArrowLeft, RefreshCw, X } from 'lucide-react';
+import { Banknote, QrCode, CheckCircle2, Loader2, Printer, ArrowLeft, RefreshCw, X, Paperclip, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { useCart } from '@/stores/cart.store';
@@ -159,6 +159,98 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const [ppStatus, setPpStatus] = useState<PpStatus>('idle');
   const [ppError, setPpError] = useState('');
 
+  // Slip2Go verification — a soft gate for the two PROMPTPAY paths that have
+  // no automatic bank confirmation: the direct-merchant QR (Stripe off), and
+  // the manual-reference fallback (Stripe on but the cashier confirms by
+  // eye). A rejected/failed check only warns; it never blocks "Confirm".
+  const { data: slip2goCfg } = useQuery({
+    queryKey: ['slip2go-config'],
+    queryFn: () => api.get('/payments/slip2go-config').then((r) => r.data),
+    enabled: open,
+  });
+  const slip2goEnabled = !!slip2goCfg?.slip2goEnabled;
+  const [slipVerifying, setSlipVerifying] = useState(false);
+  const [slipResult, setSlipResult] = useState<{
+    ok: boolean;
+    reason?: string;
+    transRef?: string;
+    amount?: number;
+    senderName?: string;
+    raw?: string;
+  } | null>(null);
+
+  const verifySlip = async (file: File) => {
+    setSlipVerifying(true);
+    setSlipResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('expectedAmount', String(remaining));
+      const { data } = await api.post('/payments/verify-slip', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setSlipResult(data);
+    } catch (e: any) {
+      setSlipResult({ ok: false, reason: e.response?.data?.error || t('pay.slipNotVerified') });
+    } finally {
+      setSlipVerifying(false);
+    }
+  };
+
+  // Shared between the two manual-trust PROMPTPAY paths below (direct-merchant
+  // QR, and the Stripe-manual-fallback reference field).
+  const renderSlipUpload = () => {
+    if (!slip2goEnabled) return null;
+    return (
+      <div className="space-y-1.5">
+        <label className="flex items-center gap-2 text-xs text-primary hover:underline cursor-pointer w-fit">
+          <Paperclip className="w-3.5 h-3.5" />
+          {t('pay.attachSlip')}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) verifySlip(file);
+              e.target.value = '';
+            }}
+          />
+        </label>
+        <p className="text-[11px] text-muted-foreground">{t('pay.slipHint')}</p>
+        {slipVerifying && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Loader2 className="w-3.5 h-3.5 animate-spin" /> {t('pay.slipVerifying')}
+          </div>
+        )}
+        {slipResult && !slipVerifying && (
+          <div
+            className={`flex items-start gap-1.5 rounded-lg p-2 text-xs ${
+              slipResult.ok ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
+            }`}
+          >
+            {slipResult.ok ? (
+              <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            ) : (
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            )}
+            <span>
+              {slipResult.ok ? (
+                <>
+                  {t('pay.slipVerified')}
+                  {slipResult.amount != null && ` · ${formatCurrency(slipResult.amount)}`}
+                  {slipResult.senderName && ` · ${slipResult.senderName}`}
+                </>
+              ) : (
+                slipResult.reason || t('pay.slipNotVerified')
+              )}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // Customer info for full tax invoice
   const [showCustomerInfo, setShowCustomerInfo] = useState(false);
   const [customerName, setCustomerName] = useState('');
@@ -230,6 +322,8 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
     setPpIntent(null);
     setPpStatus('idle');
     setPpError('');
+    setSlipVerifying(false);
+    setSlipResult(null);
     broadcastCurrentCart();
   };
 
@@ -316,7 +410,14 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
 
       // Split-tender lines first, then the primary method for whatever's left
       // (skipped entirely if the extra lines already cover the full bill).
-      const payments: { method: string; amount: number; reference?: string }[] = extraPayments
+      const payments: {
+        method: string;
+        amount: number;
+        reference?: string;
+        slipVerified?: boolean;
+        slipTransRef?: string;
+        slipPayload?: string;
+      }[] = extraPayments
         .filter((p) => (parseFloat(p.amount) || 0) > 0)
         .map((p) => ({ method: p.method, amount: parseFloat(p.amount), reference: p.reference || undefined }));
       if (remaining > 0 || payments.length === 0) {
@@ -324,6 +425,12 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
           method,
           amount: method === 'CASH' ? parseFloat(received || '0') : remaining,
           reference: promptpayRef,
+          // Only ever set on the PROMPTPAY line — slip verification only
+          // applies to the two manual-trust PromptPay paths (see slipResult's
+          // comment above).
+          slipVerified: method === 'PROMPTPAY' && slipResult ? slipResult.ok : undefined,
+          slipTransRef: method === 'PROMPTPAY' ? slipResult?.transRef : undefined,
+          slipPayload: method === 'PROMPTPAY' ? slipResult?.raw : undefined,
         });
       }
 
@@ -644,6 +751,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                       <p className="text-xs text-center text-muted-foreground">
                         ให้ลูกค้าสแกนจ่ายเข้าบัญชีร้าน แล้วกด “Confirm payment” เมื่อได้รับเงิน (เช็คจากแอปธนาคาร/SMS)
                       </p>
+                      {renderSlipUpload()}
                     </div>
                   ) : (
                     <div className="bg-warning/10 border border-warning/30 rounded-xl p-4 text-sm">
@@ -748,12 +856,14 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
                       {showManual ? '▼' : '▶'} ยืนยันการรับเงินด้วยตนเอง
                     </button>
                     {showManual && (
-                      <Input
-                        className="mt-2"
-                        placeholder={t('pay.refPlaceholder')}
-                        value={reference}
-                        onChange={(e) => setReference(e.target.value)}
-                      />
+                      <div className="mt-2 space-y-2">
+                        <Input
+                          placeholder={t('pay.refPlaceholder')}
+                          value={reference}
+                          onChange={(e) => setReference(e.target.value)}
+                        />
+                        {renderSlipUpload()}
+                      </div>
                     )}
                   </div>
                 )}

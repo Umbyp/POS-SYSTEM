@@ -7,6 +7,7 @@ import {
   recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, reverseOrderPoints,
   pointsEnabled, stampsEnabled,
 } from './points.service';
+import { printKitchenTicket } from './escpos';
 
 interface CreateOrderInput {
   storeId: string;
@@ -31,6 +32,11 @@ interface CreateOrderInput {
     method: PaymentMethod;
     amount: number;
     reference?: string;
+    /** Set when the cashier attached a slip image the frontend already had
+     * Slip2Go verify (see payments/slip2go.service.ts) before confirming. */
+    slipVerified?: boolean;
+    slipTransRef?: string;
+    slipPayload?: string;
   }[];
   notes?: string;
   customerName?: string;
@@ -75,7 +81,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     }
   }
 
-  return prisma.$transaction(async (tx) => {
+  const order = await prisma.$transaction(async (tx) => {
     // 1. ดึงข้อมูลสินค้า
     const productIds = input.items.map((i) => i.productId);
     const products = await tx.product.findMany({
@@ -251,6 +257,10 @@ export async function create(input: CreateOrderInput, io: Server) {
             method: p.method,
             amount: new Prisma.Decimal(p.amount),
             reference: p.reference,
+            slipVerified: p.slipVerified ?? false,
+            slipTransRef: p.slipTransRef,
+            slipVerifiedAt: p.slipVerified ? new Date() : undefined,
+            slipPayload: p.slipPayload,
           })),
         },
       },
@@ -424,6 +434,13 @@ export async function create(input: CreateOrderInput, io: Server) {
 
     return order;
   });
+
+  printKitchenTicket(
+    order,
+    order.items.map((it: any) => ({ name: it.product.name, quantity: it.quantity, notes: it.notes })),
+    false
+  );
+  return order;
 }
 
 export async function list(storeId: string, query: any) {

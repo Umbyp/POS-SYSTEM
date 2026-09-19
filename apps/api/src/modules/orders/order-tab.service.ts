@@ -15,6 +15,7 @@ import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client'
 import { generateOrderNumber } from './order.service';
 import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
+import { printKitchenTicket, type KitchenTicketItem } from './escpos';
 
 export interface TabItem {
   productId: string;
@@ -150,8 +151,15 @@ interface OpenTabInput {
 export async function openTab(input: OpenTabInput, io: Server) {
   if (!input.items?.length) throw BadRequest('No items');
 
+  let printItems: KitchenTicketItem[] = [];
+
   const result = await prisma.$transaction(async (tx) => {
     const { products, productIds, itemsData, subtotal, allRecipes } = await buildItems(tx, input.storeId, input.items);
+    printItems = itemsData.map((d) => ({
+      name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
+      quantity: d.quantity,
+      notes: d.notes,
+    }));
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
     const orderDiscount = new Prisma.Decimal(input.discount || 0);
     const { tax, serviceCharge, total } = computeTotals(subtotal, orderDiscount, store);
@@ -187,6 +195,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
   io.to(`store:${input.storeId}`).emit('order:created', result.created);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
+  printKitchenTicket(result.created, printItems, false);
   return result.created;
 }
 
@@ -198,6 +207,8 @@ export async function addRound(
 ) {
   if (!input.items?.length) throw BadRequest('No items');
 
+  let printItems: KitchenTicketItem[] = [];
+
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: true } });
     if (!order) throw NotFound('Order not found');
@@ -207,6 +218,11 @@ export async function addRound(
     }
 
     const { products, productIds, itemsData, subtotal: addSubtotal, allRecipes } = await buildItems(tx, input.storeId, input.items);
+    printItems = itemsData.map((d) => ({
+      name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
+      quantity: d.quantity,
+      notes: d.notes,
+    }));
     for (const d of itemsData) await tx.orderItem.create({ data: { orderId, ...d } });
 
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
@@ -246,6 +262,7 @@ export async function addRound(
   if (result.wasReady) {
     io.of('/display').to(`store:${input.storeId}:display`).emit('ready-board:update');
   }
+  printKitchenTicket(result.updated, printItems, true);
   return result.updated;
 }
 
@@ -270,7 +287,14 @@ export function listOpen(storeId: string) {
 interface SettleInput {
   storeId: string;
   cashierId: string;
-  payments: { method: PaymentMethod; amount: number; reference?: string }[];
+  payments: {
+    method: PaymentMethod;
+    amount: number;
+    reference?: string;
+    slipVerified?: boolean;
+    slipTransRef?: string;
+    slipPayload?: string;
+  }[];
   discount?: number;
   pointsToRedeem?: number;
   useStampReward?: boolean;
@@ -363,6 +387,10 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         payments: {
           create: input.payments.map((p) => ({
             method: p.method, amount: new Prisma.Decimal(p.amount), reference: p.reference,
+            slipVerified: p.slipVerified ?? false,
+            slipTransRef: p.slipTransRef,
+            slipVerifiedAt: p.slipVerified ? new Date() : undefined,
+            slipPayload: p.slipPayload,
           })),
         },
       },
