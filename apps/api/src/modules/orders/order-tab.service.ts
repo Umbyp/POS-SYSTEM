@@ -15,6 +15,27 @@ import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client'
 import { generateOrderNumber } from './order.service';
 import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
+import { buildKitchenTicketESCPOS, sendToPrinter, type KitchenTicketItem } from './escpos';
+import { logger } from '../../utils/logger';
+
+/**
+ * Fire a round's kitchen ticket at the configured network printer. Best-effort
+ * only — a failed/misconfigured printer must never fail the order itself, so
+ * this always resolves and just logs on error. No per-station routing yet
+ * (single global PRINTER_IP), and no retry/queue — both are deferred to a
+ * later "print stations" settings feature.
+ */
+async function printKitchenTicket(order: any, items: KitchenTicketItem[], isAddOn: boolean) {
+  const printerIp = process.env.PRINTER_IP;
+  if (!printerIp || items.length === 0) return;
+  try {
+    const port = Number(process.env.PRINTER_PORT || 9100);
+    const bytes = buildKitchenTicketESCPOS(order, items, isAddOn);
+    await sendToPrinter(bytes, printerIp, port);
+  } catch (err) {
+    logger.warn({ err, orderId: order.id, orderNumber: order.orderNumber }, 'Kitchen ticket auto-print failed');
+  }
+}
 
 export interface TabItem {
   productId: string;
@@ -150,8 +171,15 @@ interface OpenTabInput {
 export async function openTab(input: OpenTabInput, io: Server) {
   if (!input.items?.length) throw BadRequest('No items');
 
+  let printItems: KitchenTicketItem[] = [];
+
   const result = await prisma.$transaction(async (tx) => {
     const { products, productIds, itemsData, subtotal, allRecipes } = await buildItems(tx, input.storeId, input.items);
+    printItems = itemsData.map((d) => ({
+      name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
+      quantity: d.quantity,
+      notes: d.notes,
+    }));
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
     const orderDiscount = new Prisma.Decimal(input.discount || 0);
     const { tax, serviceCharge, total } = computeTotals(subtotal, orderDiscount, store);
@@ -187,6 +215,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
   io.to(`store:${input.storeId}`).emit('order:created', result.created);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
+  printKitchenTicket(result.created, printItems, false);
   return result.created;
 }
 
@@ -198,6 +227,8 @@ export async function addRound(
 ) {
   if (!input.items?.length) throw BadRequest('No items');
 
+  let printItems: KitchenTicketItem[] = [];
+
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: true } });
     if (!order) throw NotFound('Order not found');
@@ -207,6 +238,11 @@ export async function addRound(
     }
 
     const { products, productIds, itemsData, subtotal: addSubtotal, allRecipes } = await buildItems(tx, input.storeId, input.items);
+    printItems = itemsData.map((d) => ({
+      name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
+      quantity: d.quantity,
+      notes: d.notes,
+    }));
     for (const d of itemsData) await tx.orderItem.create({ data: { orderId, ...d } });
 
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
@@ -246,6 +282,7 @@ export async function addRound(
   if (result.wasReady) {
     io.of('/display').to(`store:${input.storeId}:display`).emit('ready-board:update');
   }
+  printKitchenTicket(result.updated, printItems, true);
   return result.updated;
 }
 

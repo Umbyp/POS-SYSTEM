@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import * as net from 'net';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
@@ -8,6 +7,7 @@ import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
 import { BadRequest } from '../../utils/errors';
+import { buildReceiptESCPOS, sendToPrinter } from './escpos';
 
 const router = Router();
 
@@ -315,107 +315,13 @@ router.post('/:id/print/escpos', async (req, res, next) => {
     const store = await prisma.store.findUnique({ where: { id: req.user!.storeId } });
     if (!store) throw BadRequest('Store not found');
 
-    // Generate ESC/POS bytes
+    // Generate ESC/POS bytes and send to printer over TCP socket (port 9100)
     const bytes = buildReceiptESCPOS(store, order);
-
-    // Send to printer over TCP socket (port 9100)
-    await new Promise<void>((resolve, reject) => {
-      const client = new net.Socket();
-      const port = Number(process.env.PRINTER_PORT || 9100);
-      client.connect(port, printerIp, () => {
-        client.write(Buffer.from(bytes), () => {
-          client.end();
-        });
-      });
-      client.on('close', () => resolve());
-      client.on('error', (err) => reject(err));
-      client.setTimeout(5000, () => {
-        client.destroy();
-        reject(new Error('Printer timeout'));
-      });
-    });
+    const port = Number(process.env.PRINTER_PORT || 9100);
+    await sendToPrinter(bytes, printerIp, port);
 
     res.json({ ok: true, message: `ส่งใบเสร็จไปยัง printer ${printerIp} แล้ว` });
   } catch (e) { next(e); }
 });
 
 export default router;
-
-// ============ ESC/POS Builder (server-side) ============
-// Mirror ของ frontend escpos.ts — เก็บใน file เดียวกันเพื่อความง่าย
-
-function tis620Byte(char: string): number {
-  const code = char.charCodeAt(0);
-  if (code >= 0x20 && code <= 0x7e) return code;
-  if (code >= 0x0e01 && code <= 0x0e5b) return code - 0x0e01 + 0xa1;
-  return 0x3f;
-}
-
-function encodeText(text: string): number[] {
-  return Array.from(text).map(tis620Byte);
-}
-
-function buildReceiptESCPOS(store: any, order: any): Uint8Array {
-  const out: number[] = [];
-  const W = 32;
-
-  const line = (t = '') => { out.push(...encodeText(t), 0x0a); };
-  const twoCol = (l: string, r: string) => {
-    const space = Math.max(1, W - l.length - r.length);
-    line(l + ' '.repeat(space) + r);
-  };
-
-  out.push(0x1b, 0x40);                       // init
-  out.push(0x1b, 0x74, 21);                   // charset TIS-620
-
-  out.push(0x1b, 0x61, 1);                    // center
-  out.push(0x1d, 0x21, 0x11);                 // double size
-  line(store.name);
-  out.push(0x1d, 0x21, 0x00);                 // normal size
-
-  if (store.address) line(store.address);
-  if (store.phone) line(`โทร. ${store.phone}`);
-  if (store.taxId) line(`TAX ID: ${store.taxId}`);
-  line('--------------------------------');
-
-  out.push(0x1b, 0x61, 0);                    // left
-  line(`เลขที่: ${order.orderNumber}`);
-  line(`วันที่: ${new Date(order.createdAt).toLocaleString('th-TH')}`);
-  if (order.cashier) line(`พนักงาน: ${order.cashier.name}`);
-  if (order.table) line(`โต๊ะ: ${order.table.number}`);
-  line('--------------------------------');
-
-  for (const it of order.items) {
-    line(it.product.name);
-    twoCol(`  ${it.quantity} x ${Number(it.unitPrice).toFixed(2)}`,
-           (Number(it.unitPrice) * it.quantity).toFixed(2));
-  }
-  line('--------------------------------');
-
-  twoCol('ยอดรวม', Number(order.subtotal).toFixed(2));
-  if (Number(order.discount) > 0)
-    twoCol('ส่วนลด', `-${Number(order.discount).toFixed(2)}`);
-  if (Number(order.tax) > 0)
-    twoCol('VAT 7%', Number(order.tax).toFixed(2));
-
-  out.push(0x1d, 0x21, 0x10);                 // double width
-  twoCol('รวมทั้งสิ้น', Number(order.total).toFixed(2));
-  out.push(0x1d, 0x21, 0x00);
-  line('--------------------------------');
-
-  for (const p of order.payments) {
-    const label = p.method === 'CASH' ? 'เงินสด'
-                : p.method === 'PROMPTPAY' ? 'พร้อมเพย์'
-                : p.method === 'CREDIT_CARD' ? 'บัตรเครดิต'
-                : 'โอนธนาคาร';
-    twoCol(label, Number(p.amount).toFixed(2));
-  }
-
-  out.push(0x0a);
-  out.push(0x1b, 0x61, 1);                    // center
-  line('*** ขอบคุณที่ใช้บริการ ***');
-  out.push(0x0a, 0x0a, 0x0a);
-  out.push(0x1d, 0x56, 1);                    // cut
-
-  return new Uint8Array(out);
-}
