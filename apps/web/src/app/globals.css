@@ -18,6 +18,35 @@
     --border: 229 231 235;     /* #E5E7EB */
     --input: 255 255 255;      /* #FFFFFF */
     --foreground: 17 24 39;    /* #111827 */
+
+    /* Brand/semantic — var-based so .customer-theme below can override them
+     * for the 3 customer-facing routes without touching the dashboard. */
+    --primary: 255 107 53;   /* #FF6B35 */
+    --success: 16 185 129;   /* #10B981 */
+    --warning: 245 158 11;   /* #F59E0B */
+    --danger: 239 68 68;     /* #EF4444 */
+    --info: 59 130 246;      /* #3B82F6 */
+  }
+
+  /* Scoped warm palette for the customer-facing routes only (customer
+   * display, self-order page, table QR ticket) — never applied to the staff
+   * dashboard. These pages don't wire a dark-mode toggle, so this is the
+   * only palette they render, regardless of the visitor's OS theme. */
+  .customer-theme {
+    color-scheme: light;
+    --background: 251 246 240;      /* #FBF6F0 */
+    --card: 255 255 255;
+    --card-hover: 242 233 224;      /* #F2E9E0 */
+    --muted: 242 233 224;           /* #F2E9E0 */
+    --muted-foreground: 122 106 92; /* #7A6A5C */
+    --border: 231 218 206;          /* #E7DACE */
+    --input: 255 255 255;
+    --foreground: 43 31 23;         /* #2B1F17 */
+    --primary: 201 98 46;           /* #C9622E */
+    --success: 4 120 87;            /* #047857 */
+    --warning: 180 83 9;            /* #B45309 */
+    --danger: 185 28 28;            /* #B91C1C */
+    --info: 29 78 216;              /* #1D4ED8 */
   }
 
   .dark {

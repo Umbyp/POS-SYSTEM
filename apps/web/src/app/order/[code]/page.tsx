@@ -37,6 +37,15 @@ interface Category {
 
 type Phase = 'menu' | 'cart' | 'approved';
 
+// Coarse step (not a real time-based ratio — there's no ETA data anywhere in
+// the domain model) for the persistent status strip's progress fill.
+const ORDER_STATUS_STEP: Record<string, number> = {
+  PENDING: 33,
+  PREPARING: 66,
+  READY: 100,
+  COMPLETED: 100,
+};
+
 /**
  * Customer's own phone, reached by scanning a table's QR code — no login.
  * Builds a cart locally and submits it; it's merged into the table's real
@@ -67,6 +76,12 @@ export default function SelfOrderPage() {
   const [orderId, setOrderId] = useState<string | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [billCallState, setBillCallState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  // Running tally across all rounds submitted this visit — kept separate
+  // from `cartCount`/`cartTotal` (the *new*, not-yet-submitted cart), so the
+  // persistent status strip can show "already ordered" while the customer
+  // keeps browsing for more.
+  const [orderedCount, setOrderedCount] = useState(0);
+  const [orderedTotal, setOrderedTotal] = useState(0);
 
   // Customer Loyalty member points states
   interface MemberInfo {
@@ -121,6 +136,9 @@ export default function SelfOrderPage() {
       });
       setRequestId(data.id);
       setOrderId(data.orderId || null);
+      setOrderStatus(null);
+      setOrderedCount((n) => n + cartCount);
+      setOrderedTotal((n) => n + cartTotal);
       setPhase('approved');
     } catch (e: any) {
       setSubmitError(e.response?.data?.error || t('selfOrder.submitFailed'));
@@ -173,18 +191,19 @@ export default function SelfOrderPage() {
     };
   }, [requestId, orderId]);
 
+  // "Order more" — only resets the *new* cart being built. requestId/orderId/
+  // orderStatus deliberately survive so the status effect below keeps its
+  // socket/poll alive and the persistent status strip (rendered on the menu
+  // phase) keeps reflecting the round(s) already sent to the kitchen.
   const startOver = () => {
     setCart({});
     setNote('');
-    setRequestId(null);
-    setOrderId(null);
-    setOrderStatus(null);
     setPhase('menu');
   };
 
   if (isLoading) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center bg-background">
+      <div className="customer-theme min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
             <UtensilsCrossed className="w-5 h-5 text-primary animate-pulse" />
@@ -197,7 +216,7 @@ export default function SelfOrderPage() {
 
   if (isError || !menu) {
     return (
-      <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-background text-center p-6">
+      <div className="customer-theme min-h-[100dvh] flex flex-col items-center justify-center bg-background text-center p-6">
         <UtensilsCrossed className="w-12 h-12 text-muted-foreground/40 mb-3" />
         <p className="text-muted-foreground">{t('selfOrder.notFound')}</p>
       </div>
@@ -205,7 +224,7 @@ export default function SelfOrderPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background">
+    <div className="customer-theme min-h-[100dvh] bg-background">
       <AnimatePresence mode="wait">
         {phase === 'approved' && (
           <motion.div
@@ -412,31 +431,54 @@ export default function SelfOrderPage() {
               )}
             </div>
 
-            {/* Sticky cart bar */}
-            <AnimatePresence>
-              {cartCount > 0 && (
-                <motion.button
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 12 }}
-                  onClick={() => setPhase('cart')}
-                  className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
-                >
-                  <div className="bg-primary text-primary-foreground rounded-2xl shadow-pop py-3.5 px-4 flex items-center justify-between active:scale-[0.98] transition-transform">
-                    <span className="flex items-center gap-2 text-sm font-semibold">
-                      <span className="relative">
-                        <ShoppingBag className="w-4 h-4" />
-                        <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-background text-primary text-[10px] font-bold flex items-center justify-center tabular-nums">
-                          {cartCount}
-                        </span>
+            {/* Persistent status strip (already-ordered rounds) + sticky cart bar */}
+            {(orderedCount > 0 || cartCount > 0) && (
+              <div className="fixed inset-x-0 bottom-0 z-30 mx-auto max-w-lg px-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-2">
+                {orderedCount > 0 && (
+                  <div className="bg-card border border-border rounded-2xl shadow-card py-2.5 px-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {t('selfOrder.alreadyOrdered').replace('{count}', String(orderedCount))}
                       </span>
-                      {t('selfOrder.viewCart')}
-                    </span>
-                    <span className="text-sm font-bold tabular-nums">{formatCurrency(cartTotal)}</span>
+                      <span className="font-semibold tabular-nums">{formatCurrency(orderedTotal)}</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary transition-all duration-500"
+                        style={{ width: `${ORDER_STATUS_STEP[orderStatus ?? 'PENDING'] ?? ORDER_STATUS_STEP.PENDING}%` }}
+                      />
+                    </div>
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {t(`selfOrder.status.${(orderStatus ?? 'PENDING').toLowerCase()}`)}
+                    </div>
                   </div>
-                </motion.button>
-              )}
-            </AnimatePresence>
+                )}
+                <AnimatePresence>
+                  {cartCount > 0 && (
+                    <motion.button
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 12 }}
+                      onClick={() => setPhase('cart')}
+                      className="w-full block"
+                    >
+                      <div className="bg-primary text-primary-foreground rounded-2xl shadow-pop py-3.5 px-4 flex items-center justify-between active:scale-[0.98] transition-transform">
+                        <span className="flex items-center gap-2 text-sm font-semibold">
+                          <span className="relative">
+                            <ShoppingBag className="w-4 h-4" />
+                            <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-1 rounded-full bg-background text-primary text-[10px] font-bold flex items-center justify-center tabular-nums">
+                              {cartCount}
+                            </span>
+                          </span>
+                          {orderedCount > 0 ? t('selfOrder.orderMore') : t('selfOrder.viewCart')}
+                        </span>
+                        <span className="text-sm font-bold tabular-nums">{formatCurrency(cartTotal)}</span>
+                      </div>
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </motion.div>
         )}
 

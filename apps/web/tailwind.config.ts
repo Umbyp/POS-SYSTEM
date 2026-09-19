@@ -21,9 +21,11 @@ const config: Config = {
         input: 'rgb(var(--input) / <alpha-value>)',
         foreground: 'rgb(var(--foreground) / <alpha-value>)',
 
-        // Primary — Orange (RestroBit signature)
+        // Primary — Orange (RestroBit signature). Var-based like the
+        // neutrals above so a scoped wrapper (see .customer-theme in
+        // globals.css) can override it without touching the dashboard.
         primary: {
-          DEFAULT: '#FF6B35',
+          DEFAULT: 'rgb(var(--primary) / <alpha-value>)',
           foreground: '#FFFFFF',
           50: '#FFF4F0',
           100: '#FFE4D6',
@@ -37,14 +39,14 @@ const config: Config = {
           DEFAULT: '#F59E0B',
           foreground: '#FFFFFF',
         },
-        // Semantic
-        success: '#10B981',
-        warning: '#F59E0B',
-        danger: '#EF4444',
-        info: '#3B82F6',
+        // Semantic — also var-based, see .customer-theme in globals.css.
+        success: 'rgb(var(--success) / <alpha-value>)',
+        warning: 'rgb(var(--warning) / <alpha-value>)',
+        danger: 'rgb(var(--danger) / <alpha-value>)',
+        info: 'rgb(var(--info) / <alpha-value>)',
         ring: '#FF6B35',
         destructive: {
-          DEFAULT: '#EF4444',
+          DEFAULT: 'rgb(var(--danger) / <alpha-value>)',
           foreground: '#FFFFFF',
         },
       },

@@ -842,6 +842,11 @@ const DICT: Record<string, Entry> = {
   'selfOrder.orderMore': { th: 'สั่งเพิ่ม', en: 'Order more' },
   'selfOrder.estimatedTotal': { th: 'ยอดโดยประมาณ', en: 'Estimated total' },
   'selfOrder.estimateHint': { th: 'ยอดจริงจะรวมภาษี/ค่าบริการ', en: 'Final total includes tax/service charge' },
+  'selfOrder.alreadyOrdered': { th: 'สั่งด้วยแล้ว {count} รายการ', en: 'Already ordered {count} items' },
+  'selfOrder.status.pending': { th: 'รอคิว', en: 'Queued' },
+  'selfOrder.status.preparing': { th: 'กำลังทำ', en: 'Preparing' },
+  'selfOrder.status.ready': { th: 'พร้อมเสิร์ฟ', en: 'Ready to serve' },
+  'selfOrder.status.completed': { th: 'เสร็จแล้ว', en: 'Completed' },
 
   // Staff bill-call panel
   'selfOrderPanel.empty': { th: 'ไม่มีรายการเรียกเก็บเงิน', en: 'No bill requests' },

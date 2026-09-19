@@ -15,6 +15,7 @@ import { CustomerPicker } from '@/components/customers/CustomerPicker';
 import { VoidItemDialog } from '@/components/pos/VoidItemDialog';
 import { OrderSlipDialog } from '@/components/pos/OrderSlipDialog';
 import { sendToCustomerDisplay } from '@/lib/customerDisplay';
+import { useAuth } from '@/stores/auth.store';
 
 export function Cart({ onCheckout }: { onCheckout: () => void }) {
   // Individual selectors — each state value only triggers re-render when it
@@ -49,6 +50,7 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const t = useT();
   const qc = useQueryClient();
+  const cashierName = useAuth((s) => s.user?.name);
 
   // Restaurant "open tab": for dine-in with a table, the bill lives on the
   // server and builds up over rounds. Fetch the table's running bill.
@@ -166,10 +168,14 @@ export function Cart({ onCheckout }: { onCheckout: () => void }) {
         items: items.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
         subtotal: sub,
         discount: breakdown.discount,
+        tax: breakdown.tax,
+        serviceCharge: breakdown.serviceCharge,
         total: breakdown.total,
+        cashierName,
+        billNumber: openBill?.orderNumber,
       });
     }
-  }, [items, sub, breakdown.total, store?.name]);
+  }, [items, sub, breakdown.total, breakdown.tax, breakdown.serviceCharge, store?.name, cashierName, openBill?.orderNumber]);
 
   // Auto-apply promotion when cart/customer/code changes
   useEffect(() => {

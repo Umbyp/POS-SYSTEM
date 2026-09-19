@@ -9,6 +9,7 @@ import { submitOrderWithFallback, submitSettleWithFallback } from '@/hooks/useOf
 import { formatCurrency } from '@/lib/format';
 import { useT } from '@/lib/i18n';
 import { sendToCustomerDisplay } from '@/lib/customerDisplay';
+import { useAuth } from '@/stores/auth.store';
 import { computePricing, DEFAULT_TAX_CONFIG } from '@/lib/pricing';
 import { playCashRegister } from '@/lib/sounds';
 import { api } from '@/lib/api';
@@ -56,6 +57,7 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
   const cartCustomerNote = useCart((s) => s.customerNote);
   const cartClear = useCart((s) => s.clear);
   const cartSubtotal = useCart((s) => s.subtotal);
+  const cashierName = useAuth((s) => s.user?.name);
   const t = useT();
   const METHOD_LABEL: Record<Method, string> = { CASH: t('pay.cash'), PROMPTPAY: t('pay.promptpay') };
   const EXTRA_METHOD_LABEL: Record<ExtraMethod, string> = {
@@ -195,7 +197,11 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         items: cartItems.map((i) => ({ name: i.name, qty: i.quantity, unitPrice: i.unitPrice })),
         subtotal: sub,
         discount: breakdown.discount,
+        tax: breakdown.tax,
+        serviceCharge: breakdown.serviceCharge,
         total,
+        cashierName,
+        billNumber: settleOrder?.orderNumber,
       });
     }
   };
@@ -241,16 +247,24 @@ export function PaymentDialog({ open, onClose }: { open: boolean; onClose: () =>
         amount: remaining,
         promptpayId: store.promptpayId,
         merchantName: store.name,
+        cashierName,
+        billNumber: settleOrder?.orderNumber,
       });
     }
-  }, [method, stripeEnabled, store?.promptpayId, store?.name, remaining]);
+  }, [method, stripeEnabled, store?.promptpayId, store?.name, remaining, cashierName, settleOrder?.orderNumber]);
 
   // Stripe-hosted QR — mirror once the intent is created.
   useEffect(() => {
     if (method === 'PROMPTPAY' && stripeEnabled && ppIntent && (ppStatus === 'waiting' || ppStatus === 'paid')) {
-      sendToCustomerDisplay({ type: 'qr', amount: remaining, qrImageUrl: ppIntent.qrImageUrl });
+      sendToCustomerDisplay({
+        type: 'qr',
+        amount: remaining,
+        qrImageUrl: ppIntent.qrImageUrl,
+        cashierName,
+        billNumber: settleOrder?.orderNumber,
+      });
     }
-  }, [method, stripeEnabled, ppIntent, ppStatus, remaining]);
+  }, [method, stripeEnabled, ppIntent, ppStatus, remaining, cashierName, settleOrder?.orderNumber]);
 
   // Payment confirmed — show the thank-you screen on the customer display.
   useEffect(() => {
