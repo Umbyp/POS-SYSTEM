@@ -50,18 +50,34 @@ export function OrderSlipDialog({
   const autoPrintedRef = useRef(false);
   const freshRound = !!roundItemIds?.length;
 
+  // If the server already sends a real kitchen ticket to a network printer on
+  // every round (order-tab.service.ts's printKitchenTicket), this browser-print
+  // toggle must stay off — otherwise a round prints twice, once for real and
+  // once through this dialog's window.print().
+  const { data: printConfig } = useQuery({
+    queryKey: ['print-config'],
+    queryFn: () => api.get('/orders/print-config').then((r) => r.data),
+    staleTime: 5 * 60 * 1000,
+  });
+  const serverManaged = !!printConfig?.kitchenAutoPrintConfigured;
+
   // Remembered per device (localStorage), not per store: the printer is wired to
   // one machine at the counter, and a phone that opens the POS shouldn't inherit
-  // its setting.
+  // its setting. Skipped entirely once the server already owns auto-printing.
   useEffect(() => {
+    if (serverManaged) {
+      setAutoPrint(false);
+      return;
+    }
     try {
       setAutoPrint(localStorage.getItem(AUTO_PRINT_KEY) === '1');
     } catch {
       /* private mode — the toggle just stays off */
     }
-  }, []);
+  }, [serverManaged]);
 
   const toggleAutoPrint = (on: boolean) => {
+    if (serverManaged) return;
     setAutoPrint(on);
     try {
       localStorage.setItem(AUTO_PRINT_KEY, on ? '1' : '0');
@@ -160,16 +176,23 @@ export function OrderSlipDialog({
 
           <p className="no-print text-[11px] text-muted-foreground">{t('slip.hint')}</p>
 
-          <label className="no-print flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-2.5 cursor-pointer">
+          <label
+            className={`no-print flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-2.5 ${
+              serverManaged ? 'opacity-60' : 'cursor-pointer'
+            }`}
+          >
             <input
               type="checkbox"
               checked={autoPrint}
+              disabled={serverManaged}
               onChange={(e) => toggleAutoPrint(e.target.checked)}
               className="mt-0.5 w-4 h-4 accent-primary shrink-0"
             />
             <span className="text-xs leading-snug">
               <span className="font-medium">{t('slip.autoPrint')}</span>
-              <span className="block text-[11px] text-muted-foreground">{t('slip.autoPrintHint')}</span>
+              <span className="block text-[11px] text-muted-foreground">
+                {serverManaged ? t('slip.autoPrintServerManaged') : t('slip.autoPrintHint')}
+              </span>
             </span>
           </label>
 

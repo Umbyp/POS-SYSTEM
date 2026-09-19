@@ -15,27 +15,7 @@ import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client'
 import { generateOrderNumber } from './order.service';
 import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
-import { buildKitchenTicketESCPOS, sendToPrinter, type KitchenTicketItem } from './escpos';
-import { logger } from '../../utils/logger';
-
-/**
- * Fire a round's kitchen ticket at the configured network printer. Best-effort
- * only — a failed/misconfigured printer must never fail the order itself, so
- * this always resolves and just logs on error. No per-station routing yet
- * (single global PRINTER_IP), and no retry/queue — both are deferred to a
- * later "print stations" settings feature.
- */
-async function printKitchenTicket(order: any, items: KitchenTicketItem[], isAddOn: boolean) {
-  const printerIp = process.env.PRINTER_IP;
-  if (!printerIp || items.length === 0) return;
-  try {
-    const port = Number(process.env.PRINTER_PORT || 9100);
-    const bytes = buildKitchenTicketESCPOS(order, items, isAddOn);
-    await sendToPrinter(bytes, printerIp, port);
-  } catch (err) {
-    logger.warn({ err, orderId: order.id, orderNumber: order.orderNumber }, 'Kitchen ticket auto-print failed');
-  }
-}
+import { printKitchenTicket, type KitchenTicketItem } from './escpos';
 
 export interface TabItem {
   productId: string;
@@ -307,7 +287,14 @@ export function listOpen(storeId: string) {
 interface SettleInput {
   storeId: string;
   cashierId: string;
-  payments: { method: PaymentMethod; amount: number; reference?: string }[];
+  payments: {
+    method: PaymentMethod;
+    amount: number;
+    reference?: string;
+    slipVerified?: boolean;
+    slipTransRef?: string;
+    slipPayload?: string;
+  }[];
   discount?: number;
   pointsToRedeem?: number;
   useStampReward?: boolean;
@@ -400,6 +387,10 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         payments: {
           create: input.payments.map((p) => ({
             method: p.method, amount: new Prisma.Decimal(p.amount), reference: p.reference,
+            slipVerified: p.slipVerified ?? false,
+            slipTransRef: p.slipTransRef,
+            slipVerifiedAt: p.slipVerified ? new Date() : undefined,
+            slipPayload: p.slipPayload,
           })),
         },
       },

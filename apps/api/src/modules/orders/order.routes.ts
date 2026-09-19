@@ -7,9 +7,21 @@ import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
 import { BadRequest } from '../../utils/errors';
-import { buildReceiptESCPOS, sendToPrinter } from './escpos';
+import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from './escpos';
 
 const router = Router();
+
+// A payment line optionally carries a Slip2Go verification result the
+// frontend already fetched via POST /payments/verify-slip before the cashier
+// confirmed — see order.service.ts's CreateOrderInput doc comment.
+const paymentLineSchema = z.object({
+  method: z.enum(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER']),
+  amount: z.number().nonnegative(),
+  reference: z.string().optional(),
+  slipVerified: z.boolean().optional(),
+  slipTransRef: z.string().optional(),
+  slipPayload: z.string().optional(),
+});
 
 const createSchema = z.object({
   tableId: z.string().optional(),
@@ -31,11 +43,7 @@ const createSchema = z.object({
   promotionId: z.string().optional(),
   promotionDiscount: z.number().nonnegative().optional(),
   promotionName: z.string().optional(),
-  payments: z.array(z.object({
-    method: z.enum(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER']),
-    amount: z.number().nonnegative(),
-    reference: z.string().optional(),
-  })).min(1),
+  payments: z.array(paymentLineSchema).min(1),
   notes: z.string().optional(),
   // 🆕 ข้อมูลลูกค้าสำหรับใบกำกับเต็ม
   customerName: z.string().optional(),
@@ -44,6 +52,13 @@ const createSchema = z.object({
 });
 
 router.use(authMiddleware);
+
+// Lets the POS know whether the server already auto-prints kitchen tickets
+// via a real network printer, so it can turn off its own older browser-print
+// auto-print toggle instead of the two double-printing every round.
+router.get('/print-config', (_req, res) => {
+  res.json({ kitchenAutoPrintConfigured: isKitchenPrinterConfigured() });
+});
 
 router.post('/', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(createSchema), async (req, res, next) => {
   try {
@@ -120,11 +135,7 @@ const openTabSchema = z.object({
 const roundSchema = z.object({ items: tabItems, notes: z.string().optional() });
 
 const settleSchema = z.object({
-  payments: z.array(z.object({
-    method: z.enum(['CASH', 'PROMPTPAY', 'CREDIT_CARD', 'BANK_TRANSFER']),
-    amount: z.number().nonnegative(),
-    reference: z.string().optional(),
-  })).min(1),
+  payments: z.array(paymentLineSchema).min(1),
   discount: z.number().nonnegative().optional(),
   pointsToRedeem: z.number().int().nonnegative().optional(),
   useStampReward: z.boolean().optional(),

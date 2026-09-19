@@ -131,6 +131,10 @@ const DICT: Record<string, Entry> = {
     th: 'จำไว้เฉพาะเครื่องนี้ · เปิดเบราว์เซอร์ด้วย --kiosk-printing จะพิมพ์ออกเลยไม่มีหน้าต่างยืนยัน (ไม่งั้นหน้าต่างพิมพ์จะเด้งขึ้นเองให้กดยืนยัน)',
     en: 'Remembered on this device · launch the browser with --kiosk-printing to print with no dialog (otherwise the print dialog opens by itself)',
   },
+  'slip.autoPrintServerManaged': {
+    th: 'ร้านนี้ตั้งเครื่องพิมพ์ครัวไว้ที่เซิร์ฟเวอร์แล้ว ระบบพิมพ์ใบครัวให้อัตโนมัติทุกรอบอยู่แล้ว — ปิดตัวเลือกนี้ไว้เพื่อไม่ให้พิมพ์ซ้ำ',
+    en: "This store's kitchen printer is configured on the server, which already auto-prints every round — this toggle stays off to avoid double-printing",
+  },
   'slip.hint': {
     th: 'ตรวจสอบก่อนพิมพ์ — ใบครัวจะพิมพ์เฉพาะรายการรอบนี้',
     en: 'Check before printing — the kitchen copy prints this round only',
@@ -659,6 +663,11 @@ const DICT: Record<string, Entry> = {
   'cart.aria.decreaseQty': { th: 'ลดจำนวน', en: 'Decrease quantity' },
   'cart.aria.increaseQty': { th: 'เพิ่มจำนวน', en: 'Increase quantity' },
   'pay.refPlaceholder': { th: 'เลขอ้างอิง / เลขสลิป (ข้ามการตรวจสอบ Stripe)', en: 'Reference / slip number (skips Stripe verification)' },
+  'pay.attachSlip': { th: 'แนบรูปสลิปเพื่อตรวจสอบ (Slip2Go)', en: 'Attach slip photo to verify (Slip2Go)' },
+  'pay.slipVerifying': { th: 'กำลังตรวจสอบสลิป…', en: 'Verifying slip…' },
+  'pay.slipVerified': { th: 'ตรวจสอบสลิปผ่านแล้ว', en: 'Slip verified' },
+  'pay.slipNotVerified': { th: 'ตรวจสอบสลิปไม่ผ่าน — ตรวจดูยอด/ผู้รับอีกครั้งก่อนยืนยัน', en: "Slip didn't verify — double-check amount/receiver before confirming" },
+  'pay.slipHint': { th: 'ไม่บังคับแนบ — แนบไว้เป็นหลักฐานและกันสลิปปลอม', en: "Optional — attach it as proof and to catch fake slips" },
 
   // PromptPay QR component
   'promptpayQr.notConfigured': { th: 'ยังไม่ได้ตั้งค่าพร้อมเพย์ — ตั้งค่าได้ที่หน้าตั้งค่า', en: 'PromptPay ID not configured — set it in Settings' },

@@ -1,8 +1,18 @@
 // ESC/POS builders + raw network-printer sender, shared by the manual
 // customer-receipt print route (order.routes.ts) and the automatic
-// kitchen-ticket print fired from order-tab.service.ts (openTab/addRound).
-// One global PRINTER_IP/PRINTER_PORT for now — no per-station routing yet.
+// kitchen-ticket print fired from order.service.ts (create) and
+// order-tab.service.ts (openTab/addRound) — every place an order's items are
+// first committed. One global PRINTER_IP/PRINTER_PORT for now — no
+// per-station routing yet.
 import * as net from 'net';
+import { logger } from '../../utils/logger';
+
+/** Whether a network kitchen printer is configured on this server at all —
+ * read by the frontend (GET /orders/print-config) so it can turn off its own
+ * older browser-print auto-print toggle instead of double-printing. */
+export function isKitchenPrinterConfigured(): boolean {
+  return !!process.env.PRINTER_IP;
+}
 
 function tis620Byte(char: string): number {
   const code = char.charCodeAt(0);
@@ -168,4 +178,23 @@ export function sendToPrinter(bytes: Uint8Array, ip: string, port = 9100): Promi
       reject(new Error('Printer timeout'));
     });
   });
+}
+
+/**
+ * Fire a round's kitchen ticket at the configured network printer. Best-effort
+ * only — a failed/misconfigured printer must never fail the order itself, so
+ * this always resolves and just logs on error. No per-station routing yet
+ * (single global PRINTER_IP), and no retry/queue — both are deferred to a
+ * later "print stations" settings feature.
+ */
+export async function printKitchenTicket(order: any, items: KitchenTicketItem[], isAddOn: boolean) {
+  const printerIp = process.env.PRINTER_IP;
+  if (!printerIp || items.length === 0) return;
+  try {
+    const port = Number(process.env.PRINTER_PORT || 9100);
+    const bytes = buildKitchenTicketESCPOS(order, items, isAddOn);
+    await sendToPrinter(bytes, printerIp, port);
+  } catch (err) {
+    logger.warn({ err, orderId: order.id, orderNumber: order.orderNumber }, 'Kitchen ticket auto-print failed');
+  }
 }
