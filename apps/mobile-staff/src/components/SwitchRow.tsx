@@ -14,7 +14,7 @@ export function SwitchRow({ label, note, value, onChange }: SwitchRowProps) {
         <Text className="text-[14px] text-foreground dark:text-dark-foreground">{label}</Text>
         {note ? <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">{note}</Text> : null}
       </View>
-      <Switch value={value} onValueChange={onChange} trackColor={{ true: '#FF6B35' }} />
+      <Switch value={value} onValueChange={onChange} trackColor={{ true: '#C9622E' }} />
     </View>
   );
 }

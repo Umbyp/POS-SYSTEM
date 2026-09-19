@@ -35,7 +35,7 @@ export function SelectModal({ visible, title, options, value, onSelect, onClose 
                 className="flex-row items-center justify-between py-3 border-b border-border dark:border-dark-border"
               >
                 <Text className="text-[14px] text-foreground dark:text-dark-foreground">{item.label}</Text>
-                {item.value === value ? <Check size={18} color="#FF6B35" /> : null}
+                {item.value === value ? <Check size={18} color="#C9622E" /> : null}
               </Pressable>
             )}
           />

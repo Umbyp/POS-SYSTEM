@@ -1,13 +1,25 @@
 import { Tabs } from 'expo-router';
 import { LayoutDashboard, ShoppingCart, ChefHat, Grid3X3, MoreHorizontal } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
+import { useIsTablet } from '@/hooks/useIsTablet';
 
 export default function TabsLayout() {
   const role = useAuthStore((s) => s.user?.role);
+  const isTablet = useIsTablet();
   const can = (roles: string[]) => !!role && roles.includes(role);
 
   return (
-    <Tabs screenOptions={{ headerShown: true, headerShadowVisible: false, tabBarActiveTintColor: '#FF6B35' }}>
+    <Tabs
+      screenOptions={{
+        headerShown: true,
+        headerShadowVisible: false,
+        tabBarActiveTintColor: '#C9622E',
+        // The sidebar (SidebarNav) owns primary navigation on tablet, so the
+        // bottom tab bar is redundant there — hide it instead of removing
+        // the navigator, which would require a second routing structure.
+        tabBarStyle: isTablet ? { display: 'none' } : undefined,
+      }}
+    >
       <Tabs.Screen
         name="dashboard"
         options={{

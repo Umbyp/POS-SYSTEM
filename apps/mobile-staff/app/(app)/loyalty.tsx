@@ -67,7 +67,7 @@ export default function LoyaltyScreen() {
   if (isLoading || !store) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#FF6B35" />
+        <ActivityIndicator color="#C9622E" />
       </View>
     );
   }
