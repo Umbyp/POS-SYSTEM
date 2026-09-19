@@ -12,11 +12,11 @@ const LABEL: Record<OrderStatus, string> = {
 };
 
 const COLOR: Record<OrderStatus, { bg: string; fg: string }> = {
-  DRAFT: { bg: '#F3F4F6', fg: '#6B7280' },
+  DRAFT: { bg: '#E7DACE', fg: '#7A6A5C' },
   PENDING: { bg: '#FEF3C7', fg: '#B45309' },
   PREPARING: { bg: '#DBEAFE', fg: '#1D4ED8' },
   READY: { bg: '#D1FAE5', fg: '#047857' },
-  COMPLETED: { bg: '#E5E7EB', fg: '#374151' },
+  COMPLETED: { bg: '#E7DACE', fg: '#4A382C' },
   CANCELLED: { bg: '#FEE2E2', fg: '#B91C1C' },
   REFUNDED: { bg: '#FEE2E2', fg: '#B91C1C' },
 };

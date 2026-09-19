@@ -52,7 +52,7 @@ export default function TableQrPrintPage() {
   if (qrError || storeError) {
     const message = (qrErrorObj as any)?.response?.data?.error || (qrErrorObj as any)?.message;
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-background text-center p-6">
+      <div className="customer-theme min-h-screen flex flex-col items-center justify-center gap-3 bg-background text-center p-6">
         <AlertCircle className="w-8 h-8 text-danger" />
         <p className="text-danger text-sm">{t('tableQr.loadFailed')}</p>
         {message && <p className="text-xs text-muted-foreground">{message}</p>}
@@ -65,7 +65,7 @@ export default function TableQrPrintPage() {
 
   if (!tableQr || !store || !qrDataUrl) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+      <div className="customer-theme min-h-screen flex items-center justify-center bg-background text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin" />
       </div>
     );
@@ -74,7 +74,7 @@ export default function TableQrPrintPage() {
   const steps = ['tableQr.step1', 'tableQr.step2', 'tableQr.step3'];
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="customer-theme min-h-screen bg-background">
       {/* Toolbar — screen only */}
       <div className="no-print bg-card border-b border-border p-4 sticky top-0 z-10">
         <div className="max-w-md mx-auto flex items-center justify-between">

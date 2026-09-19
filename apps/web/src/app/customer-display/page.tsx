@@ -9,8 +9,27 @@ import { useT } from '@/lib/i18n';
 
 type Phase =
   | { kind: 'idle' }
-  | { kind: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; discount?: number; total: number }
-  | { kind: 'qr'; amount: number; qrImageUrl?: string | null; promptpayId?: string; merchantName?: string }
+  | {
+      kind: 'cart';
+      storeName?: string;
+      items: CartLineMsg[];
+      subtotal: number;
+      discount?: number;
+      tax?: number;
+      serviceCharge?: number;
+      total: number;
+      cashierName?: string;
+      billNumber?: string;
+    }
+  | {
+      kind: 'qr';
+      amount: number;
+      qrImageUrl?: string | null;
+      promptpayId?: string;
+      merchantName?: string;
+      cashierName?: string;
+      billNumber?: string;
+    }
   | { kind: 'success'; total: number; orderNumber: string };
 
 const SUCCESS_DISPLAY_MS = 6000;
@@ -66,7 +85,7 @@ export default function CustomerDisplayPage() {
   }, []);
 
   return (
-    <div className="min-h-[100dvh] bg-background flex items-center justify-center p-6 sm:p-10 lg:p-16">
+    <div className="customer-theme min-h-[100dvh] bg-background flex items-center justify-center p-6 sm:p-10 lg:p-16">
       <AnimatePresence mode="wait">
         {phase.kind === 'idle' && (
           <motion.div
@@ -140,8 +159,8 @@ export default function CustomerDisplayPage() {
                   ))}
                 </AnimatePresence>
               </div>
-              <div className="border-t border-border mt-4 sm:mt-6 pt-3 sm:pt-4 space-y-1 sm:space-y-1.5">
-                <div className="flex justify-between items-center text-muted-foreground text-sm sm:text-base xl:text-lg">
+              <div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl bg-[#2B1F17] text-[#FBF6F0] p-4 sm:p-6 space-y-1 sm:space-y-1.5">
+                <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
                   <span>{t('cart.subtotal')}</span>
                   <span className="tabular-nums">{formatCurrency(phase.subtotal)}</span>
                 </div>
@@ -151,12 +170,31 @@ export default function CustomerDisplayPage() {
                     <span className="tabular-nums">-{formatCurrency(phase.discount)}</span>
                   </div>
                 )}
+                {!!phase.serviceCharge && phase.serviceCharge > 0 && (
+                  <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
+                    <span>{t('cart.serviceCharge')}</span>
+                    <span className="tabular-nums">{formatCurrency(phase.serviceCharge)}</span>
+                  </div>
+                )}
+                {!!phase.tax && phase.tax > 0 && (
+                  <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
+                    <span>{t('cart.vat')}</span>
+                    <span className="tabular-nums">{formatCurrency(phase.tax)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-2 sm:pt-3">
                   <span className="text-lg sm:text-2xl xl:text-3xl font-semibold">{t('display.total')}</span>
                   <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-primary tabular-nums">
                     {formatCurrency(phase.total)}
                   </span>
                 </div>
+                {(phase.cashierName || phase.billNumber) && (
+                  <div className="pt-2 sm:pt-3 mt-1 border-t border-white/10 text-[11px] sm:text-sm text-[#B9A392] flex items-center gap-1.5">
+                    {phase.cashierName && <span>{phase.cashierName}</span>}
+                    {phase.cashierName && phase.billNumber && <span className="opacity-50">·</span>}
+                    {phase.billNumber && <span className="tabular-nums">{phase.billNumber}</span>}
+                  </div>
+                )}
               </div>
             </div>
           </motion.div>
@@ -190,6 +228,13 @@ export default function CustomerDisplayPage() {
                 <PromptPayQR promptpayId={phase.promptpayId} amount={phase.amount} merchantName={phase.merchantName} />
               </div>
             ) : null}
+            {(phase.cashierName || phase.billNumber) && (
+              <div className="mt-4 sm:mt-6 text-[11px] sm:text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+                {phase.cashierName && <span>{phase.cashierName}</span>}
+                {phase.cashierName && phase.billNumber && <span className="opacity-50">·</span>}
+                {phase.billNumber && <span className="tabular-nums">{phase.billNumber}</span>}
+              </div>
+            )}
           </motion.div>
         )}
 

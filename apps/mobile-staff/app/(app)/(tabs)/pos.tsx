@@ -82,7 +82,7 @@ export default function PosScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#FF6B35" />
+          <ActivityIndicator color="#C9622E" />
         </View>
       ) : (
         <FlatList

@@ -26,7 +26,7 @@ export default function DashboardScreen() {
   if (isLoading || !data) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#FF6B35" />
+        <ActivityIndicator color="#C9622E" />
       </View>
     );
   }
@@ -37,7 +37,7 @@ export default function DashboardScreen() {
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
       <ScrollView
         contentContainerClassName="p-4 gap-4"
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#FF6B35" />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#C9622E" />}
       >
         <SectionCard>
           <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">ยอดขายวันนี้</Text>

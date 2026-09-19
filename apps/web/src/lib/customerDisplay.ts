@@ -28,7 +28,18 @@ export interface CartLineMsg {
 
 export type CustomerDisplayMessage =
   | { type: 'idle' }
-  | { type: 'cart'; storeName?: string; items: CartLineMsg[]; subtotal: number; discount?: number; total: number }
+  | {
+      type: 'cart';
+      storeName?: string;
+      items: CartLineMsg[];
+      subtotal: number;
+      discount?: number;
+      tax?: number;
+      serviceCharge?: number;
+      total: number;
+      cashierName?: string;
+      billNumber?: string;
+    }
   | {
       type: 'qr';
       amount: number;
@@ -37,6 +48,8 @@ export type CustomerDisplayMessage =
       // ...or the store's own PromptPay ID, rendered client-side otherwise.
       promptpayId?: string;
       merchantName?: string;
+      cashierName?: string;
+      billNumber?: string;
     }
   | { type: 'success'; total: number; orderNumber: string };
 

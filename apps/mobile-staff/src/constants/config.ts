@@ -7,3 +7,8 @@ export function getSocketUrl(): string {
   if (explicit) return explicit;
   return API_URL.replace(/\/api\/?$/, '');
 }
+
+// Base URL of the customer-facing web app (apps/web) — a different origin
+// from the API in production, so it can't be derived from API_URL the way
+// the socket URL can.
+export const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'http://localhost:3000';

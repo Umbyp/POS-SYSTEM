@@ -11,13 +11,13 @@ export function Button({ label, variant = 'primary', loading, disabled, classNam
   return (
     <Pressable
       disabled={disabled || loading}
-      className={`h-12 items-center justify-center rounded-lg ${
+      className={`h-[52px] items-center justify-center rounded-xl ${
         isPrimary ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'
       } ${disabled || loading ? 'opacity-50' : ''} ${className ?? ''}`}
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#6B7280'} />
+        <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#7A6A5C'} />
       ) : (
         <Text className={`text-[15px] font-semibold ${isPrimary ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
           {label}

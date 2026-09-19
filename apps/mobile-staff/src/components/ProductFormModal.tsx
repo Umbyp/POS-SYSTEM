@@ -158,7 +158,7 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
             <Pressable onPress={pickImage} className="self-center">
               <View className="h-24 w-24 items-center justify-center rounded-xl bg-muted dark:bg-dark-muted overflow-hidden">
                 {uploading ? (
-                  <ActivityIndicator color="#FF6B35" />
+                  <ActivityIndicator color="#C9622E" />
                 ) : image ? (
                   <Image source={{ uri: image }} style={{ width: 96, height: 96 }} resizeMode="cover" />
                 ) : (
