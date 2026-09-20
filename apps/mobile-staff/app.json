@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.restropos.staff",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า"
+        "NSPhotoLibraryUsageDescription": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
