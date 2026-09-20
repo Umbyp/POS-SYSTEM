@@ -2,6 +2,12 @@
 
 ระบบ Point of Sale แบบ cloud-based สำหรับร้านกาแฟ, ร้านอาหาร, ร้านค้าปลีก พร้อม realtime sync และ offline support
 
+## 🔍 Live Preview (branch นี้)
+
+- Web: https://pos-preview.enablebrain.com (login `owner@pos.local` / `admin1234`)
+- API: https://pos-preview-api.enablebrain.com
+- อัปเดตอัตโนมัติทุกครั้งที่มี commit ใหม่เข้า branch นี้ (auto-deploy บน Mac mini server ทุก 90 วินาที)
+
 ## 🚀 Quick Start
 
 ### 1. ติดตั้ง dependencies
