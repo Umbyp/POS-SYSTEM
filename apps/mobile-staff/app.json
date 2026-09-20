@@ -37,9 +37,17 @@
         "expo-image-picker",
         {
           "photosPermission": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
-          "cameraPermission": false
+          "cameraPermission": false,
+          "microphonePermission": false
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "475f3540-b455-48e0-95de-251f76bcabbe"
+      }
+    },
+    "owner": "aumbyps-team"
   }
 }
