@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.restropos.staff"
+      "bundleIdentifier": "com.restropos.staff",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.restropos.staff",
@@ -29,7 +33,22 @@
       "expo-router",
       "expo-secure-store",
       "expo-splash-screen",
-      "expo-web-browser"
-    ]
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2820b370-2682-4e68-a450-e7a95b68a483"
+      }
+    },
+    "owner": "naseler"
   }
 }

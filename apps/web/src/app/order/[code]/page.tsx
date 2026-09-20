@@ -82,6 +82,10 @@ export default function SelfOrderPage() {
   // keeps browsing for more.
   const [orderedCount, setOrderedCount] = useState(0);
   const [orderedTotal, setOrderedTotal] = useState(0);
+  // Cumulative line items across all rounds submitted this visit, so the
+  // status screen can show what was actually ordered (with photos) instead
+  // of just the aggregate count/total.
+  const [orderedItems, setOrderedItems] = useState<{ product: Product; qty: number }[]>([]);
 
   // Customer Loyalty member points states
   interface MemberInfo {
@@ -139,6 +143,15 @@ export default function SelfOrderPage() {
       setOrderStatus(null);
       setOrderedCount((n) => n + cartCount);
       setOrderedTotal((n) => n + cartTotal);
+      setOrderedItems((prev) => {
+        const next = [...prev];
+        for (const l of cartLines) {
+          const existing = next.find((n) => n.product.id === l.product.id);
+          if (existing) existing.qty += l.qty;
+          else next.push({ product: l.product, qty: l.qty });
+        }
+        return next;
+      });
       setPhase('approved');
     } catch (e: any) {
       setSubmitError(e.response?.data?.error || t('selfOrder.submitFailed'));
@@ -260,6 +273,32 @@ export default function SelfOrderPage() {
               <span className="mb-4 px-3 py-1 rounded-full bg-success/15 text-success text-xs font-semibold">
                 {t('selfOrder.readyBadge')}
               </span>
+            )}
+            {orderedItems.length > 0 && (
+              <div className="w-full max-w-xs text-left bg-card border border-border rounded-2xl shadow-card p-3 mb-5 space-y-2.5 max-h-[35dvh] overflow-y-auto scrollbar-thin">
+                {orderedItems.map((l) => (
+                  <div key={l.product.id} className="flex items-center gap-2.5">
+                    <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0">
+                      {l.product.image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={resolveImageUrl(l.product.image)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <UtensilsCrossed className="w-3.5 h-3.5 text-muted-foreground/30" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{l.product.name}</div>
+                    </div>
+                    <span className="text-sm font-semibold tabular-nums shrink-0">×{l.qty}</span>
+                  </div>
+                ))}
+              </div>
             )}
             <button
               onClick={startOver}

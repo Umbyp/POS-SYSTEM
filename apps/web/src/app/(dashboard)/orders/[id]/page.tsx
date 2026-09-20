@@ -11,9 +11,11 @@ import {
   Hash,
   Wallet,
   Receipt as ReceiptIcon,
+  ImageOff,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -110,28 +112,44 @@ export default function OrderDetailPage() {
                     }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium">{item.product.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatCurrency(item.unitPrice)} × {item.quantity}
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
+                          {item.product.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={resolveImageUrl(item.product.image)}
+                              alt=""
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <ImageOff className="w-4 h-4 text-muted-foreground/30" />
+                            </div>
+                          )}
                         </div>
-                        {item.notes && (
-                          <div className="text-xs italic text-muted-foreground mt-1">
-                            ↪ {item.notes}
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium">{item.product.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatCurrency(item.unitPrice)} × {item.quantity}
                           </div>
-                        )}
-                        {refunded > 0 && (
-                          <div className="mt-1 text-xs">
-                            <Badge variant="warning" className="text-[10px]">
-                              {t('orders.refundedBadge')} {refunded}/{item.quantity}
-                            </Badge>
-                            {item.refundReason && (
-                              <span className="ml-2 italic text-muted-foreground">
-                                {item.refundReason}
-                              </span>
-                            )}
-                          </div>
-                        )}
+                          {item.notes && (
+                            <div className="text-xs italic text-muted-foreground mt-1">
+                              ↪ {item.notes}
+                            </div>
+                          )}
+                          {refunded > 0 && (
+                            <div className="mt-1 text-xs">
+                              <Badge variant="warning" className="text-[10px]">
+                                {t('orders.refundedBadge')} {refunded}/{item.quantity}
+                              </Badge>
+                              {item.refundReason && (
+                                <span className="ml-2 italic text-muted-foreground">
+                                  {item.refundReason}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right shrink-0">
                         <div className="font-semibold tabular-nums">

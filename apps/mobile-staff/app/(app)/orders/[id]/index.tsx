@@ -1,10 +1,11 @@
-import { View, Text, ScrollView, ActivityIndicator, Pressable } from 'react-native';
+import { View, Text, Image, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { Printer } from 'lucide-react-native';
+import { Printer, ImageOff } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import { StatusBadge } from '@/components/StatusBadge';
 import type { Order } from '@/types/pos';
 
@@ -52,16 +53,25 @@ export default function OrderDetailScreen() {
           <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">รายการ</Text>
           {order.items.map((item) => (
             <View key={item.id} className="flex-row items-start justify-between gap-2">
-              <View className="flex-1">
-                <Text className="text-[13px] text-foreground dark:text-dark-foreground">
-                  {item.quantity}x {item.product?.name ?? 'สินค้า'}
-                </Text>
-                {item.notes ? (
-                  <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{item.notes}</Text>
-                ) : null}
-                {item.refundedQty > 0 ? (
-                  <Text className="text-[11px] text-danger">คืนแล้ว {item.refundedQty}</Text>
-                ) : null}
+              <View className="flex-row items-start flex-1 gap-2.5">
+                <View className="w-11 h-11 rounded-lg bg-muted dark:bg-dark-muted overflow-hidden items-center justify-center">
+                  {item.product?.image ? (
+                    <Image source={{ uri: resolveImageUrl(item.product.image) }} className="w-full h-full" resizeMode="cover" />
+                  ) : (
+                    <ImageOff size={16} color="#9CA3AF" />
+                  )}
+                </View>
+                <View className="flex-1">
+                  <Text className="text-[13px] text-foreground dark:text-dark-foreground">
+                    {item.quantity}x {item.product?.name ?? 'สินค้า'}
+                  </Text>
+                  {item.notes ? (
+                    <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{item.notes}</Text>
+                  ) : null}
+                  {item.refundedQty > 0 ? (
+                    <Text className="text-[11px] text-danger">คืนแล้ว {item.refundedQty}</Text>
+                  ) : null}
+                </View>
               </View>
               <Text className="text-[13px] text-foreground dark:text-dark-foreground">
                 {formatCurrency(Number(item.unitPrice) * item.quantity)}
