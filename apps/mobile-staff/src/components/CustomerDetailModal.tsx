@@ -74,7 +74,21 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
           ) : (
             <ScrollView contentContainerClassName="p-4 gap-4">
               <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
-                <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">{customer.name}</Text>
+                <View className="flex-row items-center gap-2">
+                  <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">{customer.name}</Text>
+                  {customer.tier ? (
+                    <View className="rounded-full bg-muted dark:bg-dark-muted px-2.5 py-0.5">
+                      <Text className="text-[10px] font-bold tracking-wider text-foreground dark:text-dark-foreground">
+                        {customer.tier.name}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                {customer.tierProgress && customer.nextTier ? (
+                  <Text className="text-[11.5px] text-muted-foreground dark:text-dark-muted-foreground">
+                    ใช้จ่ายอีก {formatCurrency(customer.tierProgress.remaining)} เพื่อเลื่อนเป็น {customer.nextTier.name}
+                  </Text>
+                ) : null}
                 {customer.phone ? (
                   <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">{customer.phone}</Text>
                 ) : null}
@@ -87,6 +101,14 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
                   <Stat label="เยี่ยมล่าสุด" value={customer.lastVisitAt ? formatDate(customer.lastVisitAt) : '-'} small />
                 </View>
               </View>
+
+              {customer.expiringPoints && customer.expiringDate ? (
+                <View className="rounded-lg border border-[#F3DFA2] bg-[#FEFCE8] px-3 py-2">
+                  <Text className="text-[12px] text-[#B45309]">
+                    {customer.expiringPoints} แต้ม กำลังจะหมดอายุ ภายใน {formatDate(customer.expiringDate)}
+                  </Text>
+                </View>
+              ) : null}
 
               <View className="flex-row gap-3">
                 <View className="flex-1 rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-2">

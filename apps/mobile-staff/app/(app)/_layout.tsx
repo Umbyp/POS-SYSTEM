@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { useRequireAuth } from '@/hooks/useRequireAuth';
 import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
+import { usePrintQueue } from '@/hooks/usePrintQueue';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SidebarNav } from '@/components/SidebarNav';
@@ -12,6 +13,7 @@ export default function AppLayout() {
   const isTablet = useIsTablet();
   useOrderRealtime();
   useOfflineSync();
+  usePrintQueue();
 
   if (isLoading || !user) {
     return (

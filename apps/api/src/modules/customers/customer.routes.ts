@@ -7,6 +7,8 @@ import { prisma } from '../../config/prisma';
 import { PointTxType } from '@prisma/client';
 import { recordPoints, recordStamps } from '../orders/points.service';
 import { Conflict } from '../../utils/errors';
+import { listTiers, buildMemberProfile } from '../loyalty/loyalty.service';
+import { describeTier } from '../loyalty/loyalty.math';
 
 const router = Router();
 router.use(authMiddleware);
@@ -38,7 +40,9 @@ router.get('/', async (req, res, next) => {
       orderBy: { lastVisitAt: { sort: 'desc', nulls: 'last' } },
       take,
     });
-    res.json(customers);
+    // tier is derived from totalSpent — attach name/color so lists can show a pill
+    const tiers = await listTiers(req.user!.storeId);
+    res.json(customers.map((c) => ({ ...c, tier: describeTier(Number(c.totalSpent), tiers).current })));
   } catch (e) { next(e); }
 });
 
@@ -56,7 +60,13 @@ router.get('/:id', async (req, res, next) => {
       },
     });
     if (!customer) return res.status(404).json({ error: 'ไม่พบลูกค้า' });
-    res.json(customer);
+    const profile = await buildMemberProfile(req.user!.storeId, customer.id);
+    res.json({
+      ...customer,
+      points: profile?.points ?? customer.points, // after lazy expiry
+      tier: profile?.tier ?? null, nextTier: profile?.nextTier ?? null, tierProgress: profile?.tierProgress ?? null,
+      expiringPoints: profile?.expiringPoints ?? 0, expiringDate: profile?.expiringDate ?? null,
+    });
   } catch (e) { next(e); }
 });
 
@@ -75,7 +85,13 @@ router.get('/:id/points', async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
       take,
     });
-    res.json({ customer, transactions });
+    const profile = await buildMemberProfile(req.user!.storeId, customer.id);
+    res.json({
+      customer: { ...customer, points: profile?.points ?? customer.points },
+      transactions,
+      tier: profile?.tier ?? null, nextTier: profile?.nextTier ?? null, tierProgress: profile?.tierProgress ?? null,
+      expiringPoints: profile?.expiringPoints ?? 0, expiringDate: profile?.expiringDate ?? null,
+    });
   } catch (e) { next(e); }
 });
 

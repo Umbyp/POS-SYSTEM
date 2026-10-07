@@ -36,6 +36,36 @@ router.post('/google', validate(googleSchema), async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+const pinSchema = z.object({ pin: z.string().regex(/^\d{4,6}$/, 'PIN ต้องเป็นตัวเลข 4-6 หลัก') });
+const pinLoginSchema = z.object({ userId: z.string().min(1), pin: z.string().min(1).max(12) });
+
+// Shift-PIN: requires the device's existing login token; the store is taken from it.
+router.get('/pin-staff', authMiddleware, async (req, res, next) => {
+  try {
+    res.json(await service.pinStaff(req.user!.storeId));
+  } catch (e) { next(e); }
+});
+
+router.post('/pin-login', authMiddleware, validate(pinLoginSchema), async (req, res, next) => {
+  try {
+    res.json(await service.pinLogin(req.user!.storeId, req.body.userId, req.body.pin));
+  } catch (e) { next(e); }
+});
+
+// Set / clear my own PIN
+router.put('/pin', authMiddleware, validate(pinSchema), async (req, res, next) => {
+  try {
+    await service.setPin(req.user!.id, req.body.pin);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+router.delete('/pin', authMiddleware, async (req, res, next) => {
+  try {
+    await service.setPin(req.user!.id, null);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 router.get('/me', authMiddleware, async (req, res, next) => {
   try {
     res.json(await service.me(req.user!.id));

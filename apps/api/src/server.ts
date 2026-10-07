@@ -4,6 +4,7 @@ import app from './app';
 import { env } from './config/env';
 import { initSocket } from './socket';
 import { logger } from './utils/logger';
+import { expireDuePoints } from './modules/loyalty/loyalty.service';
 
 const httpServer = createServer(app);
 
@@ -29,6 +30,15 @@ httpServer.listen(port, () => {
   logger.info(`🔌 Socket.io ready`);
   logger.info(`🌐 CORS allowed for: ${env.WEB_URL}`);
 });
+
+// Loyalty: write off lapsed points daily (also done lazily on member lookup).
+// Idempotent, so running on boot + every 24h across restarts/instances is safe.
+const runExpiry = () =>
+  expireDuePoints()
+    .then((r) => r.points > 0 && logger.info(r, 'expired loyalty points'))
+    .catch((err) => logger.error({ err }, 'expireDuePoints failed'));
+setTimeout(runExpiry, 30_000).unref();
+setInterval(runExpiry, 24 * 60 * 60 * 1000).unref();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {

@@ -35,3 +35,10 @@ export function formatElapsedMinutes(since: Date | string) {
   if (mins < 2880) return `${Math.floor(mins / 60)} ชม.`;
   return `${Math.floor(mins / 1440)} วัน`;
 }
+
+// Thai leading vowels (เ แ โ ใ ไ) sit before the consonant they belong to,
+// so skip them to land on the first consonant for the avatar initial.
+export function avatarInitial(name?: string | null) {
+  const ch = Array.from(name?.trim() ?? '').find((c) => !'เแโใไ'.includes(c));
+  return ch ? ch.toUpperCase() : null;
+}

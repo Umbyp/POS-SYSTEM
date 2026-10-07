@@ -17,7 +17,7 @@ api.interceptors.response.use(
   (r) => r,
   (err) => {
     if (err.response?.status === 401) {
-      const shouldIgnore = err.config?.url?.includes('/auth/me');
+      const shouldIgnore = err.config?.url?.includes('/auth/me') || err.config?.url?.includes('/auth/pin');
       if (!shouldIgnore) useAuthStore.getState().logout();
     }
     return Promise.reject(err);

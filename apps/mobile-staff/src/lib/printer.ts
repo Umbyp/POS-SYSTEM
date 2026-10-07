@@ -7,7 +7,7 @@
 // like this is made (NSLocalNetworkUsageDescription in app.json) — the OS
 // shows its own prompt, nothing to trigger manually here.
 import TcpSockets from 'react-native-tcp-socket';
-import { buildReceiptESCPOS, buildKitchenTicketESCPOS } from './escpos';
+import { buildReceiptESCPOS, buildKitchenTicketESCPOS, buildKitchenTicket, type KitchenTicketInput } from './escpos';
 import type { Order } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
 
@@ -58,4 +58,31 @@ export async function printKitchenTicket(store: StoreSettings, order: Order): Pr
   const { ip, port } = requirePrinterIp(store);
   const items = order.items.map((it) => ({ name: it.product.name, quantity: it.quantity, notes: it.notes }));
   await sendToPrinter(buildKitchenTicketESCPOS(order, items), ip, port);
+}
+
+/** A queued job as served by GET /print-jobs/pending (see apps/api printers.service.ts). */
+export interface PrintJobPayload {
+  id: string;
+  kind: 'KITCHEN' | 'RECEIPT';
+  orderId: string;
+  attempts: number;
+  printer: { id: string; name: string; ip: string; port: number; copies: number; role: 'KITCHEN' | 'RECEIPT' };
+  ticket?: KitchenTicketInput | null;
+  receipt?: { store: Pick<StoreSettings, 'name' | 'address' | 'phone' | 'taxId'>; order: unknown };
+}
+
+/** Print one queued job on its station's printer, `copies` times. Throws PrinterError. */
+export async function printQueuedJob(job: PrintJobPayload): Promise<void> {
+  let bytes: Uint8Array;
+  if (job.kind === 'KITCHEN' && job.ticket) {
+    bytes = buildKitchenTicket(job.ticket);
+  } else if (job.kind === 'RECEIPT' && job.receipt) {
+    bytes = buildReceiptESCPOS(job.receipt.store as StoreSettings, job.receipt.order as Order);
+  } else {
+    throw new PrinterError('งานพิมพ์ไม่มีข้อมูล');
+  }
+  const copies = Math.min(5, Math.max(1, job.printer.copies || 1));
+  const all = new Uint8Array(bytes.length * copies);
+  for (let i = 0; i < copies; i++) all.set(bytes, i * bytes.length);
+  await sendToPrinter(all, job.printer.ip, job.printer.port || 9100);
 }

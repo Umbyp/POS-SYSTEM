@@ -15,7 +15,8 @@ import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client'
 import { generateOrderNumber } from './order.service';
 import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
-import { printKitchenTicket, type KitchenTicketItem } from './escpos';
+import type { KitchenTicketItem } from './escpos';
+import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
 
 export interface TabItem {
   productId: string;
@@ -195,7 +196,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
   io.to(`store:${input.storeId}`).emit('order:created', result.created);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
-  printKitchenTicket(result.created, printItems, false);
+  dispatchKitchenPrint(result.created, { isAddOn: false, legacyItems: printItems, io });
   return result.created;
 }
 
@@ -208,6 +209,7 @@ export async function addRound(
   if (!input.items?.length) throw BadRequest('No items');
 
   let printItems: KitchenTicketItem[] = [];
+  const roundItemIds: string[] = [];
 
   const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: true } });
@@ -223,7 +225,10 @@ export async function addRound(
       quantity: d.quantity,
       notes: d.notes,
     }));
-    for (const d of itemsData) await tx.orderItem.create({ data: { orderId, ...d } });
+    for (const d of itemsData) {
+      const row = await tx.orderItem.create({ data: { orderId, ...d } });
+      roundItemIds.push(row.id);
+    }
 
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
     const newSubtotal = new Prisma.Decimal(order.subtotal).plus(addSubtotal);
@@ -262,7 +267,7 @@ export async function addRound(
   if (result.wasReady) {
     io.of('/display').to(`store:${input.storeId}:display`).emit('ready-board:update');
   }
-  printKitchenTicket(result.updated, printItems, true);
+  dispatchKitchenPrint(result.updated, { itemIds: roundItemIds, isAddOn: true, legacyItems: printItems, io });
   return result.updated;
 }
 
@@ -447,6 +452,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
   io.to(`store:${input.storeId}`).emit('order:created', result.updated); // payment sound + toast
   io.to(`store:${input.storeId}:kds`).emit('kds:status', { id: orderId, status: 'COMPLETED' });
   io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: 'COMPLETED' });
+  dispatchReceiptPrint(result.updated, io);
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
   return result.updated;
 }

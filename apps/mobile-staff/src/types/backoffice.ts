@@ -40,8 +40,32 @@ export interface CustomerOrderSummary {
   items: { product: { name: string } }[];
 }
 
+export interface MemberTier {
+  id: string;
+  name: string;
+  minSpent: number;
+  color: string | null;
+  sortOrder: number;
+}
+
 export interface CustomerDetail extends Customer {
   orders: CustomerOrderSummary[];
+  tier?: MemberTier | null;
+  nextTier?: MemberTier | null;
+  tierProgress?: { spent: number; target: number; remaining: number; pct: number } | null;
+  expiringPoints?: number;
+  expiringDate?: string | null;
+}
+
+export interface RewardRedemption {
+  id: string;
+  code: string;
+  status: 'ACTIVE' | 'USED' | 'CANCELLED';
+  pointsSpent: number;
+  createdAt: string;
+  usedAt: string | null;
+  reward: { id: string; name: string; kind: 'DISCOUNT' | 'FREE_ITEM'; discountAmount: number };
+  customer: { id: string; name: string; phone: string | null };
 }
 
 export type LoyaltyMode = 'OFF' | 'POINTS' | 'STAMPS' | 'BOTH';
@@ -66,6 +90,7 @@ export interface StoreSettings {
   pointsEarnBaht: number;
   pointValue: string;
   minRedeemPoints: number;
+  pointsExpiryMonths: number;
   stampsEarnBaht: number;
   stampsPerReward: number;
   stampRewardValue: string;
@@ -128,6 +153,14 @@ export interface DashboardOverview {
     tableNumber: string | null;
   }[];
   insights: { type: 'positive' | 'neutral' | 'warning' | 'critical'; text: string }[];
+  /** Today's sales per hour (24 entries, Asia/Bangkok). */
+  hourly: { hour: number; orders: number; revenue: number }[];
+}
+
+export interface DailySalesRow {
+  date: string;
+  revenue: number;
+  orders: number;
 }
 
 export interface ReportSummary {

@@ -7,7 +7,7 @@ import {
   recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, reverseOrderPoints,
   pointsEnabled, stampsEnabled,
 } from './points.service';
-import { printKitchenTicket } from './escpos';
+import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
 
 interface CreateOrderInput {
   storeId: string;
@@ -435,11 +435,12 @@ export async function create(input: CreateOrderInput, io: Server) {
     return order;
   });
 
-  printKitchenTicket(
-    order,
-    order.items.map((it: any) => ({ name: it.product.name, quantity: it.quantity, notes: it.notes })),
-    false
-  );
+  dispatchKitchenPrint(order, {
+    isAddOn: false,
+    legacyItems: order.items.map((it: any) => ({ name: it.product.name, quantity: it.quantity, notes: it.notes })),
+    io,
+  });
+  dispatchReceiptPrint(order, io);
   return order;
 }
 

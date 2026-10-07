@@ -217,3 +217,159 @@ export function buildReceipt(store: ReceiptStore, order: ReceiptOrder): Uint8Arr
 
   return b.build();
 }
+
+// ============ Kitchen ticket (KOT, mockup 4a) ============
+// Same layout as apps/api/src/modules/orders/escpos.ts and
+// apps/mobile-staff/src/lib/escpos.ts (the mobile app prints it over the LAN).
+const encodeText = (s: string): number[] => Array.from(encodeTextTIS620(s));
+
+export interface KitchenTicketItem {
+  name: string;
+  quantity: number;
+  notes?: string | null;
+  /** Chosen options (sweetness, toppings, ...) — each prints on its own "**" line. */
+  modifiers?: string[];
+}
+
+export interface KitchenTicketInput {
+  /** Station / printer name, printed large at the top (e.g. "ครัวหลัง"). */
+  stationName?: string | null;
+  orderNumber: string;
+  /** Table number, or null for takeaway/delivery. */
+  tableNumber?: string | null;
+  orderType: string;
+  time?: Date | string | null;
+  cashierName?: string | null;
+  items: KitchenTicketItem[];
+  /** A later round of an already-fired order — printed in a box. */
+  isAddOn?: boolean;
+  /** "ใบที่ n/m" */
+  round?: { n: number; m: number } | null;
+}
+
+const KT_TYPE_EN: Record<string, string> = { DINE_IN: 'DINE-IN', TAKEAWAY: 'TAKEAWAY', DELIVERY: 'DELIVERY' };
+const KT_TYPE_TH: Record<string, string> = { DINE_IN: 'ทานที่ร้าน', TAKEAWAY: 'กลับบ้าน', DELIVERY: 'เดลิเวอรี่' };
+
+// Thai above/below vowels and tone marks occupy no printer cell.
+function ktCombining(code: number): boolean {
+  return code === 0x0e31 || (code >= 0x0e34 && code <= 0x0e3a) || (code >= 0x0e47 && code <= 0x0e4e);
+}
+function ktWidth(s: string): number {
+  let w = 0;
+  for (const ch of Array.from(s)) if (!ktCombining(ch.charCodeAt(0))) w++;
+  return w;
+}
+function ktWrap(s: string, width: number): string[] {
+  const lines: string[] = [];
+  let cur = '';
+  let w = 0;
+  for (const ch of Array.from(s)) {
+    const cw = ktCombining(ch.charCodeAt(0)) ? 0 : 1;
+    if (w + cw > width) { lines.push(cur); cur = ''; w = 0; }
+    cur += ch;
+    w += cw;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+function ktHHMM(t?: Date | string | null): string {
+  const d = t ? new Date(t) : new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Kitchen order ticket (KOT), 80mm / 32 columns, mockup "4a": station name
+ * large, order# + table on one double-size line, no prices, items double
+ * height, modifiers/notes bold with a leading "**", boxed "เพิ่มรายการ" for
+ * later rounds, and "ใบที่ n/m" at the foot. Thermal paper has no colour, so
+ * everything is size + bold + symbols only.
+ */
+export function buildKitchenTicket(t: KitchenTicketInput): Uint8Array {
+  const out: number[] = [];
+  const W = 32;
+  const raw = (...b: number[]) => { out.push(...b); };
+  const line = (s = '') => { out.push(...encodeText(s), 0x0a); };
+  const size = (w: 1 | 2, h: 1 | 2) => raw(0x1d, 0x21, ((w - 1) << 4) | (h - 1));
+  const bold = (on: boolean) => raw(0x1b, 0x45, on ? 1 : 0);
+  const align = (a: 0 | 1 | 2) => raw(0x1b, 0x61, a);
+  const fit = (l: string, r: string, width: number) =>
+    l + ' '.repeat(Math.max(1, width - ktWidth(l) - ktWidth(r))) + r;
+  const divider = () => line('-'.repeat(W));
+
+  raw(0x1b, 0x40);       // init
+  raw(0x1b, 0x74, 21);   // TIS-620
+
+  // Header
+  align(1);
+  bold(true);
+  size(2, 2);
+  for (const l of ktWrap(t.stationName?.trim() || 'ครัว', 16)) line(l);
+  size(1, 1);
+  if (t.isAddOn) {
+    size(2, 2);
+    const inner = 14;
+    const label = 'เพิ่มรายการ';
+    const pad = Math.max(0, inner - ktWidth(label));
+    const left = Math.floor(pad / 2);
+    line('+' + '-'.repeat(inner) + '+');
+    line('|' + ' '.repeat(left) + label + ' '.repeat(pad - left) + '|');
+    line('+' + '-'.repeat(inner) + '+');
+    size(1, 1);
+  } else {
+    line('KITCHEN');
+  }
+  bold(false);
+  divider();
+
+  // Order number + table, double size, one line
+  align(0);
+  bold(true);
+  size(2, 2);
+  const orderNo = `#${String(t.orderNumber).split('-').pop()}`;
+  const where = t.tableNumber
+    ? (/^[0-9]/.test(t.tableNumber) ? `T${t.tableNumber}` : t.tableNumber)
+    : (KT_TYPE_TH[t.orderType] ?? t.orderType);
+  line(fit(orderNo, where, 16));
+  size(1, 1);
+  bold(false);
+
+  // Info lines
+  const hhmm = ktHHMM(t.time);
+  if (t.isAddOn) {
+    line(`${hhmm}  ${t.round ? `รอบที่ ${t.round.n}` : ''}`.trimEnd());
+  } else {
+    line(`${KT_TYPE_EN[t.orderType] ?? t.orderType}  ${KT_TYPE_TH[t.orderType] ?? ''}`.trimEnd());
+    line(`${hhmm}  ${t.cashierName ?? ''}`.trimEnd());
+  }
+  divider();
+
+  // Items
+  let totalQty = 0;
+  t.items.forEach((it, idx) => {
+    totalQty += it.quantity;
+    if (idx > 0) line();
+    bold(true);
+    size(1, 2);
+    ktWrap(`${it.quantity} x ${it.name}`, W).forEach((l) => line(l));
+    size(1, 1);
+    const extras = [...(it.modifiers ?? []), ...(it.notes?.trim() ? [it.notes.trim()] : [])];
+    for (const m of extras) {
+      ktWrap(`** ${m}`, W - 3).forEach((l, i) => line(`   ${i === 0 ? l : `   ${l}`}`));
+    }
+    bold(false);
+  });
+  divider();
+  line(`รวม ${totalQty} ชิ้น`);
+
+  // Footer
+  if (t.round) {
+    align(1);
+    bold(true);
+    line();
+    line(`-- ใบที่ ${t.round.n}/${t.round.m} --`);
+    bold(false);
+  }
+  raw(0x0a, 0x0a, 0x0a);
+  raw(0x1d, 0x56, 1);    // partial cut
+  return new Uint8Array(out);
+}

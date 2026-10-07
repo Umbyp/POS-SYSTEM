@@ -12,6 +12,7 @@ model User {
   id         String        @id @default(cuid())
   email      String        @unique
   password   String?
+  pinHash    String? // bcrypt ของ PIN 4-6 หลัก สำหรับเข้ากะเร็ว ๆ บนอุปกรณ์ร้าน (ไม่ใช่รหัสผ่านหลัก)
   googleId   String?       @unique
   name       String
   avatar     String?
@@ -84,6 +85,8 @@ model Store {
   // กับร้าน เครื่องพิมพ์จึงต้องอยู่ WiFi/LAN เดียวกับมือถือที่พิมพ์
   printerIp   String?
   printerPort Int     @default(9100)
+  // แต้มหมดอายุ (เดือนนับจากวันที่ได้) — 0 = ไม่หมดอายุ
+  pointsExpiryMonths Int @default(0)
   members         StoreMember[]
   categories    Category[]
   customers     Customer[]
@@ -96,6 +99,10 @@ model Store {
   users         User[]
   selfOrderRequests SelfOrderRequest[]
   billCallRequests  BillCallRequest[]
+  printers      Printer[]
+  printJobs     PrintJob[]
+  memberTiers   MemberTier[]
+  rewards       Reward[]
 }
 
 model Promotion {
@@ -367,6 +374,7 @@ model Customer {
   orders      Order[]
   pointTransactions PointTransaction[]
   selfOrderRequests SelfOrderRequest[]
+  redemptions RewardRedemption[]
 
   @@index([storeId, phone])
   @@index([storeId, name])
@@ -384,6 +392,7 @@ model PointTransaction {
   orderId      String?     // อ้างอิงบิลที่ทำให้แต้มเปลี่ยน
   note         String?
   createdBy    String?     // userId พนักงานที่ปรับ (กรณี MANUAL_ADJUST)
+  expiresAt    DateTime?   // เฉพาะ EARN: แต้มล็อตนี้หมดอายุเมื่อไหร่ (null = ไม่หมดอายุ)
   createdAt    DateTime    @default(now())
   customer     Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
@@ -400,6 +409,7 @@ enum PointTxType {
   STAMP_EARN      // ได้ดวงบัตรสะสม (1 ครั้ง = 1 ดวง)
   STAMP_REDEEM    // ใช้ดวงแลกรางวัล (หัก 1 ใบเต็ม)
   STAMP_ADJUST    // พนักงานปรับดวงเอง
+  EXPIRE          // แต้มหมดอายุ (ตัดอัตโนมัติ)
 }
 
 model OrderItem {
@@ -593,4 +603,117 @@ enum PaymentMethod {
   PROMPTPAY
   CREDIT_CARD
   BANK_TRANSFER
+}
+
+// ---- เครื่องพิมพ์หลายเครื่อง + คิวงานพิมพ์ ----
+// เครื่องพิมพ์ ESC/POS อยู่ใน LAN ร้าน backend เข้าไม่ถึง → API แค่สร้าง PrintJob
+// แล้วแอปมือถือ (ที่อยู่ WiFi เดียวกับเครื่อง) รับงานผ่าน socket/poll แล้วพิมพ์เอง
+model Printer {
+  id          String      @id @default(cuid())
+  storeId     String
+  name        String      // เช่น "ครัวร้อน", "บาร์น้ำ", "เคาน์เตอร์"
+  ip          String
+  port        Int         @default(9100)
+  role        PrinterRole @default(KITCHEN)
+  autoPrint   Boolean     @default(true)  // พิมพ์อัตโนมัติเมื่อมีออเดอร์/ชำระเงิน
+  copies      Int         @default(1)
+  categoryIds String[]    // KITCHEN: พิมพ์เฉพาะสินค้าในหมวดเหล่านี้ (ว่าง = ทุกหมวด)
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  store       Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  jobs        PrintJob[]
+
+  @@index([storeId])
+}
+
+enum PrinterRole {
+  KITCHEN
+  RECEIPT
+}
+
+model PrintJob {
+  id        String         @id @default(cuid())
+  storeId   String
+  printerId String
+  orderId   String
+  kind      PrinterRole    // KITCHEN = ใบสั่งครัว, RECEIPT = ใบเสร็จ
+  status    PrintJobStatus @default(PENDING)
+  attempts  Int            @default(0)
+  error     String?
+  createdAt DateTime       @default(now())
+  printedAt DateTime?
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printer   Printer        @relation(fields: [printerId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@index([orderId])
+}
+
+enum PrintJobStatus {
+  PENDING
+  PRINTED
+  FAILED
+}
+
+// ---- ระดับสมาชิก / รางวัลแลกแต้ม ----
+// ระดับคำนวณจาก Customer.totalSpent เทียบ minSpent (ไม่เก็บ tier บนลูกค้า)
+model MemberTier {
+  id        String   @id @default(cuid())
+  storeId   String
+  name      String   // เช่น TEAM, SILVER, GOLD
+  minSpent  Decimal  @default(0) @db.Decimal(12, 2)
+  color     String?
+  sortOrder Int      @default(0)
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, minSpent])
+}
+
+model Reward {
+  id             String       @id @default(cuid())
+  storeId        String
+  name           String
+  description    String?
+  imageUrl       String?
+  kind           RewardKind   @default(DISCOUNT)
+  pointsCost     Int          @default(0)      // 0 = รับฟรี (ไม่ใช้แต้ม)
+  discountAmount Decimal      @default(0) @db.Decimal(10, 2) // DISCOUNT: ส่วนลดกี่บาท
+  minTier        String?      // MemberTier.id ขั้นต่ำที่เห็น/แลกได้ (null = ทุกคน)
+  validFrom      DateTime?
+  validTo        DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  store          Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  redemptions    RewardRedemption[]
+
+  @@index([storeId, isActive])
+}
+
+enum RewardKind {
+  DISCOUNT   // ส่วนลดเป็นบาท
+  FREE_ITEM  // ของแถม (แสดงชื่อ พนักงานแจกเอง)
+}
+
+model RewardRedemption {
+  id          String           @id @default(cuid())
+  storeId     String
+  customerId  String
+  rewardId    String
+  code        String           @unique // โค้ดสั้นให้พนักงานสแกน/พิมพ์ตรวจ
+  pointsSpent Int              @default(0)
+  status      RedemptionStatus @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  usedAt      DateTime?
+  orderId     String?
+  customer    Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  reward      Reward           @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, status])
+  @@index([storeId, status])
+}
+
+enum RedemptionStatus {
+  ACTIVE
+  USED
+  CANCELLED
 }

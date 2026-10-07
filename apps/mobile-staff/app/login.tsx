@@ -16,12 +16,13 @@ export default function LoginScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
   const setAuth = useAuthStore((s) => s.setAuth);
+  const deviceToken = useAuthStore((s) => s.deviceToken);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function afterLogin(data: { token: string; user: { id: string; name: string; email: string; role: keyof typeof DEFAULT_ROUTE; storeId: string } }) {
-    setAuth(data.user, data.token);
+    setAuth(data.user, data.token, { device: true });
     router.replace(DEFAULT_ROUTE[data.user.role] as never);
   }
 
@@ -80,6 +81,10 @@ export default function LoginScreen() {
       </View>
 
       <GoogleSignInButton onIdToken={onGoogleIdToken} disabled={loading} />
+
+      {deviceToken ? (
+        <Button label="สลับพนักงาน / เข้ากะด้วย PIN" variant="secondary" onPress={() => router.push('/pin' as never)} disabled={loading} />
+      ) : null}
     </View>
   );
 

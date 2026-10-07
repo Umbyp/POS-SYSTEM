@@ -29,6 +29,7 @@ export default function RootLayout() {
           <StatusBar style="auto" />
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="login" />
+            <Stack.Screen name="pin" />
             <Stack.Screen name="(app)" />
           </Stack>
         </QueryClientProvider>

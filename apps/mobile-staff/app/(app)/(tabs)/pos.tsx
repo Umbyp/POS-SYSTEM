@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { formatCurrency, formatElapsedMinutes } from '@/lib/format';
 import { useCart } from '@/stores/cart.store';
 import { CartSheet } from '@/components/CartSheet';
+import { CartPanel } from '@/components/CartPanel';
 import { PaymentModal, type PaymentMode } from '@/components/PaymentModal';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { TABLE_STATUS_DOT } from '@/constants/tableStatus';
@@ -62,6 +63,13 @@ export default function PosScreen() {
     }
   }
 
+  function onCheckout(mode: PaymentMode) {
+    // Only one RN <Modal> can be reliably visible at a time on iOS —
+    // close the cart sheet before presenting the payment modal.
+    setShowCart(false);
+    setPaymentMode(mode);
+  }
+
   const typeLabel = cart.type === 'DINE_IN' ? 'ทานที่ร้าน' : cart.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่';
   const headerTitle = cart.type === 'DINE_IN' ? (selectedTable ? `โต๊ะ ${selectedTable.number}` : 'เลือกโต๊ะ') : typeLabel;
   const metaParts: string[] = headerTitle === typeLabel ? [] : [typeLabel];
@@ -78,6 +86,8 @@ export default function PosScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
+      <View className="flex-1 flex-row">
+      <View className="flex-1">
       <View className="flex-row items-center justify-between gap-2.5 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border px-3.5 py-2.5">
         <View className="flex-row items-center gap-2 flex-shrink">
           <View style={{ backgroundColor: spineColor, height: 34 }} className="w-1.5 rounded-[3px]" />
@@ -135,7 +145,7 @@ export default function PosScreen() {
           data={products}
           keyExtractor={(p) => p.id}
           numColumns={columns}
-          contentContainerStyle={{ paddingHorizontal: isTablet ? 18 : 14, paddingTop: 8, paddingBottom: itemCount > 0 ? 150 : 16, gap: 10 }}
+          contentContainerStyle={{ paddingHorizontal: isTablet ? 18 : 14, paddingTop: 8, paddingBottom: itemCount > 0 && !isTablet ? 150 : 16, gap: 10 }}
           columnWrapperStyle={{ gap: 10 }}
           renderItem={({ item }) => {
             const qty = qtyById[item.id] ?? 0;
@@ -183,8 +193,27 @@ export default function PosScreen() {
           }}
         />
       )}
+      </View>
 
-      {itemCount > 0 ? (
+      {isTablet ? (
+        <View className="w-[340px] border-l border-border bg-card dark:border-dark-border dark:bg-dark-card">
+          <CartPanel
+            active
+            onCheckout={onCheckout}
+            header={
+              <View className="flex-row items-baseline justify-between border-b border-border px-4 pb-2.5 pt-3.5 dark:border-dark-border">
+                <Text className="text-[15px] font-bold text-foreground dark:text-dark-foreground">ตะกร้า · {headerTitle}</Text>
+                <Text className="text-[11px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
+                  รายการใหม่ {itemCount} ชิ้น
+                </Text>
+              </View>
+            }
+          />
+        </View>
+      ) : null}
+      </View>
+
+      {itemCount > 0 && !isTablet ? (
         <View className="absolute bottom-0 left-0 right-0 bg-card dark:bg-dark-card border-t border-border dark:border-dark-border px-3.5 pt-2.5 pb-3">
           <View className="flex-row items-center justify-between pb-2 gap-2">
             <Text numberOfLines={1} className="flex-1 text-[12px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
@@ -204,16 +233,9 @@ export default function PosScreen() {
         </View>
       ) : null}
 
-      <CartSheet
-        visible={showCart}
-        onClose={() => setShowCart(false)}
-        onCheckout={(mode) => {
-          // Only one RN <Modal> can be reliably visible at a time on iOS —
-          // close the cart sheet before presenting the payment modal.
-          setShowCart(false);
-          setPaymentMode(mode);
-        }}
-      />
+      {isTablet ? null : (
+        <CartSheet visible={showCart} onClose={() => setShowCart(false)} onCheckout={onCheckout} />
+      )}
 
       <PaymentModal
         visible={!!paymentMode}
