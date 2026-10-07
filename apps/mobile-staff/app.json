@@ -40,7 +40,7 @@
         "expo-image-picker",
         {
           "photosPermission": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
-          "cameraPermission": false,
+          "cameraPermission": "แอปต้องใช้กล้องเพื่อสแกน QR บนสลิปโอนเงิน",
           "microphonePermission": false
         }
       ],
