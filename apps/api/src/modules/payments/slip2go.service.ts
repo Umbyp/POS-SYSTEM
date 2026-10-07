@@ -95,3 +95,69 @@ export async function verifySlipImage(
     raw: text.slice(0, 2000),
   };
 }
+
+/**
+ * Verify a slip by its QR-code string (scanned live off the printed slip —
+ * see https://slip2go.com/guide/rest-api/qr-code), rather than an uploaded
+ * photo. Used by the mobile app's camera scanner. `expectedAmount` is
+ * enforced on our side (Slip2Go's own checkCondition shape for this endpoint
+ * isn't documented publicly) — a slip for less than the bill is rejected,
+ * same "gte" intent as the image-upload path.
+ */
+export async function verifySlipQrCode(
+  qrCode: string,
+  expectedAmount?: number
+): Promise<Slip2GoResult> {
+  const apiUrl = process.env.SLIP2GO_API_URL;
+  const apiKey = process.env.SLIP2GO_API_KEY;
+  if (!apiUrl || !apiKey) {
+    return { ok: false, reason: 'Slip2Go ยังไม่ได้ตั้งค่า (SLIP2GO_API_URL/SLIP2GO_API_KEY)' };
+  }
+
+  let res: Response;
+  try {
+    res = await fetch(`${apiUrl.replace(/\/$/, '')}/api/verify-slip/qr-code/info`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payload: { qrCode } }),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (err: any) {
+    return { ok: false, reason: `เชื่อมต่อ Slip2Go ไม่ได้: ${err?.message ?? 'unknown error'}` };
+  }
+
+  const text = await res.text();
+  let json: any;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    return { ok: false, reason: `Slip2Go ตอบกลับไม่ถูกต้อง (HTTP ${res.status})`, raw: text.slice(0, 2000) };
+  }
+
+  if (json.code !== '200000') {
+    return { ok: false, reason: json.message || `Slip2Go ปฏิเสธสลิป (${json.code})`, raw: text.slice(0, 2000) };
+  }
+
+  const data = json.data ?? {};
+  const amount = typeof data.amount === 'number' ? data.amount : Number(data.amount) || undefined;
+  if (expectedAmount && expectedAmount > 0 && amount !== undefined && amount < expectedAmount) {
+    return {
+      ok: false,
+      reason: `ยอดเงินในสลิป (${amount}) น้อยกว่ายอดที่ต้องชำระ (${expectedAmount})`,
+      transRef: data.transRef,
+      amount,
+      raw: text.slice(0, 2000),
+    };
+  }
+
+  return {
+    ok: true,
+    transRef: data.transRef,
+    amount,
+    dateTime: data.dateTime,
+    senderName: data.sender?.account?.name,
+    receiverName: data.receiver?.account?.name,
+    bankName: data.receiver?.bank?.name,
+    raw: text.slice(0, 2000),
+  };
+}

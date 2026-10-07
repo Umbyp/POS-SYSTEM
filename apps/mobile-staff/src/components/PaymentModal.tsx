@@ -4,15 +4,25 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import NetInfo from '@react-native-community/netinfo';
-import { X, Banknote, QrCode } from 'lucide-react-native';
+import { X, Banknote, QrCode, ScanLine, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { computeTotals } from '@/lib/pricing';
 import { Button } from '@/components/Button';
 import { useOfflineQueue } from '@/stores/offlineQueue.store';
 import { useStoreConfig } from '@/stores/storeConfig.store';
+import { QrSlipScanner } from '@/components/QrSlipScanner';
 import type { CartItem } from '@/stores/cart.store';
 import type { Order, OrderType } from '@/types/pos';
+
+interface SlipVerifyResult {
+  ok: boolean;
+  reason?: string;
+  transRef?: string;
+  amount?: number;
+  senderName?: string;
+  raw?: string;
+}
 
 export type PaymentMode =
   | { kind: 'settle'; orderId: string }
@@ -28,7 +38,7 @@ interface PaymentModalProps {
   onQueuedOffline: () => void;
 }
 
-type Tab = 'CASH' | 'PROMPTPAY';
+type Tab = 'CASH' | 'PROMPTPAY' | 'TRANSFER';
 
 const QUICK_AMOUNTS = [100, 500, 1000];
 
@@ -39,6 +49,9 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
   const [submitting, setSubmitting] = useState(false);
   const [intent, setIntent] = useState<{ id: string; qrImageUrl: string; status: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [slipVerifying, setSlipVerifying] = useState(false);
+  const [slipResult, setSlipResult] = useState<SlipVerifyResult | null>(null);
 
   const isSettle = mode?.kind === 'settle';
   const settleOrderId = mode?.kind === 'settle' ? mode.orderId : undefined;
@@ -72,6 +85,12 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     enabled: visible,
   });
 
+  const { data: slip2goConfig } = useQuery({
+    queryKey: ['slip2go-config'],
+    queryFn: async () => (await api.get('/payments/slip2go-config')).data as { slip2goEnabled: boolean },
+    enabled: visible,
+  });
+
   const amountDue = useMemo(() => {
     if (mode?.kind === 'settle') return order ? Number(order.total) : null;
     if (mode?.kind === 'new') {
@@ -93,6 +112,9 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     setTab('CASH');
     setReceived('');
     setIntent(null);
+    setSlipResult(null);
+    setSlipVerifying(false);
+    setScannerVisible(false);
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
   }
@@ -144,7 +166,36 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     setIntent(null);
   }
 
-  async function submit(payments: { method: string; amount: number; reference?: string }[]) {
+  async function onSlipScanned(qrData: string) {
+    setScannerVisible(false);
+    setSlipVerifying(true);
+    setSlipResult(null);
+    try {
+      const { data } = await api.post('/payments/verify-slip-qr', {
+        qrCode: qrData,
+        expectedAmount: amountDue ?? undefined,
+      });
+      setSlipResult(data);
+    } catch (err) {
+      setSlipResult({
+        ok: false,
+        reason: isAxiosError(err) ? err.response?.data?.error ?? 'ตรวจสอบสลิปไม่สำเร็จ' : 'ตรวจสอบสลิปไม่สำเร็จ',
+      });
+    } finally {
+      setSlipVerifying(false);
+    }
+  }
+
+  async function submit(
+    payments: {
+      method: string;
+      amount: number;
+      reference?: string;
+      slipVerified?: boolean;
+      slipTransRef?: string;
+      slipPayload?: string;
+    }[]
+  ) {
     if (!mode) return;
     setSubmitting(true);
     const payload =
@@ -234,6 +285,14 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
             <QrCode size={16} color={tab === 'PROMPTPAY' ? '#FFFFFF' : '#6B7280'} />
             <Text className={`text-[13px] font-semibold ${tab === 'PROMPTPAY' ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>พร้อมเพย์</Text>
           </Pressable>
+          <Pressable
+            onPress={() => setTab('TRANSFER')}
+            disabled={!slip2goConfig?.slip2goEnabled}
+            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${tab === 'TRANSFER' ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'} ${!slip2goConfig?.slip2goEnabled ? 'opacity-40' : ''}`}
+          >
+            <ScanLine size={16} color={tab === 'TRANSFER' ? '#FFFFFF' : '#6B7280'} />
+            <Text className={`text-[13px] font-semibold ${tab === 'TRANSFER' ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>โอนเงิน</Text>
+          </Pressable>
         </View>
 
         <View className="flex-1 px-4 pt-6">
@@ -269,7 +328,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
                 <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(change)}</Text>
               </View>
             </View>
-          ) : (
+          ) : tab === 'PROMPTPAY' ? (
             <View className="items-center gap-4">
               {!paymentsConfig?.stripeEnabled ? (
                 <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground text-center mt-8">
@@ -290,6 +349,42 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
                 <ActivityIndicator color="#C9622E" />
               )}
             </View>
+          ) : (
+            <View className="items-center gap-4 pt-4">
+              <Pressable
+                onPress={() => setScannerVisible(true)}
+                className="h-12 w-full flex-row items-center justify-center gap-2 rounded-lg bg-primary"
+              >
+                <ScanLine size={18} color="#FFFFFF" />
+                <Text className="text-[14px] font-semibold text-white">สแกน QR บนสลิปโอนเงิน</Text>
+              </Pressable>
+
+              {slipVerifying ? (
+                <View className="flex-row items-center gap-1.5">
+                  <ActivityIndicator size="small" color="#C9622E" />
+                  <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">กำลังตรวจสอบสลิป…</Text>
+                </View>
+              ) : null}
+
+              {slipResult && !slipVerifying ? (
+                <View
+                  className={`w-full flex-row items-start gap-1.5 rounded-lg p-3 ${
+                    slipResult.ok ? 'bg-success/10' : 'bg-warning/10'
+                  }`}
+                >
+                  {slipResult.ok ? (
+                    <CheckCircle2 size={16} color="#16A34A" />
+                  ) : (
+                    <AlertTriangle size={16} color="#CA8A04" />
+                  )}
+                  <Text className={`flex-1 text-[13px] ${slipResult.ok ? 'text-success' : 'text-warning'}`}>
+                    {slipResult.ok
+                      ? `ตรวจสอบสลิปผ่าน${slipResult.amount != null ? ` · ${formatCurrency(slipResult.amount)}` : ''}${slipResult.senderName ? ` · ${slipResult.senderName}` : ''}`
+                      : slipResult.reason || 'ตรวจสอบสลิปไม่ผ่าน'}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
           )}
         </View>
 
@@ -302,7 +397,30 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
               loading={submitting}
             />
           </View>
+        ) : tab === 'TRANSFER' ? (
+          <View className="p-4">
+            <Button
+              label="ยืนยันรับเงิน"
+              onPress={() =>
+                amountDue != null &&
+                submit([
+                  {
+                    method: 'BANK_TRANSFER',
+                    amount: amountDue,
+                    reference: slipResult?.transRef,
+                    slipVerified: slipResult?.ok,
+                    slipTransRef: slipResult?.transRef,
+                    slipPayload: slipResult?.raw,
+                  },
+                ])
+              }
+              disabled={amountDue == null}
+              loading={submitting}
+            />
+          </View>
         ) : null}
+
+        <QrSlipScanner visible={scannerVisible} onClose={() => setScannerVisible(false)} onScanned={onSlipScanned} />
       </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

@@ -2,14 +2,15 @@ import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { Search, ShoppingCart } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { useCart } from '@/stores/cart.store';
 import { CartSheet } from '@/components/CartSheet';
 import { PaymentModal, type PaymentMode } from '@/components/PaymentModal';
-import type { Category, Product } from '@/types/pos';
+import { printReceipt, PrinterError } from '@/lib/printer';
+import type { Category, Product, Order } from '@/types/pos';
+import type { StoreSettings } from '@/types/backoffice';
 
 export default function PosScreen() {
   const cart = useCart();
@@ -30,18 +31,23 @@ export default function PosScreen() {
       (await api.get('/products', { params: { q: search || undefined, categoryId: categoryId || undefined } })).data as Product[],
   });
 
+  const { data: store } = useQuery({
+    queryKey: ['store-me'],
+    queryFn: async () => (await api.get('/stores/me')).data as StoreSettings,
+  });
+
   const itemCount = cart.itemCount();
   const subtotal = cart.subtotal();
 
   const pills = useMemo(() => [{ id: null, name: 'ทั้งหมด' }, ...categories], [categories]);
 
   async function onPrintReceipt(orderId: string) {
+    if (!store) return;
     try {
-      await api.post(`/orders/${orderId}/print/escpos`);
+      const order = (await api.get(`/orders/${orderId}`)).data as Order;
+      await printReceipt(store, order);
     } catch (err) {
-      const message = isAxiosError(err)
-        ? err.response?.data?.error ?? 'พิมพ์ไม่สำเร็จ — ตรวจสอบเครื่องพิมพ์'
-        : 'พิมพ์ไม่สำเร็จ';
+      const message = err instanceof PrinterError ? err.message : 'พิมพ์ไม่สำเร็จ — ตรวจสอบว่ามือถือต่อ WiFi เดียวกับเครื่องพิมพ์';
       Alert.alert('พิมพ์ไม่สำเร็จ', message);
     }
   }
