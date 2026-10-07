@@ -11,6 +11,7 @@ import { SectionCard } from '@/components/SectionCard';
 import { TextField } from '@/components/TextField';
 import { SwitchRow } from '@/components/SwitchRow';
 import { Button } from '@/components/Button';
+import { PrintersSection } from '@/components/PrintersSection';
 import type { StoreSettings } from '@/types/backoffice';
 
 export default function SettingsScreen() {
@@ -118,6 +119,8 @@ export default function SettingsScreen() {
           </Text>
         </SectionCard>
 
+        <PrintersSection canEdit={isOwnerAdmin} />
+
         {isOwnerAdmin ? (
           <>
             <SectionCard title="ข้อมูลร้าน">
@@ -157,7 +160,7 @@ export default function SettingsScreen() {
               ) : null}
             </SectionCard>
 
-            <SectionCard title="เครื่องพิมพ์">
+            <SectionCard title="เครื่องพิมพ์ (ค่าเดิม — ใช้เมื่อยังไม่มีสถานีพิมพ์)">
               <TextField
                 label="IP เครื่องพิมพ์ (ต้องต่อ WiFi เดียวกับร้าน)"
                 value={printerIp}

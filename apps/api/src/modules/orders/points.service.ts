@@ -1,4 +1,5 @@
 import { Prisma, PointTxType } from '@prisma/client';
+import { addMonths } from '../loyalty/loyalty.math';
 
 type LoyaltyKind = 'points' | 'stamps';
 
@@ -18,6 +19,7 @@ async function writeLedger(
     orderId?: string | null;
     note?: string;
     createdBy?: string;
+    expiresAt?: Date | null; // เฉพาะ EARN: ไม่ส่ง = คำนวณจาก Store.pointsExpiryMonths
   }
 ): Promise<number> {
   const column = kind === 'points' ? 'points' : 'stamps';
@@ -37,8 +39,21 @@ async function writeLedger(
   });
   const balanceAfter = (updated as any)[column] as number;
 
+  // แต้มที่ได้ใหม่ (EARN) → ตั้งวันหมดอายุตามตั้งค่าร้าน (0 = ไม่หมดอายุ)
+  let expiresAt: Date | null = args.expiresAt ?? null;
+  if (kind === 'points' && args.type === PointTxType.EARN && args.expiresAt === undefined) {
+    const store = await tx.store.findUnique({
+      where: { id: args.storeId },
+      select: { pointsExpiryMonths: true },
+    });
+    if (store && store.pointsExpiryMonths > 0) {
+      expiresAt = addMonths(new Date(), store.pointsExpiryMonths);
+    }
+  }
+
   await tx.pointTransaction.create({
     data: {
+      expiresAt,
       storeId: args.storeId,
       customerId: args.customerId,
       type: args.type,
@@ -59,6 +74,7 @@ export function recordPoints(
   args: {
     storeId: string; customerId: string; type: PointTxType;
     points: number; orderId?: string | null; note?: string; createdBy?: string;
+    expiresAt?: Date | null;
   }
 ): Promise<number> {
   return writeLedger(tx, 'points', { ...args, amount: args.points });

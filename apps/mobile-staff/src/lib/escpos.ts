@@ -3,7 +3,7 @@
 // instead of asking the backend to do it. The backend may be hosted off-site
 // (Render) with no route to the restaurant's printer, but the staff phone is
 // physically on-site on the same WiFi as the printer, so it prints locally.
-import type { Order, OrderType } from '@/types/pos';
+import type { Order } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
 
 function tis620Byte(char: string): number {
@@ -86,67 +86,163 @@ export interface KitchenTicketItem {
   name: string;
   quantity: number;
   notes?: string | null;
+  /** Chosen options (sweetness, toppings, ...) — each prints on its own "**" line. */
+  modifiers?: string[];
 }
 
-const ORDER_TYPE_LABEL: Record<OrderType, string> = {
-  DINE_IN: 'ทานที่ร้าน',
-  TAKEAWAY: 'กลับบ้าน',
-  DELIVERY: 'เดลิเวอรี่',
-};
+export interface KitchenTicketInput {
+  /** Station / printer name, printed large at the top (e.g. "ครัวหลัง"). */
+  stationName?: string | null;
+  orderNumber: string;
+  /** Table number, or null for takeaway/delivery. */
+  tableNumber?: string | null;
+  orderType: string;
+  time?: Date | string | null;
+  cashierName?: string | null;
+  items: KitchenTicketItem[];
+  /** A later round of an already-fired order — printed in a box. */
+  isAddOn?: boolean;
+  /** "ใบที่ n/m" */
+  round?: { n: number; m: number } | null;
+}
+
+const KT_TYPE_EN: Record<string, string> = { DINE_IN: 'DINE-IN', TAKEAWAY: 'TAKEAWAY', DELIVERY: 'DELIVERY' };
+const KT_TYPE_TH: Record<string, string> = { DINE_IN: 'ทานที่ร้าน', TAKEAWAY: 'กลับบ้าน', DELIVERY: 'เดลิเวอรี่' };
+
+// Thai above/below vowels and tone marks occupy no printer cell.
+function ktCombining(code: number): boolean {
+  return code === 0x0e31 || (code >= 0x0e34 && code <= 0x0e3a) || (code >= 0x0e47 && code <= 0x0e4e);
+}
+function ktWidth(s: string): number {
+  let w = 0;
+  for (const ch of Array.from(s)) if (!ktCombining(ch.charCodeAt(0))) w++;
+  return w;
+}
+function ktWrap(s: string, width: number): string[] {
+  const lines: string[] = [];
+  let cur = '';
+  let w = 0;
+  for (const ch of Array.from(s)) {
+    const cw = ktCombining(ch.charCodeAt(0)) ? 0 : 1;
+    if (w + cw > width) { lines.push(cur); cur = ''; w = 0; }
+    cur += ch;
+    w += cw;
+  }
+  if (cur) lines.push(cur);
+  return lines.length ? lines : [''];
+}
+function ktHHMM(t?: Date | string | null): string {
+  const d = t ? new Date(t) : new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 /**
- * A kitchen order ticket (KOT) — no prices, order#/table large and bold, item
- * notes bold on their own line. Prints every current item on the order (the
- * manual reprint button here always reprints the whole ticket, unlike the
- * backend's per-round auto-print).
+ * Kitchen order ticket (KOT), 80mm / 32 columns, mockup "4a": station name
+ * large, order# + table on one double-size line, no prices, items double
+ * height, modifiers/notes bold with a leading "**", boxed "เพิ่มรายการ" for
+ * later rounds, and "ใบที่ n/m" at the foot. Thermal paper has no colour, so
+ * everything is size + bold + symbols only.
  */
-export function buildKitchenTicketESCPOS(order: Order, items: KitchenTicketItem[]): Uint8Array {
+export function buildKitchenTicket(t: KitchenTicketInput): Uint8Array {
   const out: number[] = [];
   const W = 32;
+  const raw = (...b: number[]) => { out.push(...b); };
+  const line = (s = '') => { out.push(...encodeText(s), 0x0a); };
+  const size = (w: 1 | 2, h: 1 | 2) => raw(0x1d, 0x21, ((w - 1) << 4) | (h - 1));
+  const bold = (on: boolean) => raw(0x1b, 0x45, on ? 1 : 0);
+  const align = (a: 0 | 1 | 2) => raw(0x1b, 0x61, a);
+  const fit = (l: string, r: string, width: number) =>
+    l + ' '.repeat(Math.max(1, width - ktWidth(l) - ktWidth(r))) + r;
+  const divider = () => line('-'.repeat(W));
 
-  const line = (t = '') => { out.push(...encodeText(t), 0x0a); };
-  const twoCol = (l: string, r: string) => {
-    const space = Math.max(1, W - l.length - r.length);
-    line(l + ' '.repeat(space) + r);
-  };
+  raw(0x1b, 0x40);       // init
+  raw(0x1b, 0x74, 21);   // TIS-620
 
-  out.push(0x1b, 0x40);                       // init
-  out.push(0x1b, 0x74, 21);                   // charset TIS-620
-
-  out.push(0x1b, 0x61, 1);                    // center
-  out.push(0x1d, 0x21, 0x11);                 // double size
-  line('ครัว');
-  out.push(0x1d, 0x21, 0x00);                 // normal size
-
-  out.push(0x0a);
-  out.push(0x1d, 0x21, 0x11);                 // double size for order#/table
-  const tableLabel = order.table ? order.table.number : ORDER_TYPE_LABEL[order.type] ?? order.type;
-  twoCol(`#${order.orderNumber.split('-').pop()}`, tableLabel);
-  out.push(0x1d, 0x21, 0x00);
-  out.push(0x0a);
-
-  out.push(0x1b, 0x61, 0);                    // left
-  line(`${ORDER_TYPE_LABEL[order.type] ?? order.type}   ${new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' })}`);
-  if (order.cashier) line(`พนักงาน: ${order.cashier.name}`);
-  line('--------------------------------');
-
-  let totalQty = 0;
-  for (const it of items) {
-    totalQty += it.quantity;
-    out.push(0x1d, 0x21, 0x01);               // double height
-    line(`${it.quantity} x ${it.name}`);
-    out.push(0x1d, 0x21, 0x00);
-    if (it.notes?.trim()) {
-      out.push(0x1b, 0x45, 1);                // bold on
-      line(`  ** ${it.notes.trim()}`);
-      out.push(0x1b, 0x45, 0);                // bold off
-    }
+  // Header
+  align(1);
+  bold(true);
+  size(2, 2);
+  for (const l of ktWrap(t.stationName?.trim() || 'ครัว', 16)) line(l);
+  size(1, 1);
+  if (t.isAddOn) {
+    size(2, 2);
+    const inner = 14;
+    const label = 'เพิ่มรายการ';
+    const pad = Math.max(0, inner - ktWidth(label));
+    const left = Math.floor(pad / 2);
+    line('+' + '-'.repeat(inner) + '+');
+    line('|' + ' '.repeat(left) + label + ' '.repeat(pad - left) + '|');
+    line('+' + '-'.repeat(inner) + '+');
+    size(1, 1);
+  } else {
+    line('KITCHEN');
   }
-  line('--------------------------------');
+  bold(false);
+  divider();
+
+  // Order number + table, double size, one line
+  align(0);
+  bold(true);
+  size(2, 2);
+  const orderNo = `#${String(t.orderNumber).split('-').pop()}`;
+  const where = t.tableNumber
+    ? (/^[0-9]/.test(t.tableNumber) ? `T${t.tableNumber}` : t.tableNumber)
+    : (KT_TYPE_TH[t.orderType] ?? t.orderType);
+  line(fit(orderNo, where, 16));
+  size(1, 1);
+  bold(false);
+
+  // Info lines
+  const hhmm = ktHHMM(t.time);
+  if (t.isAddOn) {
+    line(`${hhmm}  ${t.round ? `รอบที่ ${t.round.n}` : ''}`.trimEnd());
+  } else {
+    line(`${KT_TYPE_EN[t.orderType] ?? t.orderType}  ${KT_TYPE_TH[t.orderType] ?? ''}`.trimEnd());
+    line(`${hhmm}  ${t.cashierName ?? ''}`.trimEnd());
+  }
+  divider();
+
+  // Items
+  let totalQty = 0;
+  t.items.forEach((it, idx) => {
+    totalQty += it.quantity;
+    if (idx > 0) line();
+    bold(true);
+    size(1, 2);
+    ktWrap(`${it.quantity} x ${it.name}`, W).forEach((l) => line(l));
+    size(1, 1);
+    const extras = [...(it.modifiers ?? []), ...(it.notes?.trim() ? [it.notes.trim()] : [])];
+    for (const m of extras) {
+      ktWrap(`** ${m}`, W - 3).forEach((l, i) => line(`   ${i === 0 ? l : `   ${l}`}`));
+    }
+    bold(false);
+  });
+  divider();
   line(`รวม ${totalQty} ชิ้น`);
 
-  out.push(0x0a, 0x0a);
-  out.push(0x1d, 0x56, 1);                    // cut
-
+  // Footer
+  if (t.round) {
+    align(1);
+    bold(true);
+    line();
+    line(`-- ใบที่ ${t.round.n}/${t.round.m} --`);
+    bold(false);
+  }
+  raw(0x0a, 0x0a, 0x0a);
+  raw(0x1d, 0x56, 1);    // partial cut
   return new Uint8Array(out);
+}
+
+/**
+ * Manual reprint from the KDS screen — prints every current item on the order
+ * (the per-round auto-print goes through the print-job queue instead).
+ */
+export function buildKitchenTicketESCPOS(order: Order, items: { name: string; quantity: number; notes?: string | null }[]): Uint8Array {
+  return buildKitchenTicket({
+    orderNumber: order.orderNumber,
+    tableNumber: order.table?.number ?? null,
+    orderType: order.type,
+    cashierName: order.cashier?.name,
+    items,
+  });
 }

@@ -5,6 +5,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
+import { isValidPin, hashPin } from '../auth/pin.logic';
 
 const router = Router();
 router.use(authMiddleware);
@@ -14,6 +15,7 @@ const createSchema = z.object({
   password: z.string().min(6),
   name: z.string().min(1),
   role: z.enum(['OWNER', 'ADMIN', 'CASHIER', 'KITCHEN']),
+  pin: z.string().regex(/^\d{4,6}$/, 'PIN ต้องเป็นตัวเลข 4-6 หลัก').optional(),
 });
 
 router.get('/', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
@@ -22,12 +24,12 @@ router.get('/', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
       where: { storeId: req.user!.storeId },
       select: {
         id: true, email: true, name: true, role: true, avatar: true,
-        isActive: true, createdAt: true,
+        isActive: true, createdAt: true, pinHash: true,
         _count: { select: { orders: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.json(users);
+    res.json(users.map(({ pinHash, ...u }) => ({ ...u, hasPin: !!pinHash })));
   } catch (e) { next(e); }
 });
 
@@ -44,6 +46,7 @@ router.post(
           password,
           name: req.body.name,
           role: req.body.role,
+          pinHash: req.body.pin ? await hashPin(req.body.pin) : undefined,
           storeId: req.user!.storeId,
         },
         select: { id: true, email: true, name: true, role: true },
@@ -69,6 +72,11 @@ router.patch('/:id', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
       data.role = req.body.role;
     }
     if (req.body.password) data.password = await bcrypt.hash(req.body.password, 10);
+    if (req.body.pin !== undefined) {
+      if (req.body.pin === null || req.body.pin === '') data.pinHash = null;
+      else if (isValidPin(req.body.pin)) data.pinHash = await hashPin(req.body.pin);
+      else return res.status(400).json({ error: 'PIN ต้องเป็นตัวเลข 4-6 หลัก' });
+    }
 
     const user = await prisma.user.update({
       where: { id: req.params.id },

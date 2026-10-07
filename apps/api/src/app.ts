@@ -29,6 +29,8 @@ import notificationRoutes from './modules/notifications/notification.routes';
 import dashboardRoutes from './modules/dashboard/dashboard.routes';
 import { displayPublicRouter, displayRouter } from './modules/display/display.routes';
 import { selfOrderPublicRouter, selfOrderRouter } from './modules/self-order/self-order.routes';
+import loyaltyRoutes from './modules/loyalty/loyalty.routes';
+import { printersRouter, printJobsRouter } from './modules/printers/printers.routes';
 import { stripeWebhookHandler } from './modules/payments/stripe-webhook.routes';
 
 const app = express();
@@ -150,6 +152,7 @@ app.use('/api/tables', tableRoutes);
 app.use('/api/stores', storeRoutes); // 🆕
 app.use('/api/activity-logs', activityRoutes);
 app.use('/api/customers', customerRoutes);
+app.use('/api/loyalty', loyaltyRoutes);
 // SMS webhook is public (per-store token in URL) — mount BEFORE auth-protected payment routes
 app.use('/api/payments', smsWebhookPublicRouter);
 app.use('/api/payments', smsWebhookAuthRouter);
@@ -163,6 +166,8 @@ app.use('/api/display', displayRouter);
 // Public menu/submit is unauthenticated (reached via table QR) — mount BEFORE the staff-only router
 app.use('/api/self-order', selfOrderPublicRouter);
 app.use('/api/self-order', selfOrderRouter);
+app.use('/api/printers', printersRouter);
+app.use('/api/print-jobs', printJobsRouter);
 app.use('/api/uploads', uploadRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

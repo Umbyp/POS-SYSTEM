@@ -15,8 +15,11 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
+  /** Token of the normal (email/Google) login that enrolled this device; kept after logout so staff can switch by PIN. */
+  deviceToken: string | null;
   hasHydrated: boolean;
-  setAuth: (user: AuthUser, token: string) => void;
+  setAuth: (user: AuthUser, token: string, opts?: { device?: boolean }) => void;
+  clearDevice: () => void;
   logout: () => void;
   setHasHydrated: (v: boolean) => void;
 }
@@ -34,15 +37,17 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      deviceToken: null,
       hasHydrated: false,
-      setAuth: (user, token) => set({ user, token }),
+      setAuth: (user, token, opts) => set(opts?.device ? { user, token, deviceToken: token } : { user, token }),
+      clearDevice: () => set({ user: null, token: null, deviceToken: null }),
       logout: () => set({ user: null, token: null }),
       setHasHydrated: (v) => set({ hasHydrated: v }),
     }),
     {
       name: 'pos-auth',
       storage: createJSONStorage(() => secureStoreStorage),
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      partialize: (state) => ({ user: state.user, token: state.token, deviceToken: state.deviceToken }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },

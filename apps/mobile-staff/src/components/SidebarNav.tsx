@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
+import { avatarInitial } from '@/lib/format';
 import { NAV_ITEMS, visibleNavItems } from '@/constants/nav';
 
 // Thai labels matching the redesign; nav.ts keeps the English keys/labels.
@@ -29,7 +30,7 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const items = visibleNavItems(user?.role);
-  const initial = user?.name?.trim()?.[0]?.toUpperCase() ?? '?';
+  const initial = avatarInitial(user?.name) ?? '?';
 
   return (
     <SafeAreaView

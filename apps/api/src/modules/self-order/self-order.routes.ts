@@ -116,6 +116,22 @@ publicRouter.get('/store/:storeId/customer/lookup', readLimiter, async (req, res
   } catch (e) { next(e); }
 });
 
+// Rewards/coupons visible to the member identified by phone (same trust model as lookup).
+publicRouter.get('/store/:storeId/rewards', readLimiter, async (req, res, next) => {
+  try {
+    const phone = req.query.phone as string;
+    if (!phone) return res.status(400).json({ error: 'Phone is required' });
+    res.json(await service.listMemberRewards(req.params.storeId, phone));
+  } catch (e) { next(e); }
+});
+
+const redeemSchema = z.object({ phone: z.string().min(1) });
+publicRouter.post('/store/:storeId/rewards/:rewardId/redeem', writeLimiter, validate(redeemSchema), async (req, res, next) => {
+  try {
+    res.json(await service.redeemMemberReward(req.params.storeId, req.body.phone, req.params.rewardId));
+  } catch (e) { next(e); }
+});
+
 publicRouter.post('/store/:storeId/customer/register', writeLimiter, validate(registerSchema), async (req, res, next) => {
   try {
     const { name, phone, email } = req.body;

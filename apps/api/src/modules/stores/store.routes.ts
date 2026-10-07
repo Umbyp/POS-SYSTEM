@@ -28,6 +28,7 @@ const updateSchema = z.object({
   pointsEarnBaht: z.number().int().nonnegative().optional(),
   pointValue: z.number().nonnegative().optional(),
   minRedeemPoints: z.number().int().nonnegative().optional(),
+  pointsExpiryMonths: z.number().int().min(0).max(120).optional(),
   stampsEarnBaht: z.number().int().nonnegative().optional(),
   stampsPerReward: z.number().int().positive().optional(),
   stampRewardValue: z.number().nonnegative().optional(),

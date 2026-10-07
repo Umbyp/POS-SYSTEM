@@ -10,6 +10,7 @@ import { PointTxType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import * as orderTabService from '../orders/order-tab.service';
+import { buildMemberProfile, listRewardsForMember, redeemReward } from '../loyalty/loyalty.service';
 import { recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, pointsEnabled, stampsEnabled } from '../orders/points.service';
 
 export interface SelfOrderItemInput {
@@ -232,9 +233,9 @@ export async function lookupCustomer(qrCode: string, phone: string) {
   const table = await findTableByQr(qrCode);
   const customer = await prisma.customer.findFirst({
     where: { storeId: table.storeId, phone, isActive: true },
-    select: { id: true, name: true, phone: true, points: true, stamps: true },
+    select: { id: true },
   });
-  return customer || null;
+  return customer ? buildMemberProfile(table.storeId, customer.id) : null;
 }
 
 /** Public: Register a new customer member in the table's store. */
@@ -275,6 +276,9 @@ export async function getStorePublicInfo(storeId: string) {
       stampsPerReward: true,
       stampRewardValue: true,
       stampRewardName: true,
+      pointValue: true,
+      minRedeemPoints: true,
+      pointsExpiryMonths: true,
     },
   });
   if (!store) throw NotFound('Store not found');
@@ -285,9 +289,28 @@ export async function getStorePublicInfo(storeId: string) {
 export async function lookupCustomerByStore(storeId: string, phone: string) {
   const customer = await prisma.customer.findFirst({
     where: { storeId, phone, isActive: true },
-    select: { id: true, name: true, phone: true, points: true, stamps: true },
+    select: { id: true },
   });
-  return customer || null;
+  // includes tier + expiring points; lapsed points are written off first
+  return customer ? buildMemberProfile(storeId, customer.id) : null;
+}
+
+/** Public: rewards visible to the member identified by phone (tier/validity filtered). */
+export async function listMemberRewards(storeId: string, phone: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { storeId, phone, isActive: true }, select: { id: true },
+  });
+  if (!customer) throw NotFound('ไม่พบสมาชิก');
+  return listRewardsForMember(storeId, customer.id);
+}
+
+/** Public: redeem a reward with points. Returns the short code to show the cashier. */
+export async function redeemMemberReward(storeId: string, phone: string, rewardId: string) {
+  const customer = await prisma.customer.findFirst({
+    where: { storeId, phone, isActive: true }, select: { id: true },
+  });
+  if (!customer) throw NotFound('ไม่พบสมาชิก');
+  return redeemReward(storeId, customer.id, rewardId);
 }
 
 /** Public: Register customer by storeId, name, phone, email */

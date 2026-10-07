@@ -23,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useT } from '@/lib/i18n';
+import { LoyaltyAdmin } from './LoyaltyAdmin';
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,8 @@ export default function LoyaltyPage() {
 
       <LoyaltySettings store={store} t={t} />
 
+      <LoyaltyAdmin store={store} />
+
       {/* Members */}
       <div className="bg-card border border-border rounded-2xl p-4">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -111,7 +114,14 @@ export default function LoyaltyPage() {
                     {c.name?.[0] || '?'}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13.5px] font-bold truncate">{c.name}</div>
+                    <div className="text-[13.5px] font-bold truncate">
+                      {c.name}
+                      {c.tier && (
+                        <span className="ml-2 align-middle px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold tracking-wide">
+                          {c.tier.name}
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[11.5px] text-muted-foreground truncate">
                       {c.phone || '—'}
                       {c.visitCount != null &&
@@ -493,6 +503,7 @@ function MemberDetailDialog({
   });
 
   const points = data?.customer?.points ?? customer?.points ?? 0;
+  const tier = data?.tier ?? customer?.tier;
   const stamps = customer?.stamps ?? 0;
   const perReward = store?.stampsPerReward ?? 10;
   const cardsReady = perReward > 0 ? Math.floor(stamps / perReward) : 0;
@@ -503,8 +514,20 @@ function MemberDetailDialog({
         {customer && (
           <>
             <DialogHeader>
-              <DialogTitle>{customer.name}</DialogTitle>
+              <DialogTitle>
+                {customer.name}
+                {tier && (
+                  <span className="ml-2 align-middle px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold tracking-wide">
+                    {tier.name}
+                  </span>
+                )}
+              </DialogTitle>
             </DialogHeader>
+            {data?.expiringPoints > 0 && data?.expiringDate && (
+              <div className="rounded-lg border border-[#F3DFA2] bg-[#FEFCE8] px-3 py-2 text-xs text-[#B45309]">
+                {data.expiringPoints} แต้ม กำลังจะหมดอายุ ภายใน {formatDate(data.expiringDate)}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               {showPoints && (

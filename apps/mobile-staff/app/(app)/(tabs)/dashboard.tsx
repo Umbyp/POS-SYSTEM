@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown } from 'lucide-react-native';
@@ -6,7 +7,7 @@ import { api } from '@/lib/api';
 import { formatCurrency, formatTime } from '@/lib/format';
 import { SectionCard } from '@/components/SectionCard';
 import { StatusBadge, SPINE_COLOR } from '@/components/StatusBadge';
-import type { DashboardOverview } from '@/types/backoffice';
+import type { DailySalesRow, DashboardOverview, ReportSummary } from '@/types/backoffice';
 import type { OrderStatus } from '@/types/pos';
 
 const INSIGHT_SPINE: Record<string, string> = {
@@ -16,13 +17,50 @@ const INSIGHT_SPINE: Record<string, string> = {
   critical: '#B91C1C',
 };
 
+const PERIODS = [
+  { key: 'today', label: 'วันนี้', heroTitle: 'ยอดขายวันนี้' },
+  { key: 'week', label: '7 วัน', heroTitle: 'ยอดขาย 7 วันล่าสุด' },
+  { key: 'month', label: 'เดือนนี้', heroTitle: 'ยอดขายเดือนนี้' },
+] as const;
+type PeriodKey = (typeof PERIODS)[number]['key'];
+
+function periodRange(period: Exclude<PeriodKey, 'today'>) {
+  const to = new Date();
+  const from = new Date(to);
+  from.setHours(0, 0, 0, 0);
+  if (period === 'week') from.setDate(from.getDate() - 6);
+  else from.setDate(1);
+  return { from: from.toISOString(), to: to.toISOString() };
+}
+
 export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
+  const [period, setPeriod] = useState<PeriodKey>('today');
+  const isToday = period === 'today';
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ['dashboard-overview'],
     queryFn: async () => (await api.get('/dashboard/overview')).data as DashboardOverview,
     refetchInterval: 30000,
+  });
+
+  // Tablet-only range views — reuse the reports endpoints the Reports screen already calls.
+  const rangeEnabled = wide && !isToday;
+  const { data: summary } = useQuery({
+    queryKey: ['dashboard-range-summary', period],
+    queryFn: async () => {
+      const { from, to } = periodRange(period as Exclude<PeriodKey, 'today'>);
+      return (await api.get('/reports/summary', { params: { from, to } })).data as ReportSummary;
+    },
+    enabled: rangeEnabled,
+  });
+  const { data: daily } = useQuery({
+    queryKey: ['dashboard-range-daily', period],
+    queryFn: async () => {
+      const { from, to } = periodRange(period as Exclude<PeriodKey, 'today'>);
+      return (await api.get('/reports/daily-sales', { params: { from, to } })).data as DailySalesRow[];
+    },
+    enabled: rangeEnabled,
   });
 
   if (isLoading || !data) {
@@ -33,36 +71,58 @@ export default function DashboardScreen() {
     );
   }
 
-  const vsYesterday = data.today.vsYesterdayPct;
+  const rangeView = rangeEnabled && !!summary;
+  const vsYesterday = rangeView ? summary.growth.revenue : data.today.vsYesterdayPct;
+  const heroRevenue = rangeView ? summary.revenue : data.today.revenue;
+  const heroTitle = PERIODS.find((p) => p.key === period)!.heroTitle;
+  const compareLabel = isToday ? ' เทียบเมื่อวาน' : ' เทียบช่วงก่อนหน้า';
+
+  const bars: { label: string; value: number }[] = isToday
+    ? hourBars(data.hourly ?? [])
+    : (daily ?? []).map((d) => ({ label: String(new Date(d.date).getDate()), value: d.revenue }));
+  const maxBar = Math.max(1, ...bars.map((b) => b.value));
+  const peakBar = bars.reduce((best, b, i) => (b.value > (bars[best]?.value ?? 0) ? i : best), 0);
   const maxQty = Math.max(1, ...data.topItems.map((t) => t.qty));
   const lowStock = data.alerts.lowStock;
   const pendingKitchen = data.restaurant.pendingKitchen;
   const hasActions = data.insights.length > 0 || lowStock.length > 0 || pendingKitchen > 0;
 
   const stats = [
-    { label: 'ออเดอร์', value: String(data.today.orders), amber: false },
-    { label: 'ยอด/บิล', value: formatCurrency(data.today.avgTicket), amber: false },
+    { label: 'ออเดอร์', value: String(rangeView ? summary.orderCount : data.today.orders), amber: false },
+    { label: 'ยอด/บิล', value: formatCurrency(rangeView ? summary.avgTicket : data.today.avgTicket), amber: false },
     { label: 'โต๊ะใช้งาน', value: `${data.restaurant.activeTables}/${data.restaurant.totalTables}`, amber: false },
     { label: 'รอครัว', value: String(pendingKitchen), amber: pendingKitchen > 0 },
   ];
 
   const hero = (
     <SectionCard>
-      <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">ยอดขายวันนี้</Text>
+      <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">{heroTitle}</Text>
       <View className="flex-row flex-wrap items-baseline gap-2.5">
-        <Text className="text-metric-lg text-foreground dark:text-dark-foreground">{formatCurrency(data.today.revenue)}</Text>
+        <Text className="text-metric-lg text-foreground dark:text-dark-foreground">{formatCurrency(heroRevenue)}</Text>
         {vsYesterday != null ? (
           <View
             className={`flex-row items-center gap-1 rounded-full px-2 py-[3px] ${vsYesterday >= 0 ? 'bg-[#ECFDF5]' : 'bg-[#FEE2E2]'}`}
           >
             {vsYesterday >= 0 ? <TrendingUp size={12} color="#047857" /> : <TrendingDown size={12} color="#B91C1C" />}
             <Text className={`text-[12px] font-bold ${vsYesterday >= 0 ? 'text-success' : 'text-danger'}`}>
-              {Math.abs(vsYesterday).toFixed(1)}%{wide ? ' เทียบเมื่อวาน' : ''}
+              {Math.abs(vsYesterday).toFixed(1)}%{wide ? compareLabel : ''}
             </Text>
           </View>
         ) : null}
       </View>
-      {wide ? null : (
+      {wide ? (
+        <View className="h-[78px] flex-row items-end gap-[7px] border-t border-border pt-3.5 dark:border-dark-border">
+          {bars.map((b, i) => (
+            <View key={i} className="flex-1 items-center gap-[5px]">
+              <View
+                className={`w-full rounded-[4px] ${i === peakBar && b.value > 0 ? 'bg-foreground dark:bg-dark-foreground' : 'bg-border dark:bg-dark-border'}`}
+                style={{ height: Math.max(4, (b.value / maxBar) * 40) }}
+              />
+              <Text className="text-[11px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">{b.label}</Text>
+            </View>
+          ))}
+        </View>
+      ) : (
         <View className="flex-row justify-between border-t border-border dark:border-dark-border pt-3">
           {stats.map((st) => (
             <MiniStat key={st.label} label={st.label} value={st.value} amber={st.amber} />
@@ -142,6 +202,26 @@ export default function DashboardScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
+      {wide ? (
+        <View className="flex-row items-center justify-between border-b border-border bg-card px-[22px] py-3.5 dark:border-dark-border dark:bg-dark-card">
+          <Text className="text-[18px] font-bold text-foreground dark:text-dark-foreground">ภาพรวม</Text>
+          <View className="flex-row gap-2">
+            {PERIODS.map((p) => (
+              <Pressable
+                key={p.key}
+                onPress={() => setPeriod(p.key)}
+                className={`rounded-[9px] px-3.5 py-[9px] ${period === p.key ? 'bg-foreground dark:bg-dark-foreground' : 'bg-muted dark:bg-dark-muted'}`}
+              >
+                <Text
+                  className={`text-[12px] font-semibold ${period === p.key ? 'text-white dark:text-dark-background' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}
+                >
+                  {p.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      ) : null}
       <ScrollView
         contentContainerClassName={wide ? 'p-5 gap-4' : 'p-3.5 gap-3'}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#C9622E" />}
@@ -185,6 +265,16 @@ export default function DashboardScreen() {
       </ScrollView>
     </SafeAreaView>
   );
+}
+
+/** Hourly revenue bars covering at least 08–19, widened to include any off-hours sales. */
+function hourBars(hourly: { hour: number; revenue: number }[]) {
+  const active = hourly.filter((h) => h.revenue > 0).map((h) => h.hour);
+  const first = Math.min(8, ...active);
+  const last = Math.max(19, ...active);
+  return hourly
+    .filter((h) => h.hour >= first && h.hour <= last)
+    .map((h) => ({ label: String(h.hour).padStart(2, '0'), value: h.revenue }));
 }
 
 function ActionRow({ color, title, sub }: { color: string; title: string; sub?: string }) {

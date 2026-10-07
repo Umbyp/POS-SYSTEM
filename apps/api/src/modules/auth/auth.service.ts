@@ -2,7 +2,8 @@ import bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../../config/prisma';
 import { signToken } from '../../utils/jwt';
-import { BadRequest, Unauthorized } from '../../utils/errors';
+import { AppError, BadRequest, Unauthorized } from '../../utils/errors';
+import { PinLockout, hashPin, isValidPin } from './pin.logic';
 import { env } from '../../config/env';
 import { Role } from '@prisma/client';
 
@@ -73,6 +74,48 @@ export async function googleLogin(idToken: string) {
   }
 
   return issueToken(user);
+}
+
+const pinLockout = new PinLockout();
+// valid bcrypt hash of a throwaway value — compared against when the target user
+// is unknown so response time and message don't reveal whether the user exists
+const DUMMY_HASH = bcrypt.hashSync('000000', 10);
+const PIN_FAIL_MSG = 'PIN ไม่ถูกต้อง';
+
+/** Active staff of the store who have a PIN — for the shift-PIN picker. */
+export async function pinStaff(storeId: string) {
+  return prisma.user.findMany({
+    where: { storeId, isActive: true, pinHash: { not: null } },
+    select: { id: true, name: true, role: true, avatar: true },
+    orderBy: { name: 'asc' },
+  });
+}
+
+/** storeId comes from the device's already-authenticated token, never the body. */
+export async function pinLogin(storeId: string, userId: string, pin: string) {
+  const locked = pinLockout.lockedFor(userId);
+  if (locked) {
+    throw new AppError(429, `ลองผิดหลายครั้งเกินไป กรุณารออีก ${Math.ceil(locked / 60)} นาที`, 'PIN_LOCKED');
+  }
+  const user = await prisma.user.findFirst({ where: { id: userId, storeId } });
+  const ok = await bcrypt.compare(pin, user?.pinHash ?? DUMMY_HASH);
+  if (!user || !user.pinHash || !user.isActive || !ok) {
+    pinLockout.recordFailure(userId);
+    // 403 (not 401): the mobile client logs the whole device out on 401
+    throw new AppError(403, PIN_FAIL_MSG, 'INVALID_PIN');
+  }
+  pinLockout.reset(userId);
+  prisma.activityLog.create({ data: { userId: user.id, action: 'LOGIN' } }).catch(() => {});
+  return issueToken(user);
+}
+
+export async function setPin(userId: string, pin: string | null) {
+  if (pin !== null && !isValidPin(pin)) throw BadRequest('PIN ต้องเป็นตัวเลข 4-6 หลัก');
+  await prisma.user.update({
+    where: { id: userId },
+    data: { pinHash: pin === null ? null : await hashPin(pin) },
+  });
+  pinLockout.reset(userId);
 }
 
 export async function me(userId: string) {

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Stamp,
   Search,
@@ -15,6 +15,8 @@ import {
   User,
   AlertCircle,
   PartyPopper,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -22,6 +24,30 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/format';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
+type RewardFilter = 'ALL' | 'FREE' | 'POINTS' | 'SPECIAL';
+const FILTERS: { key: RewardFilter; label: string }[] = [
+  { key: 'ALL', label: 'ทั้งหมด' },
+  { key: 'FREE', label: 'รับฟรี' },
+  { key: 'POINTS', label: 'แลกคะแนน' },
+  { key: 'SPECIAL', label: 'พิเศษเฉพาะคุณ' },
+];
+const BADGE: Record<string, { label: string; cls: string }> = {
+  POINTS: { label: 'แลกคะแนน', cls: 'bg-[#F6E6DC] text-[#A64B1F]' },
+  FREE: { label: 'รับฟรี', cls: 'bg-[#FEE2E2] text-[#B91C1C]' },
+  SPECIAL: { label: 'พิเศษ', cls: 'bg-[#F2E9E0] text-[#7A6A5C]' },
+};
+
+const thDate = (d: string | Date) =>
+  new Date(d).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+
+function validityText(r: { validFrom?: string | null; validTo?: string | null }) {
+  if (r.validFrom && r.validTo) return `แลกได้ ${thDate(r.validFrom)} - ${thDate(r.validTo)}`;
+  if (r.validTo) return `แลกได้ถึง ${thDate(r.validTo)}`;
+  if (r.validFrom) return `แลกได้ตั้งแต่ ${thDate(r.validFrom)}`;
+  return 'แลกได้ไม่จำกัดเวลา';
+}
 
 function MemberPortalContent() {
   const searchParams = useSearchParams();
@@ -45,11 +71,64 @@ function MemberPortalContent() {
   const [claimRetryable, setClaimRetryable] = useState(false);
   const claimedRef = useRef(false);
 
+  const qc = useQueryClient();
+  const [rewardFilter, setRewardFilter] = useState<RewardFilter>('ALL');
+  const [redeemResult, setRedeemResult] = useState<{ code: string; name: string } | null>(null);
+  const [redeemError, setRedeemError] = useState('');
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState('');
+
   const { data: store, isLoading: storeLoading, isError: storeError } = useQuery({
     queryKey: ['public-store', storeId],
     queryFn: () => api.get(`/self-order/store/${storeId}`).then((r) => r.data),
     enabled: !!storeId,
     retry: false,
+  });
+
+  // Member QR (the phone number) for staff to scan at the counter.
+  const memberPhone: string | undefined = member?.phone;
+  useEffect(() => {
+    if (!memberPhone) { setQrDataUrl(''); return; }
+    let live = true;
+    import('qrcode').then((QRCode) =>
+      QRCode.default
+        .toDataURL(memberPhone, { width: 160, margin: 1, color: { dark: '#2B1F17', light: '#FFFFFF' } })
+        .then((u) => live && setQrDataUrl(u))
+        .catch(() => live && setQrDataUrl(''))
+    );
+    return () => { live = false; };
+  }, [memberPhone]);
+
+  const { data: rewards = [] } = useQuery<any[]>({
+    queryKey: ['member-rewards', storeId, memberPhone],
+    queryFn: () =>
+      api.get(`/self-order/store/${storeId}/rewards`, { params: { phone: memberPhone } }).then((r) => r.data),
+    enabled: !!storeId && !!memberPhone,
+    retry: false,
+  });
+
+  const refreshMember = useCallback(async () => {
+    if (!storeId || !memberPhone) return;
+    try {
+      const { data } = await api.get(`/self-order/store/${storeId}/customer/lookup`, { params: { phone: memberPhone } });
+      if (data?.id) setMember(data);
+    } catch { /* keep the card we already have */ }
+    qc.invalidateQueries({ queryKey: ['member-rewards', storeId, memberPhone] });
+  }, [storeId, memberPhone, qc]);
+
+  const redeem = useMutation({
+    mutationFn: (rewardId: string) =>
+      api.post(`/self-order/store/${storeId}/rewards/${rewardId}/redeem`, { phone: memberPhone }).then((r) => r.data),
+    onSuccess: (data) => {
+      setRedeemError('');
+      setCodeCopied(false);
+      setRedeemResult({ code: data.redemption.code, name: data.reward.name });
+      refreshMember();
+    },
+    onError: (err: any) => {
+      setRedeemError(err.response?.data?.error || 'แลกรางวัลไม่สำเร็จ กรุณาลองใหม่');
+      refreshMember();
+    },
   });
 
   useEffect(() => {
@@ -83,6 +162,7 @@ function MemberPortalContent() {
       .post(`/self-order/order/${orderId}/claim-points`, { phone: member.phone })
       .then(({ data }) => {
         setMember((m: any) => ({ ...m, points: data.customer.points, stamps: data.customer.stamps }));
+        refreshMember(); // tier / expiry / rewards may have changed
         if (data.earnedPoints > 0 || data.earnedStamps > 0) {
           setClaimResult({ earnedPoints: data.earnedPoints, earnedStamps: data.earnedStamps });
         }
@@ -115,7 +195,7 @@ function MemberPortalContent() {
         setClaimRetryable(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [member, orderId, claimedHereKey]);
+  }, [member, orderId, claimedHereKey, refreshMember]);
 
   useEffect(() => {
     if (!member || !orderId || claimedRef.current) return;
@@ -347,36 +427,65 @@ function MemberPortalContent() {
         {/* State 2: Member dashboard */}
         {member && (
           <div className="space-y-4 animate-slide-up">
-            {/* Member card — brown header bar, big point number with P coin */}
+            {/* Member card — tier bar, big point number + staff-scan QR, expiry notice */}
             <div className="rounded-2xl overflow-hidden border border-border bg-card">
-              <div className="flex items-center justify-between bg-[#8C6A4F] px-4 py-3 text-[#FBF6F0]">
-                <span className="text-sm font-semibold">บัตรสมาชิก</span>
-                <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tabular-nums font-mono tracking-wide">
-                  {member.phone}
-                </span>
-              </div>
-              <div className={`grid ${showPoints && showStamps ? 'grid-cols-2 divide-x divide-border' : 'grid-cols-1'}`}>
-                {showPoints && (
-                  <div className="px-4 py-4">
-                    <div className="text-[40px] font-bold tabular-nums leading-none">{member.points ?? 0}</div>
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                        P
-                      </span>
-                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">แต้มสะสม</span>
+              <div className="bg-[#8C6A4F] px-4 py-3 text-[#FBF6F0]">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">ระดับสมาชิกของคุณ</span>
+                  {member.tier ? (
+                    <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tracking-wide uppercase">
+                      {member.tier.name}
+                    </span>
+                  ) : (
+                    <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tabular-nums font-mono">
+                      {member.phone}
+                    </span>
+                  )}
+                </div>
+                {member.tierProgress && member.nextTier && (
+                  <div className="mt-2.5">
+                    <div className="h-1.5 rounded-full bg-[#FBF6F0]/25 overflow-hidden">
+                      <div className="h-full rounded-full bg-[#FBF6F0]" style={{ width: `${member.tierProgress.pct}%` }} />
                     </div>
-                  </div>
-                )}
-                {showStamps && (
-                  <div className="px-4 py-4">
-                    <div className="text-[40px] font-bold tabular-nums leading-none">{member.stamps ?? 0}</div>
-                    <div className="flex items-center gap-1.5 mt-2">
-                      <Stamp className="w-5 h-5 text-primary" />
-                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">ดวงสะสม</span>
+                    <div className="text-[11px] opacity-85 mt-1.5">
+                      ใช้จ่ายอีก {formatCurrency(member.tierProgress.remaining)} เพื่อเลื่อนเป็น {member.nextTier.name}
                     </div>
                   </div>
                 )}
               </div>
+              <div className="flex items-stretch">
+                <div className={`flex-1 grid ${showPoints && showStamps ? 'grid-cols-2 divide-x divide-border' : 'grid-cols-1'}`}>
+                  {showPoints && (
+                    <div className="px-4 py-4">
+                      <div className="text-[40px] font-bold tabular-nums leading-none">{(member.points ?? 0).toLocaleString()}</div>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                          P
+                        </span>
+                        <span className="text-xs font-semibold text-muted-foreground tracking-wide">แต้มสะสม</span>
+                      </div>
+                    </div>
+                  )}
+                  {showStamps && (
+                    <div className="px-4 py-4">
+                      <div className="text-[40px] font-bold tabular-nums leading-none">{member.stamps ?? 0}</div>
+                      <div className="flex items-center gap-1.5 mt-2">
+                        <Stamp className="w-5 h-5 text-primary" />
+                        <span className="text-xs font-semibold text-muted-foreground tracking-wide">ดวงสะสม</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div className="w-[78px] shrink-0 bg-primary rounded-bl-[40px] flex flex-col items-center justify-center gap-1 text-primary-foreground">
+                  {qrDataUrl ? <img src={qrDataUrl} alt="QR สมาชิก" className="w-[46px] h-[46px] rounded bg-white" /> : <Loader2 className="w-4 h-4 animate-spin" />}
+                  <span className="text-[10.5px] font-semibold">ให้พนักงานสแกน</span>
+                </div>
+              </div>
+              {showPoints && (member.expiringPoints ?? 0) > 0 && member.expiringDate && (
+                <div className="border-t border-[#F3DFA2] bg-[#FEFCE8] px-4 py-2.5 text-center text-[11px] font-medium text-[#B45309]">
+                  {member.expiringPoints.toLocaleString()} แต้ม กำลังจะหมดอายุ ภายใน {thDate(member.expiringDate)}
+                </div>
+              )}
               {showPoints && Number(store.pointValue) > 0 && (member.points ?? 0) > 0 && (
                 <div className="border-t border-border bg-muted px-4 py-2.5 text-center text-[11px] font-medium text-muted-foreground">
                   แลกได้สูงสุด {formatCurrency((member.points ?? 0) * Number(store.pointValue))}
@@ -444,6 +553,88 @@ function MemberPortalContent() {
                   )}
                 </CardContent>
               </Card>
+            )}
+
+            {/* Coupons / special privileges */}
+            {rewards.length > 0 && (
+              <div className="pt-2">
+                <h3 className="text-lg font-bold mb-3">สิทธิพิเศษเฉพาะคุณ</h3>
+                <div className="flex gap-2 flex-wrap mb-3">
+                  {FILTERS.map((f) => (
+                    <button
+                      key={f.key}
+                      onClick={() => setRewardFilter(f.key)}
+                      className={`px-4 py-2 rounded-full text-[12.5px] transition-colors ${
+                        rewardFilter === f.key
+                          ? 'bg-[#8C6A4F] text-white font-semibold'
+                          : 'bg-card border border-border text-foreground font-medium'
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+                {redeemError && (
+                  <p className="text-xs text-danger flex items-center gap-1 mb-2">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" /> {redeemError}
+                  </p>
+                )}
+                <div className="flex flex-col gap-2.5">
+                  {rewards
+                    .filter((r: any) =>
+                      rewardFilter === 'ALL' ? true
+                      : rewardFilter === 'FREE' ? r.pointsCost === 0
+                      : rewardFilter === 'POINTS' ? r.pointsCost > 0
+                      : !!r.minTier
+                    )
+                    .map((r: any) => {
+                      const badge = BADGE[r.category] ?? BADGE.POINTS;
+                      return (
+                        <div key={r.id} className="flex bg-card border border-border rounded-[14px] overflow-hidden">
+                          <div className="w-[116px] shrink-0 bg-[#F6E6DC] border-r border-border flex flex-col items-center justify-center gap-1.5 p-2.5">
+                            <span className={`px-2.5 py-[3px] rounded-full text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
+                            {r.imageUrl ? (
+                              <img
+                                src={r.imageUrl.startsWith('http') ? r.imageUrl : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${r.imageUrl}`}
+                                alt={r.name}
+                                className="w-[52px] h-[52px] rounded-[10px] object-cover"
+                              />
+                            ) : (
+                              <div className="w-[52px] h-[52px] rounded-[10px] border border-dashed border-[#D8C7B8] flex items-center justify-center text-[#8C6A4F]">
+                                <Gift className="w-6 h-6" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0 p-3 flex flex-col gap-1">
+                            <div className="text-sm font-semibold leading-snug">{r.name}</div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="w-[15px] h-[15px] rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center">P</span>
+                              <span className="text-[11.5px] font-semibold text-muted-foreground">
+                                {r.pointsCost > 0 ? `${r.pointsCost.toLocaleString()} แต้ม` : 'ฟรี'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground">
+                              {r.pointsCost > 0 && !r.canRedeem
+                                ? `แต้มไม่พอ · ขาดอีก ${r.shortfall.toLocaleString()} แต้ม`
+                                : validityText(r)}
+                            </div>
+                            <button
+                              disabled={!r.canRedeem || redeem.isPending}
+                              onClick={() => { setRedeemError(''); redeem.mutate(r.id); }}
+                              className={`h-9 rounded-[9px] mt-1 text-[12.5px] font-semibold flex items-center justify-center ${
+                                r.canRedeem ? 'bg-primary text-primary-foreground' : 'bg-[#F2E9E0] text-[#7A6A5C]'
+                              }`}
+                            >
+                              {redeem.isPending && redeem.variables === r.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : r.canRedeem ? 'แลกรับสิทธิ์' : 'แต้มยังไม่พอ'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
             )}
 
             <Button onClick={resetPortal} variant="outline" className="w-full text-xs bg-card text-muted-foreground">
@@ -528,6 +719,34 @@ function MemberPortalContent() {
           </Card>
         )}
       </div>
+
+      <Dialog open={!!redeemResult} onOpenChange={(o) => !o && setRedeemResult(null)}>
+        <DialogContent className="max-w-sm customer-theme">
+          <DialogHeader>
+            <DialogTitle>แลกรับสิทธิ์สำเร็จ</DialogTitle>
+          </DialogHeader>
+          {redeemResult && (
+            <div className="space-y-3 text-center">
+              <p className="text-sm text-muted-foreground">{redeemResult.name}</p>
+              <div className="rounded-xl border border-dashed border-primary/50 bg-primary/5 py-4">
+                <div className="text-[11px] text-muted-foreground mb-1">โค้ดของคุณ — แสดงให้พนักงาน</div>
+                <div className="text-3xl font-bold tracking-[0.25em] font-mono text-primary">{redeemResult.code}</div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard?.writeText(redeemResult.code);
+                  setCodeCopied(true);
+                }}
+              >
+                {codeCopied ? <Check className="w-4 h-4 mr-1" /> : <Copy className="w-4 h-4 mr-1" />}
+                {codeCopied ? 'คัดลอกแล้ว' : 'คัดลอกโค้ด'}
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -28,8 +28,10 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<Role>('CASHIER');
+  const [pin, setPin] = useState('');
 
   function reset() {
+    setPin('');
     setName('');
     setEmail('');
     setPassword('');
@@ -37,7 +39,7 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
   }
 
   const save = useMutation({
-    mutationFn: async () => api.post('/employees', { name, email, password, role }),
+    mutationFn: async () => api.post('/employees', { name, email, password, role, ...(pin ? { pin } : {}) }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] });
       reset();
@@ -49,7 +51,8 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
     },
   });
 
-  const canSave = !!name && !!email && password.length >= 6;
+  const pinValid = pin === '' || /^\d{4,6}$/.test(pin);
+  const canSave = !!name && !!email && password.length >= 6 && pinValid;
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -72,6 +75,14 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
               secureTextEntry
               autoCapitalize="none"
               keyboardType="ascii-capable"
+            />
+            <TextField
+              label="PIN เข้ากะ (ตัวเลข 4-6 หลัก, ไม่บังคับ)"
+              value={pin}
+              onChangeText={(v) => setPin(v.replace(/\D/g, '').slice(0, 6))}
+              secureTextEntry
+              keyboardType="number-pad"
+              maxLength={6}
             />
             <SelectField label="ตำแหน่ง *" value={role} options={ROLE_OPTIONS} onChange={(v) => setRole(v as Role)} />
           </ScrollView>

@@ -1,8 +1,9 @@
 import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { ChevronRight, LogOut } from 'lucide-react-native';
+import { ChevronRight, LogOut, User } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
+import { avatarInitial } from '@/lib/format';
 import { NAV_ITEMS } from '@/constants/nav';
 
 const TH_LABEL: Record<string, string> = {
@@ -27,9 +28,11 @@ export default function MoreScreen() {
       <ScrollView>
         <View className="mx-3.5 mt-3.5 flex-row items-center gap-3 rounded-[14px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card">
           <View className="h-10 w-10 items-center justify-center rounded-full bg-muted dark:bg-dark-muted">
-            <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">
-              {user?.name?.trim()?.[0]?.toUpperCase() ?? '?'}
-            </Text>
+            {avatarInitial(user?.name) ? (
+              <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">{avatarInitial(user?.name)}</Text>
+            ) : (
+              <User size={18} color="#7A6A5C" />
+            )}
           </View>
           <View className="flex-1">
             <Text className="text-[15px] font-bold text-foreground dark:text-dark-foreground">{user?.name}</Text>
