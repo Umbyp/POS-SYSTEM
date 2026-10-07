@@ -13,6 +13,8 @@
       "bundleIdentifier": "com.restropos.staff",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
+        "NSCameraUsageDescription": "แอปต้องใช้กล้องเพื่อสแกน QR บนสลิปโอนเงิน",
+        "NSLocalNetworkUsageDescription": "แอปต้องเชื่อมต่อเครื่องพิมพ์ใบเสร็จ/ใบครัวในเครือข่ายเดียวกัน",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -40,6 +42,14 @@
           "photosPermission": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "แอปต้องใช้กล้องเพื่อสแกน QR บนสลิปโอนเงิน",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ]
     ],

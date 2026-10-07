@@ -79,6 +79,11 @@ model Store {
   receiptPointsTerms    String? // ข้อความเงื่อนไขใต้ QR สะสมแต้ม
   receiptFooterText     String? // ข้อความท้ายใบเสร็จ (แทนที่ข้อความเริ่มต้นถ้าตั้งไว้)
   onboardingCompletedAt DateTime? // null = ร้านยังไม่เคยผ่าน/ข้ามตัวช่วยตั้งค่า (โชว์ wizard อัตโนมัติ)
+  // เครื่องพิมพ์ครัว/เคาน์เตอร์ (ESC/POS ต่อ LAN) — แอปมือถือพิมพ์ตรงจากเครื่อง
+  // ไปที่ IP นี้เอง (ไม่ผ่าน backend) เพราะ backend อาจ host อยู่คนละเครือข่าย
+  // กับร้าน เครื่องพิมพ์จึงต้องอยู่ WiFi/LAN เดียวกับมือถือที่พิมพ์
+  printerIp   String?
+  printerPort Int     @default(9100)
   members         StoreMember[]
   categories    Category[]
   customers     Customer[]

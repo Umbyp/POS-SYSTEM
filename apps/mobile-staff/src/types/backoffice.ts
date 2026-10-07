@@ -75,6 +75,8 @@ export interface StoreSettings {
   receiptShowPointsQr: boolean;
   receiptPointsTerms: string | null;
   receiptFooterText: string | null;
+  printerIp: string | null;
+  printerPort: number;
 }
 
 export interface Employee {

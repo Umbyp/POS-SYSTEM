@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { ChefHat, Printer } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatTime } from '@/lib/format';
+import { printKitchenTicket, PrinterError } from '@/lib/printer';
 import type { Order, OrderStatus } from '@/types/pos';
+import type { StoreSettings } from '@/types/backoffice';
 
 const TABS: { key: OrderStatus; label: string }[] = [
   { key: 'PENDING', label: 'รอทำ' },
@@ -33,6 +34,11 @@ export default function KdsScreen() {
     refetchInterval: 10000,
   });
 
+  const { data: store } = useQuery({
+    queryKey: ['store-me'],
+    queryFn: async () => (await api.get('/stores/me')).data as StoreSettings,
+  });
+
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: OrderStatus }) =>
       (await api.patch(`/orders/${id}/status`, { status })).data,
@@ -49,14 +55,13 @@ export default function KdsScreen() {
     [orders, tab]
   );
 
-  async function onReprint(orderId: string) {
-    setPrintingId(orderId);
+  async function onReprint(order: Order) {
+    if (!store) return;
+    setPrintingId(order.id);
     try {
-      await api.post(`/orders/${orderId}/print/escpos`);
+      await printKitchenTicket(store, order);
     } catch (err) {
-      const message = isAxiosError(err)
-        ? err.response?.data?.error ?? 'พิมพ์ไม่สำเร็จ — ตรวจสอบเครื่องพิมพ์'
-        : 'พิมพ์ไม่สำเร็จ';
+      const message = err instanceof PrinterError ? err.message : 'พิมพ์ไม่สำเร็จ — ตรวจสอบว่ามือถือต่อ WiFi เดียวกับเครื่องพิมพ์';
       Alert.alert('พิมพ์ไม่สำเร็จ', message);
     } finally {
       setPrintingId(null);
@@ -105,7 +110,7 @@ export default function KdsScreen() {
                   <Text className="text-[14px] font-bold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
                   <View className="flex-row items-center gap-3">
                     <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">{formatTime(item.createdAt)}</Text>
-                    <Pressable onPress={() => onReprint(item.id)} disabled={printingId === item.id} hitSlop={8}>
+                    <Pressable onPress={() => onReprint(item)} disabled={printingId === item.id} hitSlop={8}>
                       <Printer size={18} color="#6B7280" />
                     </Pressable>
                   </View>

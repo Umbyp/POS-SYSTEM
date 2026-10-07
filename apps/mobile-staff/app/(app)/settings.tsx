@@ -41,6 +41,8 @@ export default function SettingsScreen() {
   const [receiptPointsTerms, setReceiptPointsTerms] = useState('');
   const [dailyTarget, setDailyTarget] = useState('');
   const [monthlyTarget, setMonthlyTarget] = useState('');
+  const [printerIp, setPrinterIp] = useState('');
+  const [printerPort, setPrinterPort] = useState('9100');
 
   useEffect(() => {
     if (!store) return;
@@ -61,6 +63,8 @@ export default function SettingsScreen() {
     setReceiptPointsTerms(store.receiptPointsTerms ?? '');
     setDailyTarget(store.dailyTarget ?? '');
     setMonthlyTarget(store.monthlyTarget ?? '');
+    setPrinterIp(store.printerIp ?? '');
+    setPrinterPort(String(store.printerPort || 9100));
   }, [store]);
 
   const save = useMutation({
@@ -83,6 +87,8 @@ export default function SettingsScreen() {
         receiptPointsTerms: receiptPointsTerms || undefined,
         dailyTarget: dailyTarget ? Number(dailyTarget) : undefined,
         monthlyTarget: monthlyTarget ? Number(monthlyTarget) : undefined,
+        printerIp: printerIp || null,
+        printerPort: Number(printerPort) || 9100,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['store-me'] });
@@ -149,6 +155,17 @@ export default function SettingsScreen() {
               {receiptShowPointsQr ? (
                 <TextField label="เงื่อนไขสะสมแต้ม" value={receiptPointsTerms} onChangeText={setReceiptPointsTerms} />
               ) : null}
+            </SectionCard>
+
+            <SectionCard title="เครื่องพิมพ์">
+              <TextField
+                label="IP เครื่องพิมพ์ (ต้องต่อ WiFi เดียวกับร้าน)"
+                value={printerIp}
+                onChangeText={setPrinterIp}
+                placeholder="192.168.1.100"
+                keyboardType="decimal-pad"
+              />
+              <TextField label="พอร์ต" value={printerPort} onChangeText={setPrinterPort} keyboardType="number-pad" />
             </SectionCard>
 
             <SectionCard title="เป้าหมายยอดขาย">

@@ -3,11 +3,12 @@ import { View, Text, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { Button } from '@/components/Button';
+import { printReceipt, PrinterError } from '@/lib/printer';
 import type { Order } from '@/types/pos';
+import type { StoreSettings } from '@/types/backoffice';
 
 export default function ReceiptScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,15 +19,19 @@ export default function ReceiptScreen() {
     queryFn: async () => (await api.get(`/orders/${id}`)).data as Order,
   });
 
+  const { data: store } = useQuery({
+    queryKey: ['store-me'],
+    queryFn: async () => (await api.get('/stores/me')).data as StoreSettings,
+  });
+
   async function onPrint() {
+    if (!order || !store) return;
     setPrinting(true);
     try {
-      await api.post(`/orders/${id}/print/escpos`);
+      await printReceipt(store, order);
       Alert.alert('พิมพ์ใบเสร็จแล้ว', 'ส่งงานพิมพ์ไปยังเครื่องพิมพ์เรียบร้อย');
     } catch (err) {
-      const message = isAxiosError(err)
-        ? err.response?.data?.error ?? 'พิมพ์ไม่สำเร็จ — ตรวจสอบการตั้งค่าเครื่องพิมพ์ (PRINTER_IP)'
-        : 'พิมพ์ไม่สำเร็จ';
+      const message = err instanceof PrinterError ? err.message : 'พิมพ์ไม่สำเร็จ — ตรวจสอบว่ามือถือต่อ WiFi เดียวกับเครื่องพิมพ์';
       Alert.alert('พิมพ์ไม่สำเร็จ', message);
     } finally {
       setPrinting(false);

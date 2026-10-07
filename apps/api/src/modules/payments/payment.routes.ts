@@ -5,7 +5,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { BadRequest } from '../../utils/errors';
 import * as stripeService from './stripe.service';
-import { isSlip2GoConfigured, verifySlipImage } from './slip2go.service';
+import { isSlip2GoConfigured, verifySlipImage, verifySlipQrCode } from './slip2go.service';
 
 const router = Router();
 router.use(authMiddleware);
@@ -96,6 +96,26 @@ router.post('/verify-slip', slipUpload.single('file'), async (req, res, next) =>
       { buffer: req.file.buffer, originalname: req.file.originalname, mimetype: req.file.mimetype },
       expectedAmount
     );
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
+
+const qrCodeSchema = z.object({
+  qrCode: z.string().min(1),
+  expectedAmount: z.number().positive().optional(),
+});
+
+/**
+ * POST /api/payments/verify-slip-qr
+ * ตรวจสอบสลิปโอนเงินจาก QR code ที่สแกนสดด้วยกล้อง (ไม่ใช่รูปถ่าย) — ใช้โดย
+ * แอปมือถือ soft gate เหมือน /verify-slip เดิม ผลตรวจแค่เตือน ไม่บล็อกการจ่าย
+ */
+router.post('/verify-slip-qr', validate(qrCodeSchema), async (req, res, next) => {
+  try {
+    const { qrCode, expectedAmount } = req.body as z.infer<typeof qrCodeSchema>;
+    const result = await verifySlipQrCode(qrCode, expectedAmount);
     res.json(result);
   } catch (e) {
     next(e);

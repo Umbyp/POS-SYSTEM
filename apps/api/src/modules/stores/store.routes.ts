@@ -40,6 +40,9 @@ const updateSchema = z.object({
   receiptFooterText: z.string().optional().nullable(),
   // ตัวช่วยตั้งค่าเริ่มต้น — ตั้งเมื่อร้านทำ/ข้าม wizard แล้ว (กันไม่ให้เด้งซ้ำ)
   onboardingCompletedAt: z.coerce.date().optional().nullable(),
+  // เครื่องพิมพ์ครัว/เคาน์เตอร์ — แอปมือถือใช้ค่านี้พิมพ์ตรงผ่าน LAN
+  printerIp: z.string().optional().nullable(),
+  printerPort: z.number().int().positive().optional(),
 });
 
 // GET /api/stores/me - ข้อมูลร้านของ user ปัจจุบัน
