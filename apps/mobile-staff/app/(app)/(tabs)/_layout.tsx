@@ -17,13 +17,17 @@ export default function TabsLayout() {
         // The sidebar (SidebarNav) owns primary navigation on tablet, so the
         // bottom tab bar is redundant there — hide it instead of removing
         // the navigator, which would require a second routing structure.
-        tabBarStyle: isTablet ? { display: 'none' } : undefined,
+        tabBarInactiveTintColor: '#7A6A5C',
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
+        tabBarStyle: isTablet
+          ? { display: 'none' }
+          : { backgroundColor: '#FFFFFF', borderTopColor: '#E7DACE', borderTopWidth: 1 },
       }}
     >
       <Tabs.Screen
         name="dashboard"
         options={{
-          title: 'Dashboard',
+          title: 'ภาพรวม',
           tabBarIcon: ({ color, size }) => <LayoutDashboard color={color} size={size} />,
           href: can(['OWNER', 'ADMIN']) ? undefined : null,
         }}
@@ -31,7 +35,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="pos"
         options={{
-          title: 'POS',
+          title: 'ขาย',
           tabBarIcon: ({ color, size }) => <ShoppingCart color={color} size={size} />,
           href: can(['OWNER', 'ADMIN', 'CASHIER']) ? undefined : null,
         }}
@@ -39,7 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="kds"
         options={{
-          title: 'Kitchen',
+          title: 'ครัว',
           tabBarIcon: ({ color, size }) => <ChefHat color={color} size={size} />,
           href: can(['OWNER', 'ADMIN', 'KITCHEN']) ? undefined : null,
         }}
@@ -47,7 +51,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="tables"
         options={{
-          title: 'Tables',
+          title: 'โต๊ะ',
           tabBarIcon: ({ color, size }) => <Grid3X3 color={color} size={size} />,
           href: can(['OWNER', 'ADMIN', 'CASHIER']) ? undefined : null,
         }}
@@ -55,7 +59,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="more"
         options={{
-          title: 'More',
+          title: 'เพิ่มเติม',
           tabBarIcon: ({ color, size }) => <MoreHorizontal color={color} size={size} />,
         }}
       />

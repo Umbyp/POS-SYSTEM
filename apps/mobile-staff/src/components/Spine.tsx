@@ -17,7 +17,9 @@ export function Spine({ color }: { color: string }) {
 export function SpineGauge({ color, ratio, trackColor }: { color: string; ratio: number; trackColor: string }) {
   const clamped = Math.max(0, Math.min(1, ratio));
   return (
-    <View style={{ backgroundColor: trackColor }} className="w-[7px] rounded-full overflow-hidden justify-end">
+    // Absolutely positioned so the percentage-height fill never feeds back into
+    // the card's own (auto) height — the parent must be `relative` and pad left 8px.
+    <View style={{ backgroundColor: trackColor }} className="absolute left-0 top-0 bottom-0 w-2 overflow-hidden justify-end">
       <View style={{ backgroundColor: color, height: `${clamped * 100}%` }} className="w-full" />
     </View>
   );

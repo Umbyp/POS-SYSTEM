@@ -90,7 +90,7 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
           SafeAreaProvider doesn't reach it — it needs its own. */}
       <SafeAreaProvider>
       <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
-        <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
+        <View className="flex-row items-center justify-between px-4 py-3 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border">
           <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ตะกร้า</Text>
           <Pressable onPress={onClose} hitSlop={12}>
             <X size={22} color="#9CA3AF" />
@@ -102,7 +102,7 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
             <Pressable
               key={t}
               onPress={() => onSelectType(t)}
-              className={`flex-1 items-center rounded-lg py-2 ${cart.type === t ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}
+              className={`flex-1 items-center rounded-full py-2 border ${cart.type === t ? 'bg-primary border-primary' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
             >
               <Text className={`text-[12px] font-semibold ${cart.type === t ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
                 {TYPE_LABEL[t]}
@@ -114,7 +114,7 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
         {isDineIn ? (
           <Pressable
             onPress={() => setShowTablePicker(true)}
-            className="mx-4 mb-2 flex-row items-center justify-between rounded-lg border border-border dark:border-dark-border px-3.5 py-2.5"
+            className="mx-4 mb-2 flex-row items-center justify-between rounded-[10px] border border-border dark:border-dark-border bg-card dark:bg-dark-card px-3.5 py-2.5"
           >
             <Text className="text-[13px] text-foreground dark:text-dark-foreground">
               {selectedTable ? `โต๊ะ ${selectedTable.number}` : 'เลือกโต๊ะ'}
@@ -158,7 +158,7 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
           )}
         </ScrollView>
 
-        <View className="border-t border-border dark:border-dark-border p-4 gap-3">
+        <View className="border-t border-border dark:border-dark-border bg-card dark:bg-dark-card p-4 gap-3">
           <View className="flex-row justify-between">
             <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">รายการใหม่</Text>
             <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(cart.subtotal())}</Text>
@@ -166,26 +166,26 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
 
           {isDineIn ? (
             !cart.tableId ? (
-              <View className="h-12 items-center justify-center rounded-lg bg-muted dark:bg-dark-muted">
+              <View className="h-14 items-center justify-center rounded-xl bg-muted dark:bg-dark-muted">
                 <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">กรุณาเลือกโต๊ะก่อน</Text>
               </View>
             ) : hasUnsent ? (
               <Pressable
                 onPress={() => send.mutate()}
                 disabled={send.isPending}
-                className="h-12 items-center justify-center rounded-lg bg-primary"
+                className="h-14 items-center justify-center rounded-xl bg-primary"
               >
                 <Text className="text-[15px] font-semibold text-white">{send.isPending ? 'กำลังส่ง…' : 'ส่งเข้าครัว'}</Text>
               </Pressable>
             ) : cart.openOrderId ? (
               <Pressable
                 onPress={() => onCheckout({ kind: 'settle', orderId: cart.openOrderId! })}
-                className="h-12 items-center justify-center rounded-lg bg-primary"
+                className="h-14 items-center justify-center rounded-xl bg-primary"
               >
                 <Text className="text-[15px] font-semibold text-white">ชำระเงิน</Text>
               </Pressable>
             ) : (
-              <View className="h-12 items-center justify-center rounded-lg bg-muted dark:bg-dark-muted">
+              <View className="h-14 items-center justify-center rounded-xl bg-muted dark:bg-dark-muted">
                 <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">เพิ่มสินค้าเพื่อเริ่มบิล</Text>
               </View>
             )
@@ -193,7 +193,7 @@ export function CartSheet({ visible, onClose, onCheckout }: CartSheetProps) {
             <Pressable
               onPress={() => onCheckout({ kind: 'new', type: cart.type, items: cart.items })}
               disabled={!hasUnsent}
-              className={`h-12 items-center justify-center rounded-lg bg-primary ${!hasUnsent ? 'opacity-50' : ''}`}
+              className={`h-14 items-center justify-center rounded-xl bg-primary ${!hasUnsent ? 'opacity-50' : ''}`}
             >
               <Text className="text-[15px] font-semibold text-white">ชำระเงิน</Text>
             </Pressable>

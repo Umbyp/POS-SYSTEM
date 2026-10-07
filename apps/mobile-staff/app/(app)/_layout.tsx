@@ -25,14 +25,14 @@ export default function AppLayout() {
     <Stack screenOptions={{ headerShown: true, headerShadowVisible: false }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />
-      <Stack.Screen name="products" options={{ title: 'Products' }} />
-      <Stack.Screen name="inventory" options={{ title: 'Inventory' }} />
-      <Stack.Screen name="customers" options={{ title: 'Customers' }} />
-      <Stack.Screen name="loyalty" options={{ title: 'Loyalty' }} />
-      <Stack.Screen name="employees" options={{ title: 'Staff' }} />
-      <Stack.Screen name="reports" options={{ title: 'Reports' }} />
-      <Stack.Screen name="activity" options={{ title: 'Activity Log' }} />
-      <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+      <Stack.Screen name="products" options={{ title: 'สินค้า' }} />
+      <Stack.Screen name="inventory" options={{ title: 'สต๊อก' }} />
+      <Stack.Screen name="customers" options={{ title: 'ลูกค้า · สมาชิก' }} />
+      <Stack.Screen name="loyalty" options={{ title: 'สะสมแต้ม' }} />
+      <Stack.Screen name="employees" options={{ title: 'พนักงาน' }} />
+      <Stack.Screen name="reports" options={{ title: 'รายงาน' }} />
+      <Stack.Screen name="activity" options={{ title: 'ประวัติ' }} />
+      <Stack.Screen name="settings" options={{ title: 'ตั้งค่า' }} />
     </Stack>
   );
 

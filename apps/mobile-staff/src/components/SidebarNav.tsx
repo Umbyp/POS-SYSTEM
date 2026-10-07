@@ -5,6 +5,23 @@ import { LogOut } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import { NAV_ITEMS, visibleNavItems } from '@/constants/nav';
 
+// Thai labels matching the redesign; nav.ts keeps the English keys/labels.
+const TH_LABEL: Record<string, string> = {
+  dashboard: 'ภาพรวม',
+  pos: 'ขาย (POS)',
+  kds: 'ครัว',
+  tables: 'โต๊ะ',
+  orders: 'ออเดอร์',
+  products: 'สินค้า',
+  inventory: 'สต็อก',
+  customers: 'ลูกค้า · สมาชิก',
+  loyalty: 'สะสมแต้ม',
+  employees: 'พนักงาน',
+  reports: 'รายงาน',
+  activity: 'ประวัติ',
+  settings: 'ตั้งค่า',
+};
+
 const LAST_TAB_KEY = [...NAV_ITEMS].reverse().find((item) => item.tab)?.key;
 
 export function SidebarNav() {
@@ -28,7 +45,7 @@ export function SidebarNav() {
             <Text className="text-[13px] font-bold text-white" numberOfLines={1}>
               RestroPOS
             </Text>
-            <Text className="text-[10px] font-medium text-[#C0A78E]" numberOfLines={1}>
+            <Text className="text-[10px] font-medium text-[#B9A392]" numberOfLines={1}>
               {user?.storeId ?? ''}
             </Text>
           </View>
@@ -41,13 +58,13 @@ export function SidebarNav() {
               <View key={item.key}>
                 <Pressable
                   onPress={() => router.push(item.href as never)}
-                  className={`border-l-[3px] px-4 py-2.5 ${active ? 'border-l-primary bg-[#3B2A1E]' : 'border-l-transparent'}`}
+                  className={`border-l-[3px] px-4 py-[11px] ${active ? 'border-l-primary bg-[#3B2A1E]' : 'border-l-transparent'}`}
                 >
                   <Text
                     className={`text-[13px] ${active ? 'font-semibold text-white' : 'font-medium text-[#B9A392]'}`}
                     numberOfLines={1}
                   >
-                    {item.label}
+                    {TH_LABEL[item.key] ?? item.label}
                   </Text>
                 </Pressable>
                 {item.key === LAST_TAB_KEY ? <View className="mx-4 my-2.5 h-px bg-[#4A3627]" /> : null}
@@ -64,7 +81,7 @@ export function SidebarNav() {
             <Text className="text-[12px] font-semibold text-white" numberOfLines={1}>
               {user?.name}
             </Text>
-            <Text className="text-[10px] font-medium text-[#C0A78E]" numberOfLines={1}>
+            <Text className="text-[10px] font-medium text-[#B9A392]" numberOfLines={1}>
               {user?.role}
             </Text>
           </View>

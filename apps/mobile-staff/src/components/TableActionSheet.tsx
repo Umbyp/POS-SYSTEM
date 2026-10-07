@@ -41,7 +41,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 
               <Pressable
                 onPress={onOpenBill}
-                className="h-12 flex-row items-center justify-center gap-2 rounded-lg bg-primary"
+                className="h-14 flex-row items-center justify-center gap-2 rounded-xl bg-primary"
               >
                 <Text className="text-[15px] font-semibold text-white">ไปที่บิล / POS</Text>
                 <ArrowRight size={18} color="#FFFFFF" />
@@ -49,7 +49,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 
               <Pressable
                 onPress={() => setShowQr(true)}
-                className="h-12 flex-row items-center justify-center gap-2 rounded-lg bg-muted dark:bg-dark-muted"
+                className="h-14 flex-row items-center justify-center gap-2 rounded-xl bg-muted dark:bg-dark-muted"
               >
                 <QrCode size={18} color="#7A6A5C" />
                 <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">ดู QR โต๊ะ</Text>

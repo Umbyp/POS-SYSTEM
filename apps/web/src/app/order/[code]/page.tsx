@@ -705,7 +705,7 @@ export default function SelfOrderPage() {
                 <button
                   onClick={submit}
                   disabled={submitting}
-                  className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 shadow-[0_8px_18px_-6px_rgba(255,107,53,0.6)]"
+                  className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform disabled:opacity-60 shadow-pop"
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('selfOrder.submit')}
                 </button>

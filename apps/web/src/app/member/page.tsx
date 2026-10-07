@@ -4,7 +4,6 @@ import { useSearchParams } from 'next/navigation';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   Stamp,
-  Coins,
   Search,
   Loader2,
   Sparkles,
@@ -233,9 +232,13 @@ function MemberPortalContent() {
   const currentStampsProgress = stampsPerReward > 0 ? stamps % stampsPerReward : 0;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center p-4 py-8 relative overflow-hidden">
-      {/* Soft brand glow behind the page — purely decorative */}
-      <div className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 w-[36rem] h-[24rem] rounded-full bg-primary/20 blur-3xl opacity-60 dark:opacity-30" />
+    <div
+      className="customer-theme min-h-screen bg-background flex flex-col items-center p-4 py-8 relative overflow-hidden"
+      style={{
+        backgroundImage: 'radial-gradient(circle at 12px 12px, #F2E4D6 2px, transparent 2px)',
+        backgroundSize: '26px 26px',
+      }}
+    >
 
       <div className="w-full max-w-md space-y-4 relative">
         {/* Header — brand mark + greeting, matches the store's own bottom-nav style */}
@@ -245,26 +248,26 @@ function MemberPortalContent() {
               <img
                 src={store.logo.startsWith('http') ? store.logo : `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}${store.logo}`}
                 alt={store.name}
-                className="w-12 h-12 rounded-full object-cover border border-border shadow-sm"
+                className="w-12 h-12 rounded-full object-cover border border-border"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/20 shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center border border-primary/30">
                 <span className="text-lg font-bold">{store.name.substring(0, 1)}</span>
               </div>
             )}
             <div>
               <p className="text-xs text-muted-foreground">สวัสดี</p>
-              <p className="text-sm font-semibold truncate max-w-[160px]">{member ? member.name : 'ลูกค้า'}</p>
+              <p className="text-base font-bold truncate max-w-[160px]">{member ? member.name : 'ลูกค้า'}</p>
             </div>
           </div>
           <div className="text-right">
-            <p className="text-sm font-bold tracking-widest uppercase">{store.name}</p>
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#8C6A4F] max-w-[140px] truncate">{store.name}</p>
           </div>
         </div>
 
         {/* Claim result banner — only when this visit came from a receipt QR */}
         {claimResult && (
-          <div className="relative overflow-hidden rounded-2xl border border-success/30 bg-gradient-to-br from-success/15 via-success/10 to-transparent p-4 flex items-center gap-3 animate-slide-up shadow-card">
+          <div className="relative overflow-hidden rounded-2xl border border-success/30 bg-card p-4 flex items-center gap-3 animate-slide-up">
             <div className="w-11 h-11 rounded-full bg-success/20 flex items-center justify-center shrink-0">
               <PartyPopper className="w-6 h-6 text-success" />
             </div>
@@ -292,13 +295,13 @@ function MemberPortalContent() {
 
         {/* State 1: Enter Phone Number */}
         {!member && !showRegisterForm && (
-          <Card className="overflow-hidden shadow-card animate-slide-up">
-            <div className="bg-gradient-to-br from-primary to-primary-600 px-5 pt-6 pb-8 text-center text-primary-foreground">
-              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center mx-auto mb-3">
-                <Sparkles className="w-7 h-7" />
+          <Card className="overflow-hidden rounded-2xl animate-slide-up">
+            <div className="bg-[#8C6A4F] px-5 py-4 flex items-center justify-between text-[#FBF6F0]">
+              <div>
+                <p className="text-sm font-semibold">สแกนแล้วสะสมแต้มได้เลย</p>
+                <p className="text-xs opacity-80 mt-0.5">ระบบสมาชิก {store.name}</p>
               </div>
-              <p className="text-base font-bold">สแกนแล้วสะสมแต้มได้เลย</p>
-              <p className="text-xs text-primary-foreground/80 mt-1">ระบบสมาชิก {store.name}</p>
+              <Sparkles className="w-5 h-5 opacity-80" />
             </div>
             <CardHeader className="pt-5">
               <CardTitle className="text-base flex items-center gap-2">
@@ -344,70 +347,62 @@ function MemberPortalContent() {
         {/* State 2: Member dashboard */}
         {member && (
           <div className="space-y-4 animate-slide-up">
-            {/* Digital membership card — dark gradient "wallet pass" look */}
-            <div className="relative rounded-3xl overflow-hidden shadow-pop bg-gradient-to-br from-foreground via-[#1c2333] to-foreground text-background p-5">
-              {/* Decorative rings, purely visual */}
-              <div className="pointer-events-none absolute -right-10 -top-10 w-40 h-40 rounded-full border border-background/10" />
-              <div className="pointer-events-none absolute -right-4 -bottom-8 w-28 h-28 rounded-full bg-primary/20 blur-2xl" />
-
-              <div className="relative flex items-center justify-between">
-                <span className="text-xs font-semibold tracking-widest uppercase opacity-70">บัตรสมาชิก</span>
-                <Sparkles className="w-4 h-4 opacity-70" />
+            {/* Member card — brown header bar, big point number with P coin */}
+            <div className="rounded-2xl overflow-hidden border border-border bg-card">
+              <div className="flex items-center justify-between bg-[#8C6A4F] px-4 py-3 text-[#FBF6F0]">
+                <span className="text-sm font-semibold">บัตรสมาชิก</span>
+                <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tabular-nums font-mono tracking-wide">
+                  {member.phone}
+                </span>
               </div>
-              <p className="relative text-lg font-bold mt-3 truncate">{member.name}</p>
-              <p className="relative text-xs font-mono opacity-60 tracking-wider">{member.phone}</p>
-
-              <div className={`relative mt-5 grid ${showPoints && showStamps ? 'grid-cols-2' : 'grid-cols-1'} gap-3`}>
+              <div className={`grid ${showPoints && showStamps ? 'grid-cols-2 divide-x divide-border' : 'grid-cols-1'}`}>
                 {showPoints && (
-                  <div className="rounded-2xl bg-background/10 backdrop-blur-sm px-4 py-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-amber-400/20 text-amber-300 flex items-center justify-center shrink-0">
-                      <Coins className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-2xl font-bold tabular-nums leading-tight">{member.points ?? 0}</div>
-                      <div className="text-[11px] opacity-70 uppercase tracking-wide">แต้มสะสม</div>
+                  <div className="px-4 py-4">
+                    <div className="text-[40px] font-bold tabular-nums leading-none">{member.points ?? 0}</div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                        P
+                      </span>
+                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">แต้มสะสม</span>
                     </div>
                   </div>
                 )}
                 {showStamps && (
-                  <div className="rounded-2xl bg-background/10 backdrop-blur-sm px-4 py-3 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-400/20 text-indigo-300 flex items-center justify-center shrink-0">
-                      <Stamp className="w-5 h-5" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-2xl font-bold tabular-nums leading-tight">{member.stamps ?? 0}</div>
-                      <div className="text-[11px] opacity-70 uppercase tracking-wide">ดวงสะสม</div>
+                  <div className="px-4 py-4">
+                    <div className="text-[40px] font-bold tabular-nums leading-none">{member.stamps ?? 0}</div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <Stamp className="w-5 h-5 text-primary" />
+                      <span className="text-xs font-semibold text-muted-foreground tracking-wide">ดวงสะสม</span>
                     </div>
                   </div>
                 )}
               </div>
-
               {showPoints && Number(store.pointValue) > 0 && (member.points ?? 0) > 0 && (
-                <p className="relative mt-3 text-[11px] opacity-60">
+                <div className="border-t border-border bg-muted px-4 py-2.5 text-center text-[11px] font-medium text-muted-foreground">
                   แลกได้สูงสุด {formatCurrency((member.points ?? 0) * Number(store.pointValue))}
-                  {Number(store.minRedeemPoints) > 0 && ` · ใช้ขั้นต่ำ ${store.minRedeemPoints} แต้ม`}
-                </p>
+                  {Number(store.minRedeemPoints) > 0 && ` · ขั้นต่ำ ${store.minRedeemPoints} แต้ม`}
+                </div>
               )}
             </div>
 
             {/* Stamp card progress */}
             {showStamps && (
-              <Card>
+              <Card className="rounded-2xl">
                 <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
                   <div className="space-y-1">
                     <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
-                      <Gift className="w-4 h-4 text-indigo-600" /> บัตรสะสมดวงของคุณ
+                      <Gift className="w-4 h-4 text-primary" /> บัตรสะสมดวงของคุณ
                     </CardTitle>
                     <CardDescription className="text-[11px]">
                       ครบ {stampsPerReward} ดวง รับรางวัลฟรี!
                     </CardDescription>
                   </div>
-                  <span className="text-xs font-bold text-indigo-600 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full shrink-0">
+                  <span className="text-xs font-bold text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full shrink-0">
                     {currentStampsProgress} / {stampsPerReward}
                   </span>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-5 gap-2.5 bg-muted p-3 rounded-xl border border-border">
+                  <div className="grid grid-cols-5 gap-2.5">
                     {Array.from({ length: stampsPerReward }).map((_, idx) => {
                       const isStamped = idx < currentStampsProgress;
                       return (
@@ -415,22 +410,22 @@ function MemberPortalContent() {
                           key={idx}
                           className={`aspect-square rounded-full flex items-center justify-center text-xs font-bold border transition-all duration-300 ${
                             isStamped
-                              ? 'bg-indigo-600 border-indigo-600 text-white shadow-md scale-105'
+                              ? 'bg-primary border-primary text-primary-foreground'
                               : 'bg-card border-border text-muted-foreground border-dashed'
                           }`}
                         >
-                          {isStamped ? <span className="text-sm">⭐</span> : <span className="text-[10px] font-mono">{idx + 1}</span>}
+                          {isStamped ? <span className="w-3 h-3 rounded-full bg-white" /> : <span className="text-[10px] font-mono">{idx + 1}</span>}
                         </div>
                       );
                     })}
                   </div>
 
                   {cardsReady > 0 && (
-                    <div className="flex items-center gap-2.5 bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-3">
-                      <Gift className="w-5 h-5 text-indigo-600 shrink-0" />
+                    <div className="flex items-center gap-2.5 bg-primary/10 border border-primary/30 rounded-xl p-3">
+                      <Gift className="w-5 h-5 text-primary shrink-0" />
                       <div className="text-xs leading-relaxed">
                         <span className="font-semibold">ยินดีด้วยครับ!</span> คุณมีของรางวัลรอแลกอยู่{' '}
-                        <strong className="bg-indigo-600 text-white px-1.5 py-0.5 rounded text-[10px]">{cardsReady} รางวัล</strong>{' '}
+                        <strong className="bg-primary text-primary-foreground px-1.5 py-0.5 rounded text-[10px]">{cardsReady} รางวัล</strong>{' '}
                         แจ้งพนักงานเมื่อคิดเงินเพื่อกดแลกใช้สิทธิ์
                       </div>
                     </div>
@@ -438,12 +433,12 @@ function MemberPortalContent() {
 
                   {store.stampRewardName && (
                     <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
                       <span>
                         ของรางวัล: <strong className="text-foreground">{store.stampRewardName}</strong>
                       </span>
                       {Number(store.stampRewardValue) > 0 && (
-                        <span className="text-indigo-600">(มูลค่าส่วนลด {formatCurrency(store.stampRewardValue)})</span>
+                        <span className="text-primary">(มูลค่าส่วนลด {formatCurrency(store.stampRewardValue)})</span>
                       )}
                     </div>
                   )}
@@ -451,7 +446,7 @@ function MemberPortalContent() {
               </Card>
             )}
 
-            <Button onClick={resetPortal} variant="outline" className="w-full text-xs">
+            <Button onClick={resetPortal} variant="outline" className="w-full text-xs bg-card text-muted-foreground">
               <LogOut className="w-3.5 h-3.5 mr-1" /> ออกจากหน้านี้
             </Button>
           </div>
@@ -459,7 +454,7 @@ function MemberPortalContent() {
 
         {/* State 3: Self Registration Form */}
         {showRegisterForm && !member && (
-          <Card className="animate-slide-up shadow-card">
+          <Card className="animate-slide-up rounded-2xl">
             <CardHeader className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-warning bg-warning/10 border border-warning/20 rounded-lg p-2.5 leading-relaxed mb-1">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -538,7 +533,7 @@ function MemberPortalContent() {
 }
 
 function PortalShell({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-background flex items-center justify-center p-4">{children}</div>;
+  return <div className="customer-theme min-h-screen bg-background flex items-center justify-center p-4">{children}</div>;
 }
 
 export default function MemberPortalPage() {
