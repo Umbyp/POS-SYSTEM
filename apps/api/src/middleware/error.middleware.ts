@@ -38,6 +38,16 @@ export const errorMiddleware: ErrorRequestHandler = (err, _req, res, _next) => {
 
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === 'P2002') {
+      // A bank slip may only settle one order (Order.slipTransRef is unique) — tell the
+      // cashier that, instead of the raw constraint text, since they see this verbatim.
+      const target = Array.isArray(err.meta?.target) ? (err.meta?.target as string[]) : [];
+      if (target.includes('slipTransRef')) {
+        return res.status(409).json({
+          error: 'สลิปนี้ถูกใช้ชำระบิลอื่นไปแล้ว — ขอให้ลูกค้าโอนใหม่หรือเลือกวิธีชำระอื่น',
+          code: 'SLIP_ALREADY_USED',
+          meta: err.meta,
+        });
+      }
       return res.status(409).json({ error: 'Unique constraint failed', meta: err.meta });
     }
     if (err.code === 'P2025') {

@@ -118,7 +118,12 @@ export default function DashboardScreen() {
                 className={`w-full rounded-[4px] ${i === peakBar && b.value > 0 ? 'bg-foreground dark:bg-dark-foreground' : 'bg-border dark:bg-dark-border'}`}
                 style={{ height: Math.max(4, (b.value / maxBar) * 40) }}
               />
-              <Text className="text-[11px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">{b.label}</Text>
+              <Text
+                numberOfLines={1}
+                className="w-full text-center text-[10px] font-semibold text-muted-foreground dark:text-dark-muted-foreground"
+              >
+                {bars.length > 12 && i % 2 === 1 ? '' : b.label}
+              </Text>
             </View>
           ))}
         </View>
@@ -185,7 +190,7 @@ export default function DashboardScreen() {
           <View key={o.id} className="flex-row items-center gap-2.5">
             <View className="h-9 w-1.5 rounded-[3px]" style={{ backgroundColor: SPINE_COLOR[o.status as OrderStatus] ?? '#D8C7B8' }} />
             <View className="flex-1">
-              <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">#{o.orderNumber}</Text>
+              <Text numberOfLines={1} className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">#{o.orderNumber}</Text>
               <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
                 {o.tableNumber ? `โต๊ะ ${o.tableNumber}` : o.type} · {formatTime(o.createdAt)}
               </Text>
@@ -236,7 +241,7 @@ export default function DashboardScreen() {
                   className="basis-[47%] grow justify-center rounded-[14px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card"
                 >
                   <Text className="text-[10px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">{st.label}</Text>
-                  <Text className={`text-[26px] font-bold ${st.amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit className={`text-[26px] font-bold ${st.amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
                     {st.value}
                   </Text>
                 </View>

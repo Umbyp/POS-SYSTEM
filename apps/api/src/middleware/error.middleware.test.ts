@@ -118,4 +118,14 @@ describe('errorMiddleware', () => {
     });
     expect(run(err).status).toBe(409);
   });
+
+  it('explains a reused bank slip in Thai with a stable code', () => {
+    const err = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {
+      code: 'P2002', clientVersion: 'test', meta: { modelName: 'Order', target: ['slipTransRef'] },
+    });
+    const { status, body } = run(err);
+    expect(status).toBe(409);
+    expect(body.code).toBe('SLIP_ALREADY_USED');
+    expect(body.error).toMatch(/สลิป/);
+  });
 });

@@ -2,9 +2,12 @@ import { View, Text, Pressable, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePathname, useRouter } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/stores/auth.store';
 import { avatarInitial } from '@/lib/format';
 import { NAV_ITEMS, visibleNavItems } from '@/constants/nav';
+import type { StoreSettings } from '@/types/backoffice';
 
 // Thai labels matching the redesign; nav.ts keeps the English keys/labels.
 const TH_LABEL: Record<string, string> = {
@@ -28,6 +31,10 @@ const LAST_TAB_KEY = [...NAV_ITEMS].reverse().find((item) => item.tab)?.key;
 export function SidebarNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: store } = useQuery({
+    queryKey: ['store-me'],
+    queryFn: async () => (await api.get('/stores/me')).data as StoreSettings,
+  });
   const { user, logout } = useAuthStore();
   const items = visibleNavItems(user?.role);
   const initial = avatarInitial(user?.name) ?? '?';
@@ -47,7 +54,7 @@ export function SidebarNav() {
               RestroPOS
             </Text>
             <Text className="text-[10px] font-medium text-[#B9A392]" numberOfLines={1}>
-              {user?.storeId ?? ''}
+              {store?.name ?? ''}
             </Text>
           </View>
         </View>

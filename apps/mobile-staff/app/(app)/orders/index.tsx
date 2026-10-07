@@ -128,8 +128,8 @@ export default function OrdersScreen() {
               >
                 <View className="w-1.5" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[item.status] }} />
                 <View className="flex-1 px-[13px] py-3">
-                  <View className="flex-row items-baseline justify-between">
-                    <Text className="text-[15px] font-bold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
+                  <View className="flex-row items-baseline justify-between gap-2">
+                    <Text numberOfLines={1} className="flex-shrink text-[15px] font-bold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
                     <Text
                       className={`text-[15px] font-bold ${dead ? 'text-muted-foreground line-through dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}
                     >

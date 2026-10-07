@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, Pressable, TextInput, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react-native';
@@ -82,7 +82,9 @@ export default function PosScreen() {
   const spineColor = cart.type === 'DINE_IN' && selectedTable ? TABLE_STATUS_DOT[selectedTable.status] : '#2B1F17';
   const summary = cart.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ');
   const qtyById = useMemo(() => Object.fromEntries(cart.items.map((i) => [i.productId, i.quantity])), [cart.items]);
-  const columns = isTablet ? 4 : 2;
+  // Sidebar (~196) + cart panel (340) take a fixed share of a tablet's width — size the grid to what's left.
+  const { width: windowWidth } = useWindowDimensions();
+  const columns = isTablet ? Math.max(2, Math.min(4, Math.floor((windowWidth - 196 - 340) / 150))) : 2;
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
@@ -142,12 +144,14 @@ export default function PosScreen() {
       ) : (
         <FlatList
           key={columns}
-          data={products}
+          // Pad the last row so an odd product count doesn't stretch the final card across the row.
+          data={[...products, ...Array.from({ length: (columns - (products.length % columns)) % columns }, (_, i) => ({ id: `pad-${i}`, pad: true } as unknown as Product))]}
           keyExtractor={(p) => p.id}
           numColumns={columns}
           contentContainerStyle={{ paddingHorizontal: isTablet ? 18 : 14, paddingTop: 8, paddingBottom: itemCount > 0 && !isTablet ? 150 : 16, gap: 10 }}
           columnWrapperStyle={{ gap: 10 }}
           renderItem={({ item }) => {
+            if ((item as unknown as { pad?: boolean }).pad) return <View className="flex-1" />;
             const qty = qtyById[item.id] ?? 0;
             const selected = qty > 0;
             const soldOut = item.trackStock && !!item.inventory && item.inventory.quantity <= 0;
