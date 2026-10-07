@@ -26,3 +26,12 @@ export function formatTime(date: Date | string) {
     minute: '2-digit',
   }).format(d);
 }
+
+/** Minutes elapsed since `since`, as "N นาที" / "N ชม." / "N วัน" so stale data stays readable. */
+export function formatElapsedMinutes(since: Date | string) {
+  const t = typeof since === 'string' ? new Date(since).getTime() : since.getTime();
+  const mins = Math.max(0, Math.floor((Date.now() - t) / 60000));
+  if (mins < 120) return `${mins} นาที`;
+  if (mins < 2880) return `${Math.floor(mins / 60)} ชม.`;
+  return `${Math.floor(mins / 1440)} วัน`;
+}

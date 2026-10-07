@@ -21,11 +21,32 @@ const COLOR: Record<OrderStatus, { bg: string; fg: string }> = {
   REFUNDED: { bg: '#FEE2E2', fg: '#B91C1C' },
 };
 
+/** Left "status spine" colour per order status (mockup 1g/2d). */
+export const SPINE_COLOR: Record<OrderStatus, string> = {
+  DRAFT: '#D8C7B8',
+  PENDING: '#B45309',
+  PREPARING: '#1D4ED8',
+  READY: '#047857',
+  COMPLETED: '#D8C7B8',
+  CANCELLED: '#D8C7B8',
+  REFUNDED: '#D8C7B8',
+};
+
+export const OVERDUE_COLOR = '#B91C1C';
+const OVERDUE_AFTER_MIN = 15;
+
+/** Minutes past the kitchen threshold for an order still being made, else 0. */
+export function overdueMinutes(status: OrderStatus, createdAt: string): number {
+  if (status !== 'PENDING' && status !== 'PREPARING') return 0;
+  const waited = Math.floor((Date.now() - new Date(createdAt).getTime()) / 60000);
+  return waited > OVERDUE_AFTER_MIN ? waited - OVERDUE_AFTER_MIN : 0;
+}
+
 export function StatusBadge({ status }: { status: OrderStatus }) {
   const c = COLOR[status];
   return (
-    <View style={{ backgroundColor: c.bg }} className="rounded-full px-2.5 py-1 self-start">
-      <Text style={{ color: c.fg }} className="text-[11px] font-semibold">
+    <View style={{ backgroundColor: c.bg }} className="rounded-full px-[9px] py-1 self-start">
+      <Text style={{ color: c.fg }} className="text-[11px] font-bold">
         {LABEL[status]}
       </Text>
     </View>

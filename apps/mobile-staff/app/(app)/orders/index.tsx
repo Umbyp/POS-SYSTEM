@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Receipt } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency, formatTime } from '@/lib/format';
-import { StatusBadge } from '@/components/StatusBadge';
+import { StatusBadge, SPINE_COLOR, OVERDUE_COLOR, overdueMinutes } from '@/components/StatusBadge';
 import type { Order } from '@/types/pos';
 
 const PERIODS = [
@@ -48,14 +48,19 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row gap-2 px-4 py-3">
+      <View className="flex-row items-center justify-between border-b border-border bg-card px-4 py-2.5 dark:border-dark-border dark:bg-dark-card">
+        <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">
+          ออเดอร์{PERIODS.find((p) => p.key === period)?.label} · {orders.length}
+        </Text>
+      </View>
+      <View className="flex-row gap-[7px] px-4 py-[11px]">
         {PERIODS.map((p) => (
           <Pressable
             key={p.key}
             onPress={() => setPeriod(p.key)}
-            className={`rounded-full px-3.5 py-1.5 ${period === p.key ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}
+            className={`rounded-full px-3 py-1.5 ${period === p.key ? 'bg-primary' : 'border border-border bg-card dark:border-dark-border dark:bg-dark-card'}`}
           >
-            <Text className={`text-[13px] font-medium ${period === p.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
+            <Text className={`text-[12px] ${period === p.key ? 'font-semibold' : 'font-medium'} ${period === p.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
               {p.label}
             </Text>
           </Pressable>
@@ -70,7 +75,7 @@ export default function OrdersScreen() {
         <FlatList
           data={orders}
           keyExtractor={(o) => o.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 8 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 9 }}
           refreshing={isRefetching}
           onRefresh={refetch}
           ListEmptyComponent={
@@ -79,23 +84,38 @@ export default function OrdersScreen() {
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ไม่มีออเดอร์ในช่วงนี้</Text>
             </View>
           }
-          renderItem={({ item }) => (
-            <Pressable
-              onPress={() => router.push(`/orders/${item.id}` as never)}
-              className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-1.5"
-            >
-              <View className="flex-row items-center justify-between">
-                <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
-                <StatusBadge status={item.status} />
-              </View>
-              <View className="flex-row items-center justify-between">
-                <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
-                  {item.table ? `โต๊ะ ${item.table.number}` : item.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่'} · {formatTime(item.createdAt)}
-                </Text>
-                <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(item.total)}</Text>
-              </View>
-            </Pressable>
-          )}
+          renderItem={({ item }) => {
+            const late = overdueMinutes(item.status, item.createdAt);
+            const dead = item.status === 'CANCELLED' || item.status === 'REFUNDED';
+            return (
+              <Pressable
+                onPress={() => router.push(`/orders/${item.id}` as never)}
+                className={`flex-row overflow-hidden rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card ${dead ? 'opacity-70' : ''}`}
+              >
+                <View className="w-1.5" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[item.status] }} />
+                <View className="flex-1 px-[13px] py-3">
+                  <View className="flex-row items-baseline justify-between">
+                    <Text className="text-[15px] font-bold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
+                    <Text
+                      className={`text-[15px] font-bold ${dead ? 'text-muted-foreground line-through dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}
+                    >
+                      {formatCurrency(item.total)}
+                    </Text>
+                  </View>
+                  <View className="mt-1.5 flex-row items-center justify-between gap-2">
+                    <Text className="flex-1 text-[12px] text-muted-foreground dark:text-dark-muted-foreground" numberOfLines={1}>
+                      {item.table ? `โต๊ะ ${item.table.number}` : item.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่'} · {formatTime(item.createdAt)}
+                      {item.items?.length ? ` · ${item.items.length} รายการ` : ''}
+                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      {late ? <Text className="text-[11px] font-bold text-danger">เกิน {late} นาที</Text> : null}
+                      <StatusBadge status={item.status} />
+                    </View>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
         />
       )}
     </SafeAreaView>

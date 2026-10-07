@@ -6,7 +6,7 @@ import { Printer, ImageOff } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
-import { StatusBadge } from '@/components/StatusBadge';
+import { StatusBadge, SPINE_COLOR, OVERDUE_COLOR, overdueMinutes } from '@/components/StatusBadge';
 import type { Order } from '@/types/pos';
 
 const PAYMENT_LABEL: Record<string, string> = {
@@ -33,24 +33,35 @@ export default function OrderDetailScreen() {
     );
   }
 
+  const late = overdueMinutes(order.status, order.createdAt);
+  const typeLabel = order.table ? `โต๊ะ ${order.table.number}` : order.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่';
+  const chips = [order.type === 'DINE_IN' ? 'ทานที่ร้าน' : typeLabel, formatDate(order.createdAt), order.cashier ? `แคชเชียร์ ${order.cashier.name}` : null].filter(Boolean) as string[];
+
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerClassName="p-4 gap-4">
-        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-2">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">#{order.orderNumber}</Text>
+        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
+          <View className="flex-row items-center gap-2.5">
+            <View className="h-10 w-1.5 rounded-[3px]" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[order.status] }} />
+            <View className="flex-1">
+              <Text className="text-[19px] font-bold text-foreground dark:text-dark-foreground">#{order.orderNumber}</Text>
+              <Text className={`text-[11px] ${late ? 'text-danger' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
+                {late ? `เกินเวลาครัว ${late} นาที · ` : ''}{typeLabel}
+              </Text>
+            </View>
             <StatusBadge status={order.status} />
           </View>
-          <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
-            {formatDate(order.createdAt)} · {order.table ? `โต๊ะ ${order.table.number}` : order.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่'}
-          </Text>
-          {order.cashier ? (
-            <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">แคชเชียร์: {order.cashier.name}</Text>
-          ) : null}
+          <View className="flex-row flex-wrap gap-[7px]">
+            {chips.map((c, i) => (
+              <View key={i} className="rounded-full bg-muted px-2.5 py-[5px] dark:bg-dark-muted">
+                <Text className="text-[11px] font-semibold text-[#4A382C] dark:text-dark-foreground">{c}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
-          <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">รายการ</Text>
+          <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">รายการ</Text>
           {order.items.map((item) => (
             <View key={item.id} className="flex-row items-start justify-between gap-2">
               <View className="flex-row items-start flex-1 gap-2.5">
@@ -66,7 +77,7 @@ export default function OrderDetailScreen() {
                     {item.quantity}x {item.product?.name ?? 'สินค้า'}
                   </Text>
                   {item.notes ? (
-                    <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{item.notes}</Text>
+                    <Text className="text-[11px] text-warning">{item.notes}</Text>
                   ) : null}
                   {item.refundedQty > 0 ? (
                     <Text className="text-[11px] text-danger">คืนแล้ว {item.refundedQty}</Text>
@@ -85,13 +96,15 @@ export default function OrderDetailScreen() {
           {Number(order.discount) > 0 && <Row label="ส่วนลด" value={`-${formatCurrency(order.discount)}`} />}
           {Number(order.serviceCharge) > 0 && <Row label="ค่าบริการ" value={formatCurrency(order.serviceCharge)} />}
           {Number(order.tax) > 0 && <Row label="ภาษี" value={formatCurrency(order.tax)} />}
-          <View className="h-px bg-border dark:bg-dark-border my-1" />
-          <Row label="ยอดสุทธิ" value={formatCurrency(order.total)} bold />
+          <View className="mt-1 flex-row items-baseline justify-between border-t border-border pt-2.5 dark:border-dark-border">
+            <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">ยอดสุทธิ</Text>
+            <Text className="text-[26px] font-bold text-foreground dark:text-dark-foreground">{formatCurrency(order.total)}</Text>
+          </View>
         </View>
 
         {order.payments.length > 0 ? (
           <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
-            <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground mb-1">การชำระเงิน</Text>
+            <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground mb-1">การชำระเงิน</Text>
             {order.payments.map((p, i) => (
               <Row key={i} label={PAYMENT_LABEL[p.method] ?? p.method} value={formatCurrency(p.amount)} />
             ))}
@@ -100,10 +113,10 @@ export default function OrderDetailScreen() {
 
         <Pressable
           onPress={() => router.push(`/orders/${order.id}/receipt` as never)}
-          className="h-12 flex-row items-center justify-center gap-2 rounded-lg bg-primary"
+          className="h-[52px] flex-row items-center justify-center gap-2 rounded-[11px] bg-primary"
         >
           <Printer size={18} color="#FFFFFF" />
-          <Text className="text-[15px] font-semibold text-white">ใบเสร็จ / พิมพ์</Text>
+          <Text className="text-[15px] font-bold text-white">ใบเสร็จ / พิมพ์</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
@@ -113,8 +126,8 @@ export default function OrderDetailScreen() {
 function Row({ label, value, bold }: { label: string; value: string; bold?: boolean }) {
   return (
     <View className="flex-row justify-between">
-      <Text className={`text-[13px] ${bold ? 'font-bold' : ''} text-foreground dark:text-dark-foreground`}>{label}</Text>
-      <Text className={`text-[13px] ${bold ? 'font-bold' : ''} text-foreground dark:text-dark-foreground`}>{value}</Text>
+      <Text className={`text-[12px] ${bold ? 'font-bold' : 'font-medium'} text-muted-foreground dark:text-dark-muted-foreground`}>{label}</Text>
+      <Text className={`text-[12px] ${bold ? 'font-bold' : 'font-medium'} text-muted-foreground dark:text-dark-muted-foreground`}>{value}</Text>
     </View>
   );
 }
