@@ -33,7 +33,7 @@ export default function LoginScreen() {
       const res = await api.post('/auth/login', { email: email.trim(), password });
       await afterLogin(res.data);
     } catch (err) {
-      const message = isAxiosError(err) ? err.response?.data?.message ?? 'เข้าสู่ระบบไม่สำเร็จ' : 'เข้าสู่ระบบไม่สำเร็จ';
+      const message = isAxiosError(err) ? err.response?.data?.error ?? err.response?.data?.message ?? 'เข้าสู่ระบบไม่สำเร็จ' : 'เข้าสู่ระบบไม่สำเร็จ';
       Alert.alert('เข้าสู่ระบบไม่สำเร็จ', message);
     } finally {
       setLoading(false);
@@ -46,7 +46,7 @@ export default function LoginScreen() {
       const res = await api.post('/auth/google', { idToken });
       await afterLogin(res.data);
     } catch (err) {
-      const message = isAxiosError(err) ? err.response?.data?.message ?? 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ' : 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ';
+      const message = isAxiosError(err) ? err.response?.data?.error ?? err.response?.data?.message ?? 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ' : 'เข้าสู่ระบบด้วย Google ไม่สำเร็จ';
       Alert.alert('เข้าสู่ระบบไม่สำเร็จ', message);
     } finally {
       setLoading(false);
