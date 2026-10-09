@@ -6,6 +6,10 @@ const schema = z.object({
   DIRECT_URL: z.string().optional(),
   JWT_SECRET: z.string().min(16),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  // Shared secret for server-to-server calls into /api/internal/* (e.g. Supabase
+  // pg_cron -> pg_net hitting the loyalty-points-expiry trigger). Not a JWT:
+  // there's no logged-in user behind a scheduled job.
+  CRON_SECRET: z.string().min(16).optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),
   PORT: z.string().default('4000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

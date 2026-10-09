@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';

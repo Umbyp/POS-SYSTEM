@@ -632,21 +632,43 @@ enum PrinterRole {
 }
 
 model PrintJob {
-  id        String         @id @default(cuid())
-  storeId   String
-  printerId String
-  orderId   String
-  kind      PrinterRole    // KITCHEN = ใบสั่งครัว, RECEIPT = ใบเสร็จ
-  status    PrintJobStatus @default(PENDING)
-  attempts  Int            @default(0)
-  error     String?
-  createdAt DateTime       @default(now())
-  printedAt DateTime?
-  store     Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  printer   Printer        @relation(fields: [printerId], references: [id], onDelete: Cascade)
+  id         String         @id @default(cuid())
+  storeId    String
+  printerId  String
+  orderId    String
+  kind       PrinterRole    // KITCHEN = ใบสั่งครัว, RECEIPT = ใบเสร็จ
+  status     PrintJobStatus @default(PENDING)
+  attempts   Int            @default(0)
+  error      String?
+  createdAt  DateTime       @default(now())
+  printedAt  DateTime?
+  // DB-backed claim lease (replaces the old in-process `leases` Map so a
+  // second API instance/restart can't double-print a job another instance
+  // just claimed). Null = unclaimed.
+  leasedUntil DateTime?
+  store      Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  printer    Printer        @relation(fields: [printerId], references: [id], onDelete: Cascade)
 
   @@index([storeId, status])
   @@index([orderId])
+}
+
+// Process-independent PIN-login brute-force lockout (replaces the old
+// in-memory PinLockout Map, which reset on every restart/was per-instance).
+model PinLockout {
+  userId      String    @id
+  fails       Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}
+
+// Process-independent login-attempt rate limiting for express-rate-limit
+// (replaces its default in-memory store, which reset on every restart/was
+// per-instance and double-counted across multiple API instances).
+model RateLimitCounter {
+  key     String   @id
+  count   Int      @default(0)
+  resetAt DateTime
 }
 
 enum PrintJobStatus {

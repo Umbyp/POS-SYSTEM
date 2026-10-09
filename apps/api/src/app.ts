@@ -8,6 +8,7 @@ import { prisma } from './config/prisma';
 import { logger } from './utils/logger';
 import { errorMiddleware } from './middleware/error.middleware';
 import uploadRoutes, { UPLOADS_DIR } from './modules/uploads/upload.routes';
+import { PrismaRateLimitStore } from './middleware/rate-limit-store';
 
 import authRoutes from './modules/auth/auth.routes';
 import productRoutes from './modules/products/product.routes';
@@ -32,6 +33,7 @@ import { selfOrderPublicRouter, selfOrderRouter } from './modules/self-order/sel
 import loyaltyRoutes from './modules/loyalty/loyalty.routes';
 import { printersRouter, printJobsRouter } from './modules/printers/printers.routes';
 import { stripeWebhookHandler } from './modules/payments/stripe-webhook.routes';
+import internalRoutes from './modules/internal/internal.routes';
 
 const app = express();
 
@@ -89,6 +91,8 @@ const authAttemptLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // a staff member signing in shouldn't spend the budget
+  // DB-backed so the counter survives restarts and is shared across every API instance.
+  store: new PrismaRateLimitStore(),
   // Default handler answers with plain text; the web client reads {error}.
   handler: (req, res) => {
     const retryAfter = Number(res.getHeader('Retry-After')) || 900;
@@ -169,6 +173,8 @@ app.use('/api/self-order', selfOrderRouter);
 app.use('/api/printers', printersRouter);
 app.use('/api/print-jobs', printJobsRouter);
 app.use('/api/uploads', uploadRoutes);
+// Server-to-server only (shared-secret auth inside the router) — see internal.routes.ts
+app.use('/api/internal', internalRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorMiddleware);

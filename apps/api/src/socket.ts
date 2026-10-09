@@ -3,11 +3,11 @@ import { verifyToken } from './utils/jwt';
 import { logger } from './utils/logger';
 
 export function initSocket(io: Server) {
-  io.use((socket, next) => {
+  io.use(async (socket, next) => {
     const token = socket.handshake.auth?.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
     if (!token) return next(new Error('No token'));
     try {
-      const user = verifyToken(token);
+      const user = await verifyToken(token);
       (socket as any).user = user;
       next();
     } catch {

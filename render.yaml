@@ -12,8 +12,12 @@ services:
     region: singapore
     rootDir: .
     # ลบ lockfile ก่อนติดตั้ง: lockfile ถูกสร้างจาก Windows ทำให้ npm ไม่ลง native binary
-    # ของ sharp สำหรับ linux-x64 (bug ของ npm กับ optional deps ข้าม platform).
-    # การ resolve ใหม่บน Linux จะลง @img/sharp-linux-x64 ให้ถูกต้อง.
+    # สำหรับ linux-x64 (bug ของ npm กับ optional deps ข้าม platform). apps/api เอง
+    # เลิกพึ่ง sharp แล้ว (ดู Phase 2 ของแผนย้าย Supabase) แต่ sharp ยังเป็น optional
+    # dependency ของ Next.js (ใช้โดย apps/web/apps/analytics-web) และ `npm install`
+    # นี้ install ทั้ง monorepo (ไม่ได้ scope แค่ apps/api) จึงยังโดน bug เดิมอยู่ —
+    # ห้ามเอา `rm -f package-lock.json` ออกจนกว่าจะเลิกใช้ sharp ทั้ง repo จริง ๆ.
+    # การ resolve ใหม่บน Linux จะลง native binary ที่ถูกต้องให้เอง.
     # version สำคัญถูก pin ใน package.json แล้ว (typescript 5.9.3 เป๊ะ, @types ^4) จึงยัง deterministic
     # Apply any pending DB migrations before building/starting, so the schema is
     # never behind the deployed code (the drift that caused prod 500s in the past).
@@ -32,6 +36,10 @@ services:
         sync: false
       - key: JWT_EXPIRES_IN
         value: 7d
+      # Shared secret for Supabase pg_cron -> pg_net calling /api/internal/* (loyalty
+      # points expiry). Must match the secret the cron job's http_post call sends.
+      - key: CRON_SECRET
+        sync: false
       - key: WEB_URL
         sync: false
       - key: STRIPE_SECRET_KEY

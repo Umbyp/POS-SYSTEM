@@ -1,11 +1,12 @@
 /**
  * Image upload endpoint.
  *
- * Accepts multipart/form-data uploads (camera or file picker), resizes to a
- * max edge of 1024px, converts to WebP at quality 80, and stores under
- *   apps/api/uploads/products/<random>.webp
+ * Accepts multipart/form-data uploads (camera or file picker) and stores the
+ * file as-is (no server-side resize/format conversion — Supabase Storage's
+ * own image transform API handles resizing on read, when needed) under
+ *   apps/api/uploads/products/<random>.<ext>
  *
- * Returns a URL path the frontend can use directly (e.g. "/uploads/products/abc.webp").
+ * Returns a URL path the frontend can use directly (e.g. "/uploads/products/abc.jpg").
  *
  * Old images linked to a Product are NOT auto-deleted when the image is replaced
  * or the product is deleted — running a periodic cleanup is recommended once
@@ -13,7 +14,6 @@
  */
 import { Router, type RequestHandler } from 'express';
 import multer from 'multer';
-import sharp from 'sharp';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
@@ -33,15 +33,16 @@ async function ensureDirs() {
 }
 ensureDirs().catch((e) => console.error('[uploads] mkdir failed', e));
 
-const MAX_BYTES = 10 * 1024 * 1024; // 10MB raw — we'll downsize aggressively
-const ALLOWED_MIME = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/heic',
-  'image/heif',
-]);
+const MAX_BYTES = 10 * 1024 * 1024; // 10MB — stored as uploaded, no server-side downsizing
+const EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
+};
+const ALLOWED_MIME = new Set(Object.keys(EXT_BY_MIME));
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -72,42 +73,23 @@ router.post(
         return res.status(400).json({ error: 'image file required (multipart field "image")' });
       }
 
-      const filename = crypto.randomBytes(12).toString('hex') + '.webp';
-
-      const pipeline = sharp(req.file.buffer, { failOn: 'truncated' })
-        .rotate() // honor EXIF orientation
-        .resize({
-          width: 1024,
-          height: 1024,
-          fit: 'inside',
-          withoutEnlargement: true,
-        })
-        .webp({ quality: 80, effort: 4 });
-
-      const { data, info } = await pipeline.toBuffer({ resolveWithObject: true });
+      const ext = EXT_BY_MIME[req.file.mimetype.toLowerCase()] ?? '.jpg';
+      const filename = crypto.randomBytes(12).toString('hex') + ext;
+      const data = req.file.buffer;
 
       // ถ้าตั้งค่า Supabase → เก็บถาวรบน cloud (กันหายตอน redeploy)
       // ไม่งั้น fallback เก็บลงดิสก์ในเครื่อง (สำหรับ dev)
       let url: string;
       if (storage.isStorageConfigured()) {
-        url = await storage.uploadProductImage(data, filename);
+        url = await storage.uploadProductImage(data, filename, req.file.mimetype);
       } else {
         const outputPath = path.join(PRODUCTS_DIR, filename);
         await fs.writeFile(outputPath, data);
         url = `/uploads/products/${filename}`;
       }
 
-      res.json({
-        url,
-        size: info.size,
-        width: info.width,
-        height: info.height,
-      });
-    } catch (e: any) {
-      // sharp throws "Input buffer contains unsupported image format" for bad uploads
-      if (/unsupported image format|Input buffer/i.test(String(e?.message))) {
-        return res.status(400).json({ error: 'Could not read image — please try a different file' });
-      }
+      res.json({ url, size: data.length });
+    } catch (e) {
       next(e);
     }
   }

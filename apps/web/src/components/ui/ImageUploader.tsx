@@ -30,7 +30,7 @@ export function ImageUploader({ value, onChange, aspect = 'square' }: Props) {
       const { data } = await api.post('/uploads/product-image', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return data as { url: string; size: number; width: number; height: number };
+      return data as { url: string; size: number };
     },
     onSuccess: (data) => {
       onChange(data.url);

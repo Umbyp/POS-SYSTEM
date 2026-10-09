@@ -96,7 +96,7 @@ router.post('/switch', validate(switchSchema), async (req, res, next) => {
     });
 
     // ออก JWT ใหม่
-    const token = signToken({
+    const token = await signToken({
       id: updatedUser.id,
       email: updatedUser.email,
       role: updatedUser.role,

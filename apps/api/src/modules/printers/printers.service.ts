@@ -28,11 +28,6 @@ const LEASE_MS = 30_000;
 const STALE_JOB_MS = 6 * 60 * 60_000; // don't print a 6h-old ticket when the printer comes back
 const TEST_ORDER_ID = 'TEST';
 
-// Which jobs a phone is currently working on / backing off from. In-memory is
-// fine: it only de-duplicates between phones polling the same API process; a
-// restart at worst lets one job print twice.
-const leases = new Map<string, number>();
-
 export interface PrinterInput {
   name: string;
   ip: string;
@@ -292,13 +287,14 @@ function pickStore(store: any) {
 }
 
 /**
- * Jobs a phone should print now. Marks them leased for 30s so a second phone
- * polling at the same moment doesn't print them too; complete/fail release or
- * extend the lease. Jobs for inactive printers wait (they stay PENDING).
+ * Jobs a phone should print now. Marks them leased for 30s (in the DB, via
+ * `leasedUntil`) so a second phone — or a second API instance — polling at
+ * the same moment doesn't print them too; complete/fail release or extend
+ * the lease. Jobs for inactive printers wait (they stay PENDING).
  */
 export async function claimPending(storeId: string, limit = 10) {
   const now = Date.now();
-  for (const [id, until] of leases) if (until < now) leases.delete(id);
+  const nowDate = new Date(now);
 
   // Give up on tickets that sat too long (e.g. printer offline all night).
   await prisma.printJob.updateMany({
@@ -307,7 +303,12 @@ export async function claimPending(storeId: string, limit = 10) {
   });
 
   const jobs = await prisma.printJob.findMany({
-    where: { storeId, status: PrintJobStatus.PENDING, printer: { isActive: true } },
+    where: {
+      storeId,
+      status: PrintJobStatus.PENDING,
+      printer: { isActive: true },
+      OR: [{ leasedUntil: null }, { leasedUntil: { lt: nowDate } }],
+    },
     include: { printer: true },
     orderBy: { createdAt: 'asc' },
     take: 50,
@@ -316,18 +317,30 @@ export async function claimPending(storeId: string, limit = 10) {
   const out: any[] = [];
   for (const job of jobs) {
     if (out.length >= limit) break;
-    if ((leases.get(job.id) ?? 0) > now) continue;
+    // Atomic claim: the WHERE re-checks the lease, so this only succeeds if
+    // nobody else claimed the job between the read above and now.
+    const claimed = await prisma.printJob.updateMany({
+      where: { id: job.id, OR: [{ leasedUntil: null }, { leasedUntil: { lt: nowDate } }] },
+      data: { leasedUntil: new Date(now + LEASE_MS) },
+    });
+    if (claimed.count === 0) continue;
+
     const payload = await buildPayload(job, job.printer);
     if (!payload) {
-      await prisma.printJob.update({ where: { id: job.id }, data: { status: PrintJobStatus.FAILED, error: 'ไม่พบออเดอร์' } });
+      await prisma.printJob.update({
+        where: { id: job.id },
+        data: { status: PrintJobStatus.FAILED, error: 'ไม่พบออเดอร์', leasedUntil: null },
+      });
       continue;
     }
     if ('ticket' in payload && payload.ticket === null) {
       // Nothing from this round belongs to this station.
-      await prisma.printJob.update({ where: { id: job.id }, data: { status: PrintJobStatus.PRINTED, printedAt: new Date() } });
+      await prisma.printJob.update({
+        where: { id: job.id },
+        data: { status: PrintJobStatus.PRINTED, printedAt: new Date(), leasedUntil: null },
+      });
       continue;
     }
-    leases.set(job.id, now + LEASE_MS);
     out.push(payload);
   }
   return out;
@@ -341,10 +354,9 @@ async function ownedJob(storeId: string, id: string) {
 
 export async function completeJob(storeId: string, id: string) {
   await ownedJob(storeId, id);
-  leases.delete(id);
   return prisma.printJob.update({
     where: { id },
-    data: { status: PrintJobStatus.PRINTED, printedAt: new Date(), error: null, attempts: { increment: 1 } },
+    data: { status: PrintJobStatus.PRINTED, printedAt: new Date(), error: null, attempts: { increment: 1 }, leasedUntil: null },
   });
 }
 
@@ -352,10 +364,15 @@ export async function failJob(storeId: string, id: string, error: string) {
   const job = await ownedJob(storeId, id);
   const attempts = job.attempts + 1;
   const giveUp = attempts >= MAX_ATTEMPTS;
-  leases.set(id, Date.now() + RETRY_AFTER_FAIL_MS); // back off before any phone retries it
   return prisma.printJob.update({
     where: { id },
-    data: { attempts, error: error.slice(0, 300), status: giveUp ? PrintJobStatus.FAILED : PrintJobStatus.PENDING },
+    data: {
+      attempts,
+      error: error.slice(0, 300),
+      status: giveUp ? PrintJobStatus.FAILED : PrintJobStatus.PENDING,
+      // Back off before any phone retries it; null once given up (status no longer PENDING anyway).
+      leasedUntil: giveUp ? null : new Date(Date.now() + RETRY_AFTER_FAIL_MS),
+    },
   });
 }
 
@@ -365,10 +382,12 @@ export async function reprintJob(storeId: string, id: string, printerId?: string
   // A receipt may be re-routed to a kitchen printer (and vice versa) in an emergency;
   // the phone builds the layout from job.kind, so only check the target exists.
   if (printerId && printerId !== job.printerId) await ownedPrinter(storeId, printerId);
-  leases.delete(id);
   const updated = await prisma.printJob.update({
     where: { id },
-    data: { status: PrintJobStatus.PENDING, attempts: 0, error: null, printedAt: null, ...(printerId ? { printerId } : {}) },
+    data: {
+      status: PrintJobStatus.PENDING, attempts: 0, error: null, printedAt: null, leasedUntil: null,
+      ...(printerId ? { printerId } : {}),
+    },
   });
   notify(io, storeId, [id]);
   return updated;

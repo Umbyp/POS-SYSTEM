@@ -1,13 +1,21 @@
-import bcrypt from 'bcrypt';
-import { OAuth2Client } from 'google-auth-library';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../../config/prisma';
 import { signToken } from '../../utils/jwt';
 import { AppError, BadRequest, Unauthorized } from '../../utils/errors';
 import { PinLockout, hashPin, isValidPin } from './pin.logic';
+import { PrismaLockoutStore } from './pin-lockout.store';
 import { env } from '../../config/env';
 import { Role } from '@prisma/client';
 
-const googleClient = env.GOOGLE_CLIENT_ID ? new OAuth2Client(env.GOOGLE_CLIENT_ID) : null;
+// jose ships ESM-only; this project compiles to CommonJS, so it has to be
+// loaded via a dynamic import (see utils/jwt.ts for the same pattern).
+const jose = import('jose');
+
+// Verifies Google ID tokens against Google's own published signing keys —
+// no SDK needed, jose fetches + caches the JWKS itself.
+const googleJwks = env.GOOGLE_CLIENT_ID
+  ? jose.then(({ createRemoteJWKSet }) => createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs')))
+  : null;
 
 export async function login(email: string, password: string) {
   const user = await prisma.user.findUnique({ where: { email } });
@@ -55,16 +63,23 @@ export async function register(input: { email: string; password: string; name: s
 }
 
 export async function googleLogin(idToken: string) {
-  if (!googleClient) throw BadRequest('Google login not configured');
+  if (!env.GOOGLE_CLIENT_ID || !googleJwks) throw BadRequest('Google login not configured');
 
-  const ticket = await googleClient.verifyIdToken({
-    idToken,
-    audience: env.GOOGLE_CLIENT_ID,
-  });
-  const payload = ticket.getPayload();
-  if (!payload?.email) throw Unauthorized('Invalid Google token');
+  let payload;
+  try {
+    const { jwtVerify } = await jose;
+    const jwks = await googleJwks;
+    ({ payload } = await jwtVerify(idToken, jwks, {
+      issuer: ['https://accounts.google.com', 'accounts.google.com'],
+      audience: env.GOOGLE_CLIENT_ID,
+    }));
+  } catch {
+    throw Unauthorized('Invalid Google token');
+  }
+  const email = payload.email as string | undefined;
+  if (!email) throw Unauthorized('Invalid Google token');
 
-  const user = await prisma.user.findUnique({ where: { email: payload.email } });
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) throw Unauthorized('User not registered. Please contact admin.');
   if (!user.isActive) throw Unauthorized('Account is disabled');
 
@@ -76,7 +91,7 @@ export async function googleLogin(idToken: string) {
   return issueToken(user);
 }
 
-const pinLockout = new PinLockout();
+const pinLockout = new PinLockout(new PrismaLockoutStore());
 // valid bcrypt hash of a throwaway value — compared against when the target user
 // is unknown so response time and message don't reveal whether the user exists
 const DUMMY_HASH = bcrypt.hashSync('000000', 10);
@@ -93,18 +108,18 @@ export async function pinStaff(storeId: string) {
 
 /** storeId comes from the device's already-authenticated token, never the body. */
 export async function pinLogin(storeId: string, userId: string, pin: string) {
-  const locked = pinLockout.lockedFor(userId);
+  const locked = await pinLockout.lockedFor(userId);
   if (locked) {
     throw new AppError(429, `ลองผิดหลายครั้งเกินไป กรุณารออีก ${Math.ceil(locked / 60)} นาที`, 'PIN_LOCKED');
   }
   const user = await prisma.user.findFirst({ where: { id: userId, storeId } });
   const ok = await bcrypt.compare(pin, user?.pinHash ?? DUMMY_HASH);
   if (!user || !user.pinHash || !user.isActive || !ok) {
-    pinLockout.recordFailure(userId);
+    await pinLockout.recordFailure(userId);
     // 403 (not 401): the mobile client logs the whole device out on 401
     throw new AppError(403, PIN_FAIL_MSG, 'INVALID_PIN');
   }
-  pinLockout.reset(userId);
+  await pinLockout.reset(userId);
   prisma.activityLog.create({ data: { userId: user.id, action: 'LOGIN' } }).catch(() => {});
   return issueToken(user);
 }
@@ -115,7 +130,7 @@ export async function setPin(userId: string, pin: string | null) {
     where: { id: userId },
     data: { pinHash: pin === null ? null : await hashPin(pin) },
   });
-  pinLockout.reset(userId);
+  await pinLockout.reset(userId);
 }
 
 export async function me(userId: string) {
@@ -128,8 +143,8 @@ export async function me(userId: string) {
   return safe;
 }
 
-function issueToken(user: { id: string; email: string; role: string; storeId: string; name: string }) {
-  const token = signToken({
+async function issueToken(user: { id: string; email: string; role: string; storeId: string; name: string }) {
+  const token = await signToken({
     id: user.id,
     email: user.email,
     role: user.role,
