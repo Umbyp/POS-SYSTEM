@@ -23,7 +23,7 @@ const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; next: OrderStatu
 };
 
 // KDS is always dark (kitchen-wall display), independent of system theme.
-const K = { bg: '#23180F', card: '#2F2117', card2: '#3B2A1E', border: '#4A3627', fg: '#FBF6F0', muted: '#B9A392' };
+const K = { bg: '#161616', card: '#212121', card2: '#2C2C2C', border: '#3A3A3A', fg: '#F5F5F5', muted: '#A3A3A3' };
 const SPINE = { PENDING: '#FBBF24', PREPARING: '#60A5FA', READY: '#4ADE80', overdue: '#F87171' };
 const ALLOWED_SEC = 15 * 60;
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
@@ -115,7 +115,7 @@ export default function KdsScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList

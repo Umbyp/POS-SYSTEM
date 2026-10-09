@@ -46,7 +46,7 @@ export default function CustomersScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList

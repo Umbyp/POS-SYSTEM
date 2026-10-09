@@ -79,7 +79,7 @@ export default function PosScreen() {
       metaParts.push(formatElapsedMinutes(selectedTable.occupiedAt));
     }
   }
-  const spineColor = cart.type === 'DINE_IN' && selectedTable ? TABLE_STATUS_DOT[selectedTable.status] : '#2B1F17';
+  const spineColor = cart.type === 'DINE_IN' && selectedTable ? TABLE_STATUS_DOT[selectedTable.status] : '#1F1F1F';
   const summary = cart.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ');
   const qtyById = useMemo(() => Object.fromEntries(cart.items.map((i) => [i.productId, i.quantity])), [cart.items]);
   // Sidebar (~196) + cart panel (340) take a fixed share of a tablet's width — size the grid to what's left.
@@ -104,12 +104,12 @@ export default function PosScreen() {
           style={{ maxWidth: isTablet ? 280 : 150 }}
           className="flex-1 flex-row items-center gap-2 rounded-[9px] border border-border dark:border-dark-border bg-background dark:bg-dark-input px-3 h-[38px]"
         >
-          <Search size={14} color="#A89684" />
+          <Search size={14} color="#A3A3A3" />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="ค้นหาสินค้า…"
-            placeholderTextColor="#A89684"
+            placeholderTextColor="#A3A3A3"
             className="flex-1 text-[13px] text-foreground dark:text-dark-foreground"
           />
         </View>
@@ -139,7 +139,7 @@ export default function PosScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList

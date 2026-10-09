@@ -102,7 +102,7 @@ export default function OrdersScreen() {
       <View className="flex-1">
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList
@@ -123,7 +123,7 @@ export default function OrdersScreen() {
             return (
               <Pressable
                 onPress={() => (isTablet ? setSelectedId(item.id) : router.push(`/orders/${item.id}` as never))}
-                style={activeId === item.id ? { borderWidth: 2, borderColor: '#2B1F17' } : undefined}
+                style={activeId === item.id ? { borderWidth: 2, borderColor: '#1F1F1F' } : undefined}
                 className={`flex-row overflow-hidden rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card ${dead ? 'opacity-70' : ''}`}
               >
                 <View className="w-1.5" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[item.status] }} />

@@ -66,7 +66,7 @@ export default function DashboardScreen() {
   if (isLoading || !data) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#C9622E" />
+        <ActivityIndicator color="#D25E3B" />
       </View>
     );
   }
@@ -96,7 +96,7 @@ export default function DashboardScreen() {
 
   const hero = (
     <SectionCard>
-      <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">{heroTitle}</Text>
+      <Text className="text-[12px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground">{heroTitle}</Text>
       <View className="flex-row flex-wrap items-baseline gap-2.5">
         <Text className="text-metric-lg text-foreground dark:text-dark-foreground">{formatCurrency(heroRevenue)}</Text>
         {vsYesterday != null ? (
@@ -139,7 +139,7 @@ export default function DashboardScreen() {
 
   const actions = hasActions ? (
     <View className="overflow-hidden rounded-[14px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
-      <Text className="px-4 pb-2 pt-3 text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">ต้องจัดการก่อน</Text>
+      <Text className="px-4 pb-2 pt-3 text-[12px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground">ต้องจัดการก่อน</Text>
       {pendingKitchen > 0 ? (
         <ActionRow color="#B45309" title={`รอครัว ${pendingKitchen} รายการ`} />
       ) : null}
@@ -188,7 +188,7 @@ export default function DashboardScreen() {
       ) : (
         data.recentOrders.map((o) => (
           <View key={o.id} className="flex-row items-center gap-2.5">
-            <View className="h-9 w-1.5 rounded-[3px]" style={{ backgroundColor: SPINE_COLOR[o.status as OrderStatus] ?? '#D8C7B8' }} />
+            <View className="h-9 w-1.5 rounded-[3px]" style={{ backgroundColor: SPINE_COLOR[o.status as OrderStatus] ?? '#D4D4D4' }} />
             <View className="flex-1">
               <Text numberOfLines={1} className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">#{o.orderNumber}</Text>
               <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
@@ -229,7 +229,7 @@ export default function DashboardScreen() {
       ) : null}
       <ScrollView
         contentContainerClassName={wide ? 'p-5 gap-4' : 'p-3.5 gap-3'}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#C9622E" />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#D25E3B" />}
       >
         {wide ? (
           <View className="flex-row gap-4">
@@ -240,7 +240,7 @@ export default function DashboardScreen() {
                   key={st.label}
                   className="basis-[47%] grow justify-center rounded-[14px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card"
                 >
-                  <Text className="text-[10px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">{st.label}</Text>
+                  <Text className="text-[10px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground">{st.label}</Text>
                   <Text numberOfLines={1} adjustsFontSizeToFit className={`text-[26px] font-bold ${st.amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
                     {st.value}
                   </Text>
@@ -301,7 +301,7 @@ function ActionRow({ color, title, sub }: { color: string; title: string; sub?: 
 function MiniStat({ label, value, amber }: { label: string; value: string; amber?: boolean }) {
   return (
     <View>
-      <Text className="text-[10px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">{label}</Text>
+      <Text className="text-[10px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground">{label}</Text>
       <Text className={`text-[17px] font-bold ${amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>{value}</Text>
     </View>
   );

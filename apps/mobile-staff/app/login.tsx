@@ -91,7 +91,7 @@ export default function LoginScreen() {
   if (wide) {
     return (
       <View className="flex-1 flex-row bg-background dark:bg-dark-background">
-        <SafeAreaView edges={['top', 'bottom', 'left']} className="w-[420px] bg-[#2B1F17]">
+        <SafeAreaView edges={['top', 'bottom', 'left']} className="w-[420px] bg-[#1F1F1F]">
           <View className="flex-1 px-10 py-11">
             <View className="flex-row items-center gap-[11px]">
               <View className="h-[38px] w-[38px] items-center justify-center rounded-[10px] bg-primary">
@@ -101,7 +101,7 @@ export default function LoginScreen() {
             </View>
             <View className="mt-auto gap-3.5">
               <Text className="text-[26px] font-bold leading-[35px] text-white">เข้าสู่ระบบสำหรับพนักงาน</Text>
-              <Text className="text-[13px] leading-[21px] text-[#B9A392]">
+              <Text className="text-[13px] leading-[21px] text-[#A3A3A3]">
                 ใช้บัญชีพนักงานของร้านเพื่อเริ่มกะและเข้าใช้งานระบบ POS
               </Text>
             </View>

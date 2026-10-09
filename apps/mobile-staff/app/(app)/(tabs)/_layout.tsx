@@ -13,15 +13,15 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerShadowVisible: false,
-        tabBarActiveTintColor: '#C9622E',
+        tabBarActiveTintColor: '#D25E3B',
         // The sidebar (SidebarNav) owns primary navigation on tablet, so the
         // bottom tab bar is redundant there — hide it instead of removing
         // the navigator, which would require a second routing structure.
-        tabBarInactiveTintColor: '#7A6A5C',
+        tabBarInactiveTintColor: '#707070',
         tabBarLabelStyle: { fontSize: 11, fontWeight: '500' },
         tabBarStyle: isTablet
           ? { display: 'none' }
-          : { backgroundColor: '#FFFFFF', borderTopColor: '#E7DACE', borderTopWidth: 1 },
+          : { backgroundColor: '#FFFFFF', borderTopColor: '#E6E6E6', borderTopWidth: 1 },
       }}
     >
       <Tabs.Screen

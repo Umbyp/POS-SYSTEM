@@ -338,7 +338,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
                 <>
                   <Image source={{ uri: intent.qrImageUrl }} style={{ width: 220, height: 220 }} resizeMode="contain" />
                   <View className="flex-row items-center gap-2">
-                    <ActivityIndicator size="small" color="#C9622E" />
+                    <ActivityIndicator size="small" color="#D25E3B" />
                     <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">รอลูกค้าสแกนจ่าย…</Text>
                   </View>
                   <Pressable onPress={cancelPromptPay}>
@@ -346,7 +346,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
                   </Pressable>
                 </>
               ) : (
-                <ActivityIndicator color="#C9622E" />
+                <ActivityIndicator color="#D25E3B" />
               )}
             </View>
           ) : (
@@ -361,7 +361,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
 
               {slipVerifying ? (
                 <View className="flex-row items-center gap-1.5">
-                  <ActivityIndicator size="small" color="#C9622E" />
+                  <ActivityIndicator size="small" color="#D25E3B" />
                   <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">กำลังตรวจสอบสลิป…</Text>
                 </View>
               ) : null}

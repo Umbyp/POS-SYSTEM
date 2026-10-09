@@ -183,7 +183,7 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
             <View key={p.id}>{formView}</View>
           ) : (
             <View key={p.id} className="flex-row items-center gap-3 rounded-xl border border-border dark:border-dark-border p-3">
-              <View className={`h-2.5 w-2.5 rounded-full ${!p.isActive ? 'bg-[#C4B2A1]' : p.status === 'ok' ? 'bg-[#047857]' : 'bg-[#B91C1C]'}`} />
+              <View className={`h-2.5 w-2.5 rounded-full ${!p.isActive ? 'bg-[#BDBDBD]' : p.status === 'ok' ? 'bg-[#047857]' : 'bg-[#B91C1C]'}`} />
               <View className="flex-1">
                 <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">
                   {p.name}{p.role === 'RECEIPT' ? ' (ใบเสร็จ)' : ''}{!p.isActive ? ' · ปิดใช้งาน' : ''}

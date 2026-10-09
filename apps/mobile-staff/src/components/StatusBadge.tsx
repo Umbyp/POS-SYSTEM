@@ -12,24 +12,24 @@ const LABEL: Record<OrderStatus, string> = {
 };
 
 const COLOR: Record<OrderStatus, { bg: string; fg: string }> = {
-  DRAFT: { bg: '#E7DACE', fg: '#7A6A5C' },
+  DRAFT: { bg: '#E6E6E6', fg: '#707070' },
   PENDING: { bg: '#FEF3C7', fg: '#B45309' },
   PREPARING: { bg: '#DBEAFE', fg: '#1D4ED8' },
   READY: { bg: '#D1FAE5', fg: '#047857' },
-  COMPLETED: { bg: '#E7DACE', fg: '#4A382C' },
+  COMPLETED: { bg: '#E6E6E6', fg: '#3A3A3A' },
   CANCELLED: { bg: '#FEE2E2', fg: '#B91C1C' },
   REFUNDED: { bg: '#FEE2E2', fg: '#B91C1C' },
 };
 
 /** Left "status spine" colour per order status (mockup 1g/2d). */
 export const SPINE_COLOR: Record<OrderStatus, string> = {
-  DRAFT: '#D8C7B8',
+  DRAFT: '#D4D4D4',
   PENDING: '#B45309',
   PREPARING: '#1D4ED8',
   READY: '#047857',
-  COMPLETED: '#D8C7B8',
-  CANCELLED: '#D8C7B8',
-  REFUNDED: '#D8C7B8',
+  COMPLETED: '#D4D4D4',
+  CANCELLED: '#D4D4D4',
+  REFUNDED: '#D4D4D4',
 };
 
 export const OVERDUE_COLOR = '#B91C1C';

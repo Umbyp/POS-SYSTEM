@@ -94,7 +94,7 @@ export default function PinScreen() {
     <SafeAreaView className="flex-1 bg-card dark:bg-dark-background">
       <ScrollView contentContainerClassName="px-[26px] pb-6 pt-5 self-center w-full max-w-[420px]">
         <Text className="text-[22px] font-bold text-foreground dark:text-dark-foreground">เข้ากะ</Text>
-        <Text className="mt-1.5 text-[12px] text-[#B9A392]">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
+        <Text className="mt-1.5 text-[12px] text-[#A3A3A3]">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
 
         <View className="mt-5 gap-[9px]">
           {staff.isLoading ? <ActivityIndicator /> : null}
@@ -108,10 +108,10 @@ export default function PinScreen() {
                 key={s.id}
                 onPress={() => { setSelected(s.id); setPin(''); setError(''); }}
                 className={`flex-row items-center gap-[11px] rounded-xl p-[13px] ${
-                  on ? 'border-2 border-[#2B1F17] dark:border-dark-foreground' : 'border border-border dark:border-dark-border'
+                  on ? 'border-2 border-[#1F1F1F] dark:border-dark-foreground' : 'border border-border dark:border-dark-border'
                 }`}
               >
-                <View className={`h-[38px] w-[38px] items-center justify-center rounded-full ${on ? 'bg-[#2B1F17]' : 'bg-muted dark:bg-dark-muted'}`}>
+                <View className={`h-[38px] w-[38px] items-center justify-center rounded-full ${on ? 'bg-[#1F1F1F]' : 'bg-muted dark:bg-dark-muted'}`}>
                   <Text className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{initials(s.name)}</Text>
                 </View>
                 <View className="flex-1">
@@ -126,7 +126,7 @@ export default function PinScreen() {
 
         <View className="mb-1.5 mt-[26px] flex-row justify-center gap-2.5">
           {Array.from({ length: Math.max(MIN_LEN, pin.length) }).map((_, i) => (
-            <View key={i} className={`h-[15px] w-[15px] rounded-full ${i < pin.length ? 'bg-[#2B1F17] dark:bg-dark-foreground' : 'bg-border dark:bg-dark-border'}`} />
+            <View key={i} className={`h-[15px] w-[15px] rounded-full ${i < pin.length ? 'bg-[#1F1F1F] dark:bg-dark-foreground' : 'bg-border dark:bg-dark-border'}`} />
           ))}
         </View>
         <Text className="mb-3 h-[18px] text-center text-[12px] font-medium text-[#B91C1C]">{error}</Text>
@@ -146,7 +146,7 @@ export default function PinScreen() {
                 {k === 'email' ? (
                   <Text className="text-[12px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ใช้อีเมล</Text>
                 ) : k === 'del' ? (
-                  <Delete size={22} color="#7A6A5C" />
+                  <Delete size={22} color="#707070" />
                 ) : (
                   <Text className="text-[22px] font-semibold text-foreground dark:text-dark-foreground">{k}</Text>
                 )}

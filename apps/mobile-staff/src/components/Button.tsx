@@ -17,7 +17,7 @@ export function Button({ label, variant = 'primary', loading, disabled, classNam
       {...rest}
     >
       {loading ? (
-        <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#7A6A5C'} />
+        <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#707070'} />
       ) : (
         <Text className={`${isPrimary ? 'text-[16px] font-bold text-white' : 'text-[15px] font-semibold text-foreground dark:text-dark-foreground'}`}>
           {label}

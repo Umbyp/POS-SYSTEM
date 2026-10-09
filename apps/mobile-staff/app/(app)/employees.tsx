@@ -47,7 +47,7 @@ export default function EmployeesScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList
@@ -76,7 +76,7 @@ export default function EmployeesScreen() {
                   <Switch
                     value={item.isActive}
                     onValueChange={(v) => toggleActive.mutate({ id: item.id, isActive: v })}
-                    trackColor={{ true: '#C9622E' }}
+                    trackColor={{ true: '#D25E3B' }}
                   />
                 ) : (
                   <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">

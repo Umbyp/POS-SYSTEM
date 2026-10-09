@@ -51,7 +51,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
                 onPress={() => setShowQr(true)}
                 className="h-14 flex-row items-center justify-center gap-2 rounded-xl bg-muted dark:bg-dark-muted"
               >
-                <QrCode size={18} color="#7A6A5C" />
+                <QrCode size={18} color="#707070" />
                 <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">ดู QR โต๊ะ</Text>
               </Pressable>
 
@@ -112,7 +112,7 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
     <>
       <View className="flex-row items-center justify-between">
         <Pressable onPress={onBack} hitSlop={12} className="flex-row items-center gap-1.5">
-          <ArrowLeft size={18} color="#7A6A5C" />
+          <ArrowLeft size={18} color="#707070" />
           <Text className="text-[13px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ย้อนกลับ</Text>
         </Pressable>
         <Pressable onPress={onClose} hitSlop={12}>
@@ -128,7 +128,7 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
           <Text className="text-[13px] text-danger py-8">โหลด QR ไม่สำเร็จ ลองใหม่อีกครั้ง</Text>
         ) : !link ? (
           <View className="py-8">
-            <ActivityIndicator color="#C9622E" />
+            <ActivityIndicator color="#D25E3B" />
           </View>
         ) : (
           <>

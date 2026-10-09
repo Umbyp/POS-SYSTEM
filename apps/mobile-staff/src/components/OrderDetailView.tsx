@@ -32,7 +32,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
   if (isLoading || !order) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#C9622E" />
+        <ActivityIndicator color="#D25E3B" />
       </View>
     );
   }
@@ -58,14 +58,14 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
           <View className="flex-row flex-wrap gap-[7px]">
             {chips.map((c, i) => (
               <View key={i} className="rounded-full bg-muted px-2.5 py-[5px] dark:bg-dark-muted">
-                <Text className="text-[11px] font-semibold text-[#4A382C] dark:text-dark-foreground">{c}</Text>
+                <Text className="text-[11px] font-semibold text-[#3A3A3A] dark:text-dark-foreground">{c}</Text>
               </View>
             ))}
           </View>
         </View>
 
         <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
-          <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">รายการ</Text>
+          <Text className="text-[12px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground">รายการ</Text>
           {order.items.map((item) => (
             <View key={item.id} className="flex-row items-start justify-between gap-2">
               <View className="flex-row items-start flex-1 gap-2.5">
@@ -108,7 +108,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
 
         {order.payments.length > 0 ? (
           <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
-            <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground mb-1">การชำระเงิน</Text>
+            <Text className="text-[12px] font-semibold text-[#6B6B6B] dark:text-dark-muted-foreground mb-1">การชำระเงิน</Text>
             {order.payments.map((p, i) => (
               <Row key={i} label={PAYMENT_LABEL[p.method] ?? p.method} value={formatCurrency(p.amount)} />
             ))}

@@ -31,7 +31,7 @@ export default function MoreScreen() {
             {avatarInitial(user?.name) ? (
               <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">{avatarInitial(user?.name)}</Text>
             ) : (
-              <User size={18} color="#7A6A5C" />
+              <User size={18} color="#707070" />
             )}
           </View>
           <View className="flex-1">
@@ -51,11 +51,11 @@ export default function MoreScreen() {
                 onPress={() => router.push(item.href as never)}
                 className={`flex-row items-center gap-3 px-3.5 py-3.5 active:bg-muted dark:active:bg-dark-muted ${i > 0 ? 'border-t border-muted dark:border-dark-muted' : ''}`}
               >
-                <Icon size={20} color="#7A6A5C" />
+                <Icon size={20} color="#707070" />
                 <Text className="flex-1 text-[14px] font-medium text-foreground dark:text-dark-foreground">
                   {TH_LABEL[item.key] ?? item.label}
                 </Text>
-                <ChevronRight size={18} color="#A89684" />
+                <ChevronRight size={18} color="#A3A3A3" />
               </Pressable>
             );
           })}

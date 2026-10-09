@@ -42,7 +42,7 @@ export function SidebarNav() {
   return (
     <SafeAreaView
       edges={['top', 'bottom', 'left']}
-      className="w-[196px] bg-[#2B1F17] dark:bg-dark-card"
+      className="w-[196px] bg-[#1F1F1F] dark:bg-dark-card"
     >
       <View className="flex-1 py-4">
         <View className="flex-row items-center gap-2.5 px-4 pb-4">
@@ -53,7 +53,7 @@ export function SidebarNav() {
             <Text className="text-[13px] font-bold text-white" numberOfLines={1}>
               RestroPOS
             </Text>
-            <Text className="text-[10px] font-medium text-[#B9A392]" numberOfLines={1}>
+            <Text className="text-[10px] font-medium text-[#A3A3A3]" numberOfLines={1}>
               {store?.name ?? ''}
             </Text>
           </View>
@@ -66,30 +66,30 @@ export function SidebarNav() {
               <View key={item.key}>
                 <Pressable
                   onPress={() => router.push(item.href as never)}
-                  className={`border-l-[3px] px-4 py-[11px] ${active ? 'border-l-primary bg-[#3B2A1E]' : 'border-l-transparent'}`}
+                  className={`border-l-[3px] px-4 py-[11px] ${active ? 'border-l-primary bg-[#2C2C2C]' : 'border-l-transparent'}`}
                 >
                   <Text
-                    className={`text-[13px] ${active ? 'font-semibold text-white' : 'font-medium text-[#B9A392]'}`}
+                    className={`text-[13px] ${active ? 'font-semibold text-white' : 'font-medium text-[#A3A3A3]'}`}
                     numberOfLines={1}
                   >
                     {TH_LABEL[item.key] ?? item.label}
                   </Text>
                 </Pressable>
-                {item.key === LAST_TAB_KEY ? <View className="mx-4 my-2.5 h-px bg-[#4A3627]" /> : null}
+                {item.key === LAST_TAB_KEY ? <View className="mx-4 my-2.5 h-px bg-[#3A3A3A]" /> : null}
               </View>
             );
           })}
         </ScrollView>
 
-        <View className="flex-row items-center gap-2.5 border-t border-[#4A3627] px-4 pt-3.5">
-          <View className="h-7 w-7 items-center justify-center rounded-full bg-[#3B2A1E]">
-            <Text className="text-[12px] font-semibold text-[#FBF6F0]">{initial}</Text>
+        <View className="flex-row items-center gap-2.5 border-t border-[#3A3A3A] px-4 pt-3.5">
+          <View className="h-7 w-7 items-center justify-center rounded-full bg-[#2C2C2C]">
+            <Text className="text-[12px] font-semibold text-[#F5F5F5]">{initial}</Text>
           </View>
           <View className="flex-1">
             <Text className="text-[12px] font-semibold text-white" numberOfLines={1}>
               {user?.name}
             </Text>
-            <Text className="text-[10px] font-medium text-[#B9A392]" numberOfLines={1}>
+            <Text className="text-[10px] font-medium text-[#A3A3A3]" numberOfLines={1}>
               {user?.role}
             </Text>
           </View>
@@ -100,7 +100,7 @@ export function SidebarNav() {
             }}
             hitSlop={8}
           >
-            <LogOut size={16} color="#B9A392" />
+            <LogOut size={16} color="#A3A3A3" />
           </Pressable>
         </View>
       </View>
