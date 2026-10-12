@@ -94,6 +94,11 @@ export interface Order {
   table: { id: string; number: string } | null;
   customer: { id: string; name: string } | null;
   customerName: string | null;
+  customerTaxId?: string | null;
+  customerAddress?: string | null;
+  customerBranch?: string | null;
+  taxInvoiceNo?: string | null;
+  taxInvoiceIssuedAt?: string | null;
   guestCount?: number | null;
   cashier: { id: string; name: string } | null;
 }

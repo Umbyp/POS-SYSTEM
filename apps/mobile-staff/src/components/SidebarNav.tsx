@@ -18,6 +18,7 @@ const TH_LABEL: Record<string, string> = {
   tables: 'โต๊ะ',
   orders: 'ออเดอร์',
   shift: 'กะทำงาน',
+  zreport: 'ปิดยอดวัน',
   products: 'สินค้า',
   inventory: 'สต็อก',
   customers: 'ลูกค้า · สมาชิก',

@@ -685,7 +685,10 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
     }
 
     await tx.activityLog.create({
-      data: { userId, action: 'REFUND', metadata: { orderId: id, refundedAmount: amount.toNumber() } },
+      data: {
+        userId, action: 'REFUND',
+        metadata: { orderId: id, refundedAmount: amount.toNumber(), ...(order.taxInvoiceNo ? { taxInvoiceIssued: true, taxInvoiceNo: order.taxInvoiceNo } : {}) },
+      },
     });
 
     if (freedTable) {
@@ -693,7 +696,8 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
     }
 
     io.to(`store:${order.storeId}`).emit('order:refunded', { id });
-    return updated;
+    // ออกใบกำกับภาษีไปแล้ว → UI ควรเตือนให้ออกใบลดหนี้ (ยังไม่มีในระบบ)
+    return { ...updated, taxInvoiceIssued: !!order.taxInvoiceNo };
   });
 }
 
@@ -813,6 +817,7 @@ export async function refundItems(
           items: input.items,
           refundedAmount: totalRefunded.toNumber(),
           fullyRefunded: allRefunded,
+          ...(order.taxInvoiceNo ? { taxInvoiceIssued: true, taxInvoiceNo: order.taxInvoiceNo } : {}),
         },
       },
     });
@@ -823,6 +828,7 @@ export async function refundItems(
       order: updated,
       refundedAmount: totalRefunded.toNumber(),
       fullyRefunded: allRefunded,
+      taxInvoiceIssued: !!order.taxInvoiceNo,
     };
   });
 }
