@@ -545,7 +545,9 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server, 
   });
 
   // ปลดล็อกโต๊ะอัตโนมัติเมื่อออเดอร์เสร็จสิ้น/ยกเลิก
-  if (order.tableId && (status === 'COMPLETED' || status === 'CANCELLED')) {
+  // (but not while another open bill — e.g. a split-off one — still sits there)
+  if (order.tableId && (status === 'COMPLETED' || status === 'CANCELLED')
+    && !(await tableHasOtherOpenBill(prisma, order.tableId, order.id))) {
     const table = await prisma.table.update({
       where: { id: order.tableId },
       data: { status: 'AVAILABLE', occupiedAt: null },
@@ -575,7 +577,7 @@ function assertRefundable(order: { status: string; payments: unknown[] }) {
 }
 
 /** A refund must not free a table that a newer, still-open bill is sitting at. */
-async function tableHasOtherOpenBill(tx: Prisma.TransactionClient, tableId: string, exceptOrderId: string) {
+export async function tableHasOtherOpenBill(tx: Pick<Prisma.TransactionClient, 'order'>, tableId: string, exceptOrderId: string) {
   const n = await tx.order.count({
     where: { tableId, id: { not: exceptOrderId }, status: { in: ['PENDING', 'PREPARING', 'READY'] }, payments: { none: {} } },
   });

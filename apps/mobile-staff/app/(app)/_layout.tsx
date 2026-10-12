@@ -36,6 +36,7 @@ export default function AppLayout() {
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />
+      <Stack.Screen name="shift" options={{ title: 'กะทำงาน' }} />
       <Stack.Screen name="products" options={{ title: 'สินค้า' }} />
       <Stack.Screen name="inventory" options={{ title: 'สต๊อก' }} />
       <Stack.Screen name="customers" options={{ title: 'ลูกค้า · สมาชิก' }} />

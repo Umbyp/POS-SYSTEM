@@ -12,6 +12,7 @@ import { hasOptions } from '@/lib/options';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { CartSheet } from '@/components/CartSheet';
 import { CartPanel } from '@/components/CartPanel';
+import { ShiftChip } from '@/components/ShiftChip';
 import { PaymentModal, type PaymentMode, type AppliedReward } from '@/components/PaymentModal';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { TABLE_STATUS_DOT } from '@/constants/tableStatus';
@@ -128,6 +129,7 @@ export default function PosScreen() {
             <Text numberOfLines={1} className="text-[11px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
               {[headerTitle, ...metaParts].join(' · ')}
             </Text>
+            <View className="mt-1.5 flex-row"><ShiftChip /></View>
           </View>
           {isTablet ? null : (
             <View style={{ width: 170 }} className="overflow-hidden rounded-lg border border-border dark:border-dark-border">

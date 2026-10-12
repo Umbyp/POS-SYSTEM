@@ -11,6 +11,7 @@ import {
   Users,
   BarChart3,
   History,
+  Clock,
   Settings,
   type LucideIcon,
 } from 'lucide-react-native';
@@ -36,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'kds', href: '/kds', label: 'Kitchen', icon: ChefHat, roles: ['OWNER', 'ADMIN', 'KITCHEN'], tab: true },
   { key: 'tables', href: '/tables', label: 'Tables', icon: Grid3X3, roles: ['OWNER', 'ADMIN', 'CASHIER'], tab: true },
   { key: 'orders', href: '/orders', label: 'Orders', icon: Receipt, roles: ['OWNER', 'ADMIN', 'CASHIER'], tab: false },
+  { key: 'shift', href: '/shift', label: 'Shift', icon: Clock, roles: ['OWNER', 'ADMIN', 'CASHIER'], tab: false },
   { key: 'products', href: '/products', label: 'Products', icon: Package, roles: ['OWNER', 'ADMIN'], tab: false },
   { key: 'inventory', href: '/inventory', label: 'Inventory', icon: Boxes, roles: ['OWNER', 'ADMIN'], tab: false },
   { key: 'customers', href: '/customers', label: 'Customers', icon: UserCircle, roles: ['OWNER', 'ADMIN', 'CASHIER'], tab: false },
