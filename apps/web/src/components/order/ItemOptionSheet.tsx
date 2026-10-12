@@ -44,6 +44,24 @@ export function getOptionGroups(product: any): OptionGroup[] {
       options,
     });
   }
+  // Legacy per-product `variants` (pre option-groups): one optional pick. The
+  // API folds these into a 'ตัวเลือก' group on submit (self-order.service
+  // toGroupDefs) and matches by "<group>: <name>", so mirror that here.
+  const legacy: any[] = Array.isArray(product?.variants) ? product.variants.filter((v: any) => v?.name) : [];
+  if (legacy.length > 0) {
+    out.push({
+      id: 'legacy-variants',
+      name: 'ตัวเลือก',
+      minSelect: 0,
+      maxSelect: 1,
+      options: legacy.map((v: any) => ({
+        id: String(v.id ?? v.name),
+        name: v.name,
+        priceDelta: Number(v.priceDelta) || 0,
+        isDefault: false,
+      })),
+    });
+  }
   return out;
 }
 

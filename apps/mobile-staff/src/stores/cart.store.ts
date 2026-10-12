@@ -74,6 +74,8 @@ interface CartState {
   pointsToRedeem: number;
   /** Looked-up reward code (sent as `redemptionCode`). */
   redemption?: AppliedRedemption;
+  /** Redeem one full stamp card (sent as `useStampReward`). */
+  useStampReward: boolean;
   /** Local id of a queued (offline) POST /orders/open for this table, so later rounds can wait for it. */
   pendingOpenOpId?: string;
 
@@ -89,6 +91,7 @@ interface CartState {
   setPromotion: (p?: AppliedPromotion) => void;
   setPointsToRedeem: (n: number) => void;
   setRedemption: (r?: AppliedRedemption) => void;
+  setUseStampReward: (v: boolean) => void;
   setPendingOpenOp: (id?: string) => void;
   /** Drops discount / member / points / reward (keeps items). */
   clearAdjustments: () => void;
@@ -105,6 +108,7 @@ export const useCart = create<CartState>()(
       items: [],
       type: 'DINE_IN',
       pointsToRedeem: 0,
+      useStampReward: false,
 
       addItem: (item) =>
         set((s) => {
@@ -135,14 +139,15 @@ export const useCart = create<CartState>()(
       setGuestCount: (n) => set({ guestCount: n && n > 0 ? Math.min(99, Math.floor(n)) : undefined }),
 
       // Changing the member clears points (they belong to that member's balance).
-      setCustomer: (c) => set({ customer: c, pointsToRedeem: 0 }),
+      setCustomer: (c) => set({ customer: c, pointsToRedeem: 0, useStampReward: false }),
       setManualDiscount: (d) => set({ manualDiscount: d && d.value > 0 ? d : undefined }),
       setPromotion: (p) => set({ promotion: p }),
       setPointsToRedeem: (n) => set({ pointsToRedeem: Math.max(0, Math.floor(n) || 0) }),
       setRedemption: (r) => set({ redemption: r }),
+      setUseStampReward: (v) => set({ useStampReward: v }),
       setPendingOpenOp: (id) => set({ pendingOpenOpId: id }),
       clearAdjustments: () =>
-        set({ customer: undefined, manualDiscount: undefined, promotion: undefined, pointsToRedeem: 0, redemption: undefined }),
+        set({ customer: undefined, manualDiscount: undefined, promotion: undefined, pointsToRedeem: 0, redemption: undefined, useStampReward: false }),
 
       clearItems: () => set({ items: [] }),
       clear: () =>
@@ -156,6 +161,7 @@ export const useCart = create<CartState>()(
           promotion: undefined,
           pointsToRedeem: 0,
           redemption: undefined,
+          useStampReward: false,
           pendingOpenOpId: undefined,
         }),
 

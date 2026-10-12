@@ -74,22 +74,22 @@ function ReadyBoardContent() {
   }
 
   return (
-    <div className="customer-theme min-h-[100dvh] bg-background flex flex-col p-6 sm:p-10">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
-          <Bell className="w-8 h-8 text-success" />
+    <div className="customer-theme min-h-[100dvh] bg-background flex flex-col p-6 sm:p-10 2xl:p-14">
+      <div className="flex items-center justify-between mb-8 2xl:mb-12">
+        <h1 className="text-2xl sm:text-3xl 2xl:text-5xl font-bold flex items-center gap-3 2xl:gap-5">
+          <Bell className="w-8 h-8 2xl:w-12 2xl:h-12 text-success" />
           ออเดอร์พร้อมแล้ว
         </h1>
-        <span className="text-lg text-muted-foreground tabular-nums">{now}</span>
+        <span className="text-lg 2xl:text-3xl text-muted-foreground tabular-nums">{now}</span>
       </div>
 
       {orders.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
-          <UtensilsCrossed className="w-16 h-16 opacity-40" />
-          <p className="text-xl">ยังไม่มีออเดอร์ที่พร้อมส่ง</p>
+          <UtensilsCrossed className="w-16 h-16 2xl:w-24 2xl:h-24 opacity-40" />
+          <p className="text-xl 2xl:text-3xl">ยังไม่มีออเดอร์ที่พร้อมส่ง</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 2xl:gap-6">
           <AnimatePresence>
             {orders.map((o) => (
               <motion.div
@@ -98,12 +98,12 @@ function ReadyBoardContent() {
                 initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
-                className="bg-card border-2 border-success rounded-2xl p-6 flex flex-col items-center text-center"
+                className="bg-card border-2 border-success rounded-2xl p-6 2xl:p-8 flex flex-col items-center text-center"
               >
-                <div className="text-4xl sm:text-5xl font-black tabular-nums text-success tracking-tight">
+                <div className="text-4xl sm:text-5xl 2xl:text-7xl font-black tabular-nums text-success tracking-tight">
                   {pickupLabel(o)}
                 </div>
-                <div className="mt-3 text-sm sm:text-base text-muted-foreground line-clamp-2">
+                <div className="mt-3 text-sm sm:text-base 2xl:text-2xl text-muted-foreground line-clamp-2">
                   {o.items.map((i) => `${i.product.name}${i.quantity > 1 ? ` x${i.quantity}` : ''}`).join(', ')}
                 </div>
               </motion.div>

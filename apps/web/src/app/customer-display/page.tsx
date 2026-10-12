@@ -97,16 +97,16 @@ export default function CustomerDisplayPage() {
             className="text-center"
           >
             <div className="inline-flex mb-6 sm:mb-8">
-              <Store className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 text-primary" />
+              <Store className="w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 2xl:w-36 2xl:h-36 text-primary" />
             </div>
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold mb-2 sm:mb-3 tracking-tight">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl xl:text-7xl 2xl:text-8xl font-bold mb-2 sm:mb-3 tracking-tight">
               {t('display.welcome')}
             </h1>
-            <p className="text-muted-foreground text-base sm:text-xl lg:text-2xl xl:text-3xl">
+            <p className="text-muted-foreground text-base sm:text-xl lg:text-2xl xl:text-3xl 2xl:text-4xl">
               {t('display.idleHint')}
             </p>
             {now && (
-              <p className="text-muted-foreground/60 text-sm sm:text-base xl:text-lg mt-8 sm:mt-12 tabular-nums">
+              <p className="text-muted-foreground text-sm sm:text-base xl:text-lg mt-8 sm:mt-12 tabular-nums">
                 {now}
               </p>
             )}
@@ -120,19 +120,19 @@ export default function CustomerDisplayPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.3 }}
-            className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-3xl"
+            className="w-full max-w-sm sm:max-w-md md:max-w-lg lg:max-w-2xl xl:max-w-3xl 2xl:max-w-5xl"
           >
             {phase.storeName && (
-              <div className="text-center text-muted-foreground mb-3 sm:mb-5 text-base sm:text-xl xl:text-2xl">
+              <div className="text-center text-muted-foreground mb-3 sm:mb-5 text-base sm:text-xl xl:text-2xl 2xl:text-4xl">
                 {phase.storeName}
               </div>
             )}
-            <div className="bg-card border border-border rounded-2xl shadow-card p-5 sm:p-8 lg:p-10 xl:p-12">
+            <div className="bg-card border border-border rounded-2xl shadow-card p-5 sm:p-8 lg:p-10 xl:p-12 2xl:p-16">
               <div className="flex items-baseline justify-between mb-3 sm:mb-5">
                 <span className="text-xs sm:text-sm xl:text-base font-semibold text-muted-foreground uppercase tracking-wider">
                   {t('display.yourOrder')}
                 </span>
-                <span className="text-xs sm:text-sm xl:text-base text-muted-foreground tabular-nums">
+                <span className="text-xs sm:text-sm xl:text-base 2xl:text-xl text-muted-foreground tabular-nums">
                   {phase.items.reduce((n, i) => n + i.qty, 0)} {t('display.items')}
                 </span>
               </div>
@@ -147,12 +147,12 @@ export default function CustomerDisplayPage() {
                       className="flex justify-between items-baseline gap-3"
                     >
                       <div className="flex items-baseline gap-2 min-w-0">
-                        <span className="text-base sm:text-xl xl:text-2xl font-bold tabular-nums text-primary shrink-0">
+                        <span className="text-base sm:text-xl xl:text-2xl 2xl:text-4xl font-bold tabular-nums text-primary shrink-0">
                           {it.qty}×
                         </span>
-                        <span className="text-base sm:text-xl xl:text-2xl truncate">{it.name}</span>
+                        <span className="text-base sm:text-xl xl:text-2xl 2xl:text-4xl truncate">{it.name}</span>
                       </div>
-                      <span className="text-base sm:text-xl xl:text-2xl font-semibold tabular-nums shrink-0">
+                      <span className="text-base sm:text-xl xl:text-2xl 2xl:text-4xl font-semibold tabular-nums shrink-0">
                         {formatCurrency(it.unitPrice * it.qty)}
                       </span>
                     </motion.div>
@@ -160,36 +160,36 @@ export default function CustomerDisplayPage() {
                 </AnimatePresence>
               </div>
               <div className="mt-4 sm:mt-6 rounded-xl bg-[#1F1F1F] text-white p-4 sm:p-6 space-y-1 sm:space-y-1.5">
-                <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
+                <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg 2xl:text-3xl">
                   <span>{t('cart.subtotal')}</span>
                   <span className="tabular-nums">{formatCurrency(phase.subtotal)}</span>
                 </div>
                 {!!phase.discount && phase.discount > 0 && (
-                  <div className="flex justify-between items-center text-[#F28B66] text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#F28B66] text-sm sm:text-base xl:text-lg 2xl:text-3xl">
                     <span>{t('cart.discount')}</span>
                     <span className="tabular-nums">-{formatCurrency(phase.discount)}</span>
                   </div>
                 )}
                 {!!phase.serviceCharge && phase.serviceCharge > 0 && (
-                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg 2xl:text-3xl">
                     <span>{t('cart.serviceCharge')}</span>
                     <span className="tabular-nums">{formatCurrency(phase.serviceCharge)}</span>
                   </div>
                 )}
                 {!!phase.tax && phase.tax > 0 && (
-                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg 2xl:text-3xl">
                     <span>{t('cart.vat')}</span>
                     <span className="tabular-nums">{formatCurrency(phase.tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 sm:pt-3">
-                  <span className="text-lg sm:text-2xl xl:text-3xl font-semibold">{t('display.total')}</span>
-                  <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-[#F28B66] tabular-nums">
+                  <span className="text-lg sm:text-2xl xl:text-3xl 2xl:text-5xl font-semibold">{t('display.total')}</span>
+                  <span className="text-2xl sm:text-4xl xl:text-5xl 2xl:text-7xl font-bold text-[#F28B66] tabular-nums">
                     {formatCurrency(phase.total)}
                   </span>
                 </div>
                 {(phase.cashierName || phase.billNumber) && (
-                  <div className="pt-2 sm:pt-3 mt-1 border-t border-white/10 text-[11px] sm:text-sm text-[#BDBDBD] flex items-center gap-1.5">
+                  <div className="pt-2 sm:pt-3 mt-1 border-t border-white/10 text-[11px] sm:text-sm 2xl:text-xl text-[#BDBDBD] flex items-center gap-1.5">
                     {phase.cashierName && <span>{phase.cashierName}</span>}
                     {phase.cashierName && phase.billNumber && <span className="opacity-50">·</span>}
                     {phase.billNumber && <span className="tabular-nums">{phase.billNumber}</span>}
@@ -207,19 +207,19 @@ export default function CustomerDisplayPage() {
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.3 }}
-            className="text-center w-full max-w-xs sm:max-w-sm md:max-w-md xl:max-w-lg"
+            className="text-center w-full max-w-xs sm:max-w-sm md:max-w-md xl:max-w-lg 2xl:max-w-2xl"
           >
-            <h2 className="text-xl sm:text-3xl xl:text-4xl font-bold mb-1 sm:mb-2">{t('display.scanToPay')}</h2>
+            <h2 className="text-xl sm:text-3xl xl:text-4xl 2xl:text-6xl font-bold mb-1 sm:mb-2">{t('display.scanToPay')}</h2>
             {phase.qrImageUrl ? (
               <>
-                <p className="text-muted-foreground text-base sm:text-xl mb-4 sm:mb-6 tabular-nums">
+                <p className="text-muted-foreground text-base sm:text-xl 2xl:text-3xl mb-4 sm:mb-6 tabular-nums">
                   {formatCurrency(phase.amount)}
                 </p>
                 <div className="bg-white rounded-2xl p-4 sm:p-6 inline-block">
                   <img
                     src={phase.qrImageUrl}
                     alt="PromptPay QR"
-                    className="w-56 sm:w-72 lg:w-80 xl:w-96 aspect-square object-contain"
+                    className="w-56 sm:w-72 lg:w-80 xl:w-96 2xl:w-[32rem] aspect-square object-contain"
                   />
                 </div>
               </>
@@ -229,7 +229,7 @@ export default function CustomerDisplayPage() {
               </div>
             ) : null}
             {(phase.cashierName || phase.billNumber) && (
-              <div className="mt-4 sm:mt-6 text-[11px] sm:text-sm text-muted-foreground flex items-center justify-center gap-1.5">
+              <div className="mt-4 sm:mt-6 text-[11px] sm:text-sm 2xl:text-xl text-muted-foreground flex items-center justify-center gap-1.5">
                 {phase.cashierName && <span>{phase.cashierName}</span>}
                 {phase.cashierName && phase.billNumber && <span className="opacity-50">·</span>}
                 {phase.billNumber && <span className="tabular-nums">{phase.billNumber}</span>}
@@ -252,10 +252,10 @@ export default function CustomerDisplayPage() {
               animate={{ scale: 1 }}
               transition={{ type: 'spring', stiffness: 260, damping: 18, delay: 0.1 }}
             >
-              <CheckCircle2 className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-36 xl:h-36 text-success mx-auto mb-3 sm:mb-5" />
+              <CheckCircle2 className="w-16 h-16 sm:w-24 sm:h-24 lg:w-28 lg:h-28 xl:w-36 xl:h-36 2xl:w-48 2xl:h-48 text-success mx-auto mb-3 sm:mb-5" />
             </motion.div>
-            <h2 className="text-2xl sm:text-4xl xl:text-5xl font-bold mb-2 sm:mb-3">{t('display.thankYou')}</h2>
-            <p className="text-muted-foreground text-sm sm:text-lg xl:text-xl mb-1">{t('display.paidAmount')}</p>
+            <h2 className="text-2xl sm:text-4xl xl:text-5xl 2xl:text-7xl font-bold mb-2 sm:mb-3">{t('display.thankYou')}</h2>
+            <p className="text-muted-foreground text-sm sm:text-lg xl:text-xl 2xl:text-3xl mb-1">{t('display.paidAmount')}</p>
             <p className="text-3xl sm:text-5xl xl:text-6xl font-bold text-primary tabular-nums">
               {formatCurrency(phase.total)}
             </p>

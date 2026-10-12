@@ -10,7 +10,7 @@ import {
 import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
 import {
   allocateDiscounts, capLineDiscount, resolvePromotion, consumePromotionUse, claimRedemption,
-  attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView,
+  attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView, releaseRedemptionForOrder,
 } from './checkout-discounts';
 import { recordIdempotencyKey } from './idempotency';
 
@@ -567,27 +567,44 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server, 
   return order;
 }
 
+/** Only a bill that was actually paid can be refunded (open/cancelled/draft bills have nothing to give back). */
+function assertRefundable(order: { status: string; payments: unknown[] }) {
+  if (order.status === 'CANCELLED' || order.status === 'DRAFT' || order.payments.length === 0) {
+    throw BadRequest('บิลนี้ยังไม่ได้ชำระ/ถูกยกเลิก คืนเงินไม่ได้', 'NOT_REFUNDABLE');
+  }
+}
+
+/** A refund must not free a table that a newer, still-open bill is sitting at. */
+async function tableHasOtherOpenBill(tx: Prisma.TransactionClient, tableId: string, exceptOrderId: string) {
+  const n = await tx.order.count({
+    where: { tableId, id: { not: exceptOrderId }, status: { in: ['PENDING', 'PREPARING', 'READY'] }, payments: { none: {} } },
+  });
+  return n > 0;
+}
+
 export async function refund(id: string, userId: string, io: Server, storeId?: string) {
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id, ...(storeId ? { storeId } : {}) },
-      include: { items: { include: { product: { include: { inventory: true } } } } },
+      include: { items: { include: { product: { include: { inventory: true } } } }, payments: true },
     });
     if (!order) throw NotFound('Order not found');
     if (order.status === 'REFUNDED') throw BadRequest('Order already refunded');
+    assertRefundable(order);
 
-    // คืนสต็อก
+    // คืนสต็อก (เฉพาะจำนวนที่ยังไม่เคยคืนจาก partial refund — กันคืนซ้ำ)
     for (const item of order.items) {
-      if (item.product.trackStock && item.product.inventory) {
+      const qtyLeft = item.quantity - item.refundedQty;
+      if (qtyLeft > 0 && item.product.trackStock && item.product.inventory) {
         await tx.inventory.update({
           where: { id: item.product.inventory.id },
-          data: { quantity: { increment: item.quantity } },
+          data: { quantity: { increment: qtyLeft } },
         });
         await tx.stockMovement.create({
           data: {
             inventoryId: item.product.inventory.id,
             type: 'RETURN',
-            quantity: item.quantity,
+            quantity: qtyLeft,
             orderId: order.id,
             userId,
             reason: 'Refund',
@@ -598,15 +615,17 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
 
     // คืน/ดึงแต้มกลับ (idempotent เพราะกัน REFUNDED ซ้ำด้านบนแล้ว)
     await reverseOrderPoints(tx, order);
+    // คืนสิทธิ์โค้ดรางวัลที่บิลนี้เคยใช้
+    await releaseRedemptionForOrder(tx, id, order.storeId, userId, 'REFUND');
 
     const updated = await tx.order.update({
       where: { id },
       data: { status: 'REFUNDED' },
     });
 
-    // ปลดโต๊ะเมื่อ refund
+    // ปลดโต๊ะเมื่อ refund (ถ้าโต๊ะนั้นไม่ได้มีบิลใหม่นั่งอยู่)
     let freedTable: any = null;
-    if (order.tableId) {
+    if (order.tableId && !(await tableHasOtherOpenBill(tx, order.tableId, id))) {
       freedTable = await tx.table.update({
         where: { id: order.tableId },
         data: { status: 'AVAILABLE', occupiedAt: null },
@@ -642,10 +661,11 @@ export async function refundItems(
   return prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id: orderId, ...(storeId ? { storeId } : {}) },
-      include: { items: { include: { product: { include: { inventory: true } } } } },
+      include: { items: { include: { product: { include: { inventory: true } } } }, payments: true },
     });
     if (!order) throw NotFound('Order not found');
     if (order.status === 'REFUNDED') throw BadRequest('Order already fully refunded');
+    assertRefundable(order);
 
     let totalRefunded = new Prisma.Decimal(0);
 
@@ -700,6 +720,7 @@ export async function refundItems(
     // กันซ้ำได้เพราะ status='REFUNDED' แล้วจะ throw ที่ต้นฟังก์ชัน
     if (allRefunded) {
       await reverseOrderPoints(tx, order);
+      await releaseRedemptionForOrder(tx, orderId, order.storeId, userId, 'REFUND');
     }
 
     const updated = await tx.order.update({
@@ -709,7 +730,7 @@ export async function refundItems(
     });
 
     // ปลดโต๊ะถ้า refund ครบ
-    if (allRefunded && order.tableId) {
+    if (allRefunded && order.tableId && !(await tableHasOtherOpenBill(tx, order.tableId, orderId))) {
       const freed = await tx.table.update({
         where: { id: order.tableId },
         data: { status: 'AVAILABLE', occupiedAt: null },

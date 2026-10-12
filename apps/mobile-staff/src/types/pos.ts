@@ -82,6 +82,8 @@ export interface Order {
   promotionDiscount?: string | null;
   pointsRedeemed?: number | null;
   pointsEarned?: number | null;
+  stampsEarned?: number | null;
+  stampsRedeemed?: number | null;
   serviceCharge: string;
   tax: string;
   total: string;

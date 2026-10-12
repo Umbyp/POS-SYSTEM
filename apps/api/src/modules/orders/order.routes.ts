@@ -7,7 +7,7 @@ import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
 import { BadRequest } from '../../utils/errors';
-import { readIdempotencyKey, runIdempotent } from './idempotency';
+import { readIdempotencyKey, runIdempotent, addRoundScope, settleScope } from './idempotency';
 import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from './escpos';
 
 const router = Router();
@@ -143,7 +143,7 @@ const openTabSchema = z.object({
   clientRequestId,
 });
 
-const roundSchema = z.object({ items: tabItems, notes: z.string().optional(), guestCount });
+const roundSchema = z.object({ items: tabItems, notes: z.string().optional(), guestCount, clientRequestId });
 
 const settleSchema = z.object({
   payments: z.array(paymentLineSchema).min(1),
@@ -158,6 +158,8 @@ const settleSchema = z.object({
   customerName: z.string().optional(),
   customerTaxId: z.string().optional(),
   customerAddress: z.string().optional(),
+  notes: z.string().trim().max(200).optional(), // discount reason; appended to order.notes
+  clientRequestId,
 });
 
 // Open a new bill and fire round 1 to the kitchen
@@ -227,11 +229,14 @@ router.patch(
 router.post('/:id/items', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(roundSchema), async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    const order = await tabService.addRound(
-      req.params.id,
-      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items, notes: req.body.notes, guestCount: req.body.guestCount },
-      io
-    );
+    const key = readIdempotencyKey(req);
+    const { order, replay } = await runIdempotent(req.user!.storeId, addRoundScope(req.params.id), key, (k) =>
+      tabService.addRound(
+        req.params.id,
+        { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items, notes: req.body.notes, guestCount: req.body.guestCount, idempotencyKey: k },
+        io,
+      ));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
     res.json(order);
   } catch (e) { next(e); }
 });
@@ -270,11 +275,14 @@ router.post(
 router.post('/:id/settle', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(settleSchema), async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    const order = await tabService.settleTab(
-      req.params.id,
-      { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id },
-      io
-    );
+    const key = readIdempotencyKey(req);
+    const { order, replay } = await runIdempotent(req.user!.storeId, settleScope(req.params.id), key, (k) =>
+      tabService.settleTab(
+        req.params.id,
+        { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id, idempotencyKey: k },
+        io,
+      ));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
     res.json(order);
   } catch (e) { next(e); }
 });

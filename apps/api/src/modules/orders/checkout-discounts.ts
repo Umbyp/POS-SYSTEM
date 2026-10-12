@@ -171,6 +171,28 @@ export async function attachRedemptionToOrder(tx: Prisma.TransactionClient, rede
   await tx.rewardRedemption.update({ where: { id: redemptionId }, data: { orderId } });
 }
 
+/**
+ * Gives a reward code back (USED → ACTIVE, clearing usedAt/orderId) when the
+ * order that consumed it is fully refunded/cancelled. It is one row flipped by
+ * a conditional UPDATE on (orderId, status = USED), so it can't run twice and
+ * the code can never end up with two uses. Call inside the refund/cancel tx.
+ */
+export async function releaseRedemptionForOrder(
+  tx: Prisma.TransactionClient, orderId: string, storeId: string, userId: string, cause: string,
+): Promise<boolean> {
+  const r = await tx.rewardRedemption.findFirst({ where: { orderId, storeId, status: 'USED' }, select: { id: true, code: true } });
+  if (!r) return false;
+  const n = await tx.rewardRedemption.updateMany({
+    where: { id: r.id, status: 'USED', orderId },
+    data: { status: 'ACTIVE', usedAt: null, orderId: null },
+  });
+  if (n.count === 0) return false;
+  await tx.activityLog.create({
+    data: { userId, action: 'REWARD_REACTIVATED', metadata: { orderId, redemptionId: r.id, code: r.code, cause } },
+  });
+  return true;
+}
+
 /** Note line recorded on the order for a redeemed reward (also covers FREE_ITEM, which has no money value). */
 export function redemptionNote(c: ClaimedRedemption, applied: Prisma.Decimal): string {
   return c.kind === 'FREE_ITEM'

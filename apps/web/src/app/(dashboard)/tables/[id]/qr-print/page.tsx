@@ -95,16 +95,16 @@ export default function TableQrPrintPage() {
         >
           {/* Accent top rule (border prints reliably) */}
           <div className="h-1.5 bg-primary print:hidden" />
-          <div className="hidden print:block border-t-[3px] border-primary" />
+          <div className="hidden print:block border-t-[3px] border-primary print:border-black" />
 
           <div className="px-8 pt-7 pb-8 flex flex-col items-center text-center">
             {/* Store identity */}
-            <div className="w-16 h-16 rounded-2xl border-2 border-primary/30 flex items-center justify-center overflow-hidden">
+            <div className="w-16 h-16 rounded-2xl border-2 border-primary/30 print:border-black flex items-center justify-center overflow-hidden">
               {store.logo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={resolveImageUrl(store.logo)} alt="" className="w-full h-full object-cover" />
               ) : (
-                <UtensilsCrossed className="w-8 h-8 text-primary" />
+                <UtensilsCrossed className="w-8 h-8 text-primary print:text-black" />
               )}
             </div>
             <div className="mt-3 font-bold text-xl leading-tight">{store.name}</div>
@@ -115,17 +115,17 @@ export default function TableQrPrintPage() {
             </div>
 
             {/* Table number — outlined so it survives black & white printing */}
-            <div className="mt-5 inline-flex items-baseline gap-2 rounded-xl border-2 border-primary px-5 py-2">
-              <span className="text-sm font-medium text-primary/80 uppercase tracking-wide">
+            <div className="mt-5 inline-flex items-baseline gap-2 rounded-xl border-2 border-primary print:border-black px-5 py-2">
+              <span className="text-sm font-medium text-primary/80 print:text-black uppercase tracking-wide">
                 {both('tableQr.tableLabel').th} / {both('tableQr.tableLabel').en}
               </span>
-              <span className="text-3xl font-extrabold text-primary tabular-nums leading-none">
+              <span className="text-3xl font-extrabold text-primary print:text-black tabular-nums leading-none">
                 {tableQr.number}
               </span>
             </div>
 
             {/* Scan heading */}
-            <div className="mt-6 flex items-center gap-2 text-primary">
+            <div className="mt-6 flex items-center gap-2 text-primary print:text-black">
               <ScanLine className="w-5 h-5" />
               <span className="font-bold text-lg">{both('tableQr.scanHeading').th}</span>
             </div>
@@ -141,7 +141,7 @@ export default function TableQrPrintPage() {
             <div className="mt-6 w-full space-y-3 text-left">
               {steps.map((key, i) => (
                 <div key={key} className="flex items-start gap-3">
-                  <span className="shrink-0 w-6 h-6 rounded-full border-2 border-primary text-primary text-xs font-bold flex items-center justify-center tabular-nums">
+                  <span className="shrink-0 w-6 h-6 rounded-full border-2 border-primary text-primary print:border-black print:text-black text-xs font-bold flex items-center justify-center tabular-nums">
                     {i + 1}
                   </span>
                   <div className="leading-snug">
@@ -153,8 +153,8 @@ export default function TableQrPrintPage() {
             </div>
 
             {/* Reassurance */}
-            <div className="mt-5 w-full flex items-start gap-2 rounded-xl border border-primary/25 px-3 py-2 text-left">
-              <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <div className="mt-5 w-full flex items-start gap-2 rounded-xl border border-primary/25 print:border-black px-3 py-2 text-left">
+              <Check className="w-4 h-4 text-primary print:text-black shrink-0 mt-0.5" />
               <div className="leading-snug">
                 <div className="text-xs font-medium">{both('tableQr.needHelp').th}</div>
                 <div className="text-[11px] text-muted-foreground italic">{both('tableQr.needHelp').en}</div>

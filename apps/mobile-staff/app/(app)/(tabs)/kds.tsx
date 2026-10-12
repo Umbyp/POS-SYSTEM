@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Platform, View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { Animated, Platform, useWindowDimensions, View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BellRing, ChefHat, Printer, Volume2, VolumeX } from 'lucide-react-native';
@@ -35,7 +35,9 @@ const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'mon
 export default function KdsScreen() {
   const qc = useQueryClient();
   const isTablet = useIsTablet();
-  const columns = isTablet ? 2 : 1;
+  // Content area = window − 196 sidebar; ~330pt per ticket column (2 on portrait iPad, 3 on 12.9" landscape).
+  const { width: winW } = useWindowDimensions();
+  const columns = isTablet ? Math.max(2, Math.min(4, Math.floor((winW - 196) / 330))) : 1;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);

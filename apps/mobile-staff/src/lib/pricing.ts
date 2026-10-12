@@ -37,6 +37,8 @@ export interface DiscountInput {
   manual?: ManualDiscount;
   promoAmount?: number;
   rewardAmount?: number;
+  /** Stamp-card reward value (the store's stampRewardValue) when the cashier redeems a full card. */
+  stampAmount?: number;
   /** Points the cashier asked to redeem. */
   points?: number;
   pointValue?: number;
@@ -47,6 +49,7 @@ export interface DiscountBreakdown {
   manual: number;
   promo: number;
   reward: number;
+  stamp: number;
   /** Points actually applied (after clamping to what the remaining bill can absorb). */
   points: number;
   pointsAmount: number;
@@ -60,7 +63,7 @@ export function maxRedeemablePoints(remaining: number, balance: number, pointVal
   return m < minRedeem ? 0 : Math.max(0, m);
 }
 
-/** Applies discounts in a fixed order (manual → promotion → reward code → points) so their sum can
+/** Applies discounts in a fixed order (manual → promotion → reward code → stamps → points, same as the server's allocateDiscounts) so their sum can
  * never exceed the subtotal. The amounts sent to the server are exactly these. */
 export function resolveDiscounts(i: DiscountInput): DiscountBreakdown {
   const manual = manualDiscountAmount(i.manual, i.subtotal);
@@ -69,8 +72,10 @@ export function resolveDiscounts(i: DiscountInput): DiscountBreakdown {
   remaining -= promo;
   const reward = round2(Math.min(remaining, Math.max(0, i.rewardAmount ?? 0)));
   remaining -= reward;
+  const stamp = round2(Math.min(remaining, Math.max(0, i.stampAmount ?? 0)));
+  remaining -= stamp;
   const pv = i.pointValue ?? 0;
   const points = (i.points ?? 0) > 0 ? Math.min(i.points!, maxRedeemablePoints(remaining, i.points!, pv, i.minRedeemPoints ?? 0)) : 0;
   const pointsAmount = round2(points * pv);
-  return { manual, promo, reward, points, pointsAmount, total: round2(manual + promo + reward + pointsAmount) };
+  return { manual, promo, reward, stamp, points, pointsAmount, total: round2(manual + promo + reward + stamp + pointsAmount) };
 }

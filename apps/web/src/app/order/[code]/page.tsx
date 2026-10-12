@@ -37,6 +37,8 @@ interface Product {
   // Present only when the API returns option groups for the public menu;
   // missing/empty means the product has no options.
   optionGroups?: any[];
+  // Legacy per-product variants; folded into the picker by getOptionGroups.
+  variants?: { id?: string; name: string; priceDelta: number | string }[];
 }
 
 /** One cart row: same product with different options/note = separate lines. */
