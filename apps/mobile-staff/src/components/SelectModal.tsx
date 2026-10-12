@@ -19,7 +19,7 @@ export function SelectModal({ visible, title, options, value, onSelect, onClose 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-2xl bg-card dark:bg-dark-card p-5 gap-3 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-3 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
           <View className="flex-row items-center justify-between">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">{title}</Text>
             <Pressable onPress={onClose} hitSlop={12}>

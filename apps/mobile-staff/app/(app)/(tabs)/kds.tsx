@@ -23,7 +23,7 @@ const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; next: OrderStatu
 };
 
 // KDS is always dark (kitchen-wall display), independent of system theme.
-const K = { bg: '#161616', card: '#212121', card2: '#2C2C2C', border: '#3A3A3A', fg: '#F5F5F5', muted: '#A3A3A3' };
+const K = { bg: '#161616', card: '#212121', card2: '#2C2C2C', border: '#3A3A3A', fg: '#F5F5F5', muted: '#A3A3A3', accent: '#E07A57' };
 const SPINE = { PENDING: '#FBBF24', PREPARING: '#60A5FA', READY: '#4ADE80', overdue: '#F87171' };
 const ALLOWED_SEC = 15 * 60;
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
@@ -85,20 +85,23 @@ export default function KdsScreen() {
 
   return (
     <SafeAreaView style={{ backgroundColor: K.bg }} className="flex-1" edges={['bottom', 'left', 'right']}>
-      <View style={{ borderBottomColor: K.border }} className="flex-row items-center justify-between gap-3 border-b px-4 py-3">
-        <View className="flex-row gap-2 flex-shrink">
-          {TABS.map((t) => (
-            <Pressable
-              key={t.key}
-              onPress={() => setTab(t.key)}
-              style={{ backgroundColor: tab === t.key ? '#B45309' : K.card2 }}
-              className="items-center rounded-[10px] px-3.5 py-2.5"
-            >
-              <Text style={{ color: tab === t.key ? '#FFFFFF' : K.fg }} className={`text-[14px] ${tab === t.key ? 'font-bold' : 'font-semibold'}`}>
-                {t.label} {counts[t.key] ?? 0}
-              </Text>
-            </Pressable>
-          ))}
+      <View style={{ borderBottomColor: K.border }} className="flex-row items-center justify-between gap-3 border-b px-4 pt-2">
+        <View className="flex-row gap-5 flex-shrink">
+          {TABS.map((t) => {
+            const on = tab === t.key;
+            return (
+              <Pressable
+                key={t.key}
+                onPress={() => setTab(t.key)}
+                style={{ borderBottomColor: on ? K.accent : 'transparent', borderBottomWidth: 3 }}
+                className="items-center px-1 pb-2 pt-1.5"
+              >
+                <Text style={{ color: on ? K.accent : K.muted }} className={`text-[15px] ${on ? 'font-bold' : 'font-semibold'}`}>
+                  {t.label} <Text style={{ color: on ? K.accent : K.fg }}>{counts[t.key] ?? 0}</Text>
+                </Text>
+              </Pressable>
+            );
+          })}
         </View>
         {isTablet ? (
           <View className="flex-row items-center gap-3.5">
@@ -146,7 +149,7 @@ export default function KdsScreen() {
             return (
               <View
                 style={{ backgroundColor: K.card, borderColor: K.border }}
-                className={`${columns > 1 ? 'flex-1 ' : ''}overflow-hidden rounded-[14px] border`}
+                className={`${columns > 1 ? 'flex-1 ' : ''}overflow-hidden rounded-[10px] border`}
               >
                 <SpineGauge color={color} ratio={ratio} trackColor={K.border} />
                 <View className="gap-2.5 pl-6 pr-4 pt-3.5 pb-4">
@@ -191,7 +194,7 @@ export default function KdsScreen() {
                     <Pressable
                       onPress={() => updateStatus.mutate({ id: item.id, status: action.next })}
                       disabled={updateStatus.isPending}
-                      className="h-14 items-center justify-center rounded-xl bg-primary mt-1"
+                      className="h-14 items-center justify-center rounded-[10px] bg-primary mt-1"
                     >
                       <Text className="text-[17px] font-bold text-white">{action.label}</Text>
                     </Pressable>
@@ -200,12 +203,12 @@ export default function KdsScreen() {
                       onPress={() => updateStatus.mutate({ id: item.id, status: 'COMPLETED' })}
                       disabled={updateStatus.isPending}
                       style={{ backgroundColor: K.card2 }}
-                      className="h-14 items-center justify-center rounded-xl mt-1"
+                      className="h-14 items-center justify-center rounded-[10px] mt-1"
                     >
                       <Text style={{ color: K.muted }} className="text-[16px] font-semibold">ลูกค้ารับแล้ว</Text>
                     </Pressable>
                   ) : item.status === 'READY' ? (
-                    <View style={{ backgroundColor: K.card2 }} className="h-14 items-center justify-center rounded-xl mt-1">
+                    <View style={{ backgroundColor: K.card2 }} className="h-14 items-center justify-center rounded-[10px] mt-1">
                       <Text style={{ color: K.muted }} className="text-[14px] font-semibold">รอลูกค้าเช็คบิล</Text>
                     </View>
                   ) : null}

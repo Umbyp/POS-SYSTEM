@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Receipt } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { formatCurrency, formatTime } from '@/lib/format';
+import { formatCurrency, formatTime, formatMinutes } from '@/lib/format';
 import { OrderDetailView } from '@/components/OrderDetailView';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { printReceipt, PrinterError } from '@/lib/printer';
@@ -79,23 +79,26 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row items-center justify-between border-b border-border bg-card px-4 py-2.5 dark:border-dark-border dark:bg-dark-card">
-        <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">
-          ออเดอร์{PERIODS.find((p) => p.key === period)?.label} · {orders.length}
+      <View className="border-b border-border bg-card px-4 pt-3 dark:border-dark-border dark:bg-dark-card">
+        <Text className="mb-1 text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">
+          ออเดอร์ · {orders.length}
         </Text>
-      </View>
-      <View className="flex-row gap-[7px] px-4 py-[11px]">
-        {PERIODS.map((p) => (
-          <Pressable
-            key={p.key}
-            onPress={() => setPeriod(p.key)}
-            className={`rounded-full px-3 py-1.5 ${period === p.key ? 'bg-primary' : 'border border-border bg-card dark:border-dark-border dark:bg-dark-card'}`}
-          >
-            <Text className={`text-[12px] ${period === p.key ? 'font-semibold' : 'font-medium'} ${period === p.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
-              {p.label}
-            </Text>
-          </Pressable>
-        ))}
+        <View className="flex-row">
+          {PERIODS.map((p) => {
+            const on = period === p.key;
+            return (
+              <Pressable
+                key={p.key}
+                onPress={() => setPeriod(p.key)}
+                className={`flex-1 items-center border-b-2 py-2.5 ${on ? 'border-primary' : 'border-transparent'}`}
+              >
+                <Text className={`text-[13px] ${on ? 'font-bold text-primary' : 'font-medium text-muted-foreground dark:text-dark-muted-foreground'}`}>
+                  {p.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       <View className="flex-1 flex-row">
@@ -108,7 +111,7 @@ export default function OrdersScreen() {
         <FlatList
           data={orders}
           keyExtractor={(o) => o.id}
-          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, gap: 9 }}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, gap: 8 }}
           refreshing={isRefetching}
           onRefresh={refetch}
           ListEmptyComponent={
@@ -123,8 +126,8 @@ export default function OrdersScreen() {
             return (
               <Pressable
                 onPress={() => (isTablet ? setSelectedId(item.id) : router.push(`/orders/${item.id}` as never))}
-                style={activeId === item.id ? { borderWidth: 2, borderColor: '#1F1F1F' } : undefined}
-                className={`flex-row overflow-hidden rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card ${dead ? 'opacity-70' : ''}`}
+                style={activeId === item.id ? { borderColor: '#D25E3B', backgroundColor: '#F3E5E2' } : undefined}
+                className={`flex-row overflow-hidden rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card ${dead ? 'opacity-70' : ''}`}
               >
                 <View className="w-1.5" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[item.status] }} />
                 <View className="flex-1 px-[13px] py-3">
@@ -142,7 +145,7 @@ export default function OrdersScreen() {
                       {item.items?.length ? ` · ${item.items.length} รายการ` : ''}
                     </Text>
                     <View className="flex-row items-center gap-2">
-                      {late ? <Text className="text-[11px] font-bold text-danger">เกิน {late} นาที</Text> : null}
+                      {late ? <Text className="text-[11px] font-bold text-danger">เกิน {formatMinutes(late)}</Text> : null}
                       <StatusBadge status={item.status} />
                     </View>
                   </View>

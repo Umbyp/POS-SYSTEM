@@ -27,11 +27,11 @@ export const TABLE_STATUS_DOT: Record<TableStatus, string> = {
   DIRTY: '#707070',
 };
 
-/** Floor-plan table tile: occupied/billing are solid fills, others are tinted with a border. */
+/** Floor-plan table tile: every status is a light tile with a coloured 1.5px border (occupied = white + dark border). */
 export const TABLE_TILE: Record<TableStatus, { bg: string; border: string; fg: string; chair: string; solid: boolean }> = {
   AVAILABLE: { bg: '#ECFDF5', border: '#047857', fg: '#047857', chair: '#A7D8C4', solid: false },
   RESERVED: { bg: '#FEFCE8', border: '#B45309', fg: '#B45309', chair: '#E9C77A', solid: false },
-  OCCUPIED: { bg: '#1F1F1F', border: '#1F1F1F', fg: '#FFFFFF', chair: '#1F1F1F', solid: true },
-  BILLING: { bg: '#1D4ED8', border: '#1D4ED8', fg: '#FFFFFF', chair: '#1D4ED8', solid: true },
+  OCCUPIED: { bg: '#FFFFFF', border: '#1F1F1F', fg: '#1F1F1F', chair: '#8A8A8A', solid: false },
+  BILLING: { bg: '#EFF6FF', border: '#1D4ED8', fg: '#1D4ED8', chair: '#93B4F5', solid: false },
   DIRTY: { bg: '#EFEFEF', border: '#D4D4D4', fg: '#707070', chair: '#D4D4D4', solid: false },
 };

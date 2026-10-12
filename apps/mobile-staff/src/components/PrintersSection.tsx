@@ -42,9 +42,9 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-full border px-3 py-1.5 ${on ? 'border-primary bg-primary' : 'border-border dark:border-dark-border'}`}
+      className={`rounded-full border px-3 py-1.5 ${on ? 'border-primary bg-primary-50' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
     >
-      <Text className={`text-[12px] font-medium ${on ? 'text-white' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{label}</Text>
+      <Text className={`text-[12px] font-medium ${on ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -54,9 +54,9 @@ function SmallButton({ label, onPress, primary, disabled }: { label: string; onP
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      className={`rounded-lg px-3 py-2 ${primary ? 'bg-primary' : 'border border-border dark:border-dark-border'} ${disabled ? 'opacity-50' : ''}`}
+      className={`rounded-lg px-3 py-2 ${primary ? 'bg-primary' : 'border border-primary bg-card dark:bg-dark-card'} ${disabled ? 'opacity-50' : ''}`}
     >
-      <Text className={`text-[12px] font-semibold ${primary ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>{label}</Text>
+      <Text className={`text-[12px] font-semibold ${primary ? 'text-white' : 'text-primary'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -133,7 +133,7 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
   const stuck = jobs.filter((j) => j.status !== 'PRINTED' && j.attempts > 0);
 
   const formView = (
-    <View className="gap-3 rounded-xl border border-border dark:border-dark-border p-3">
+    <View className="gap-3 rounded-lg border border-border dark:border-dark-border p-3">
       <TextField label="ชื่อสถานี" value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} placeholder="เช่น ครัวหลัง, บาร์น้ำ" />
       <View className="flex-row gap-2">
         <Chip label="ใบสั่งครัว" on={form.role === 'KITCHEN'} onPress={() => setForm({ ...form, role: 'KITCHEN' })} />
@@ -182,7 +182,7 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
           editingId === p.id ? (
             <View key={p.id}>{formView}</View>
           ) : (
-            <View key={p.id} className="flex-row items-center gap-3 rounded-xl border border-border dark:border-dark-border p-3">
+            <View key={p.id} className="flex-row items-center gap-3 rounded-lg border border-border dark:border-dark-border p-3">
               <View className={`h-2.5 w-2.5 rounded-full ${!p.isActive ? 'bg-[#BDBDBD]' : p.status === 'ok' ? 'bg-[#047857]' : 'bg-[#B91C1C]'}`} />
               <View className="flex-1">
                 <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">
@@ -223,7 +223,7 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
           ) : (
             <Pressable
               onPress={() => { setEditingId('new'); setForm(emptyForm); }}
-              className="items-center rounded-xl border border-dashed border-border dark:border-dark-border py-3"
+              className="items-center rounded-lg border border-dashed border-border dark:border-dark-border py-3"
             >
               <Text className="text-[13px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">+ เพิ่มสถานีพิมพ์</Text>
             </Pressable>

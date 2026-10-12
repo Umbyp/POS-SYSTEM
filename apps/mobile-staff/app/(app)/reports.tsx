@@ -44,14 +44,14 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row gap-2 px-4 py-3">
+      <View className="flex-row border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
         {RANGES.map((r) => (
           <Pressable
             key={r.key}
             onPress={() => setRange(r.key)}
-            className={`flex-1 items-center rounded-lg py-2 ${range === r.key ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}
+            className={`flex-1 items-center py-3 border-b-2 ${range === r.key ? 'border-primary' : 'border-transparent'}`}
           >
-            <Text className={`text-[13px] font-semibold ${range === r.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
+            <Text className={`text-[13px] font-semibold ${range === r.key ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
               {r.label}
             </Text>
           </Pressable>
@@ -65,12 +65,12 @@ export default function ReportsScreen() {
       ) : (
         <ScrollView contentContainerClassName="p-4 gap-4">
           <SectionCard>
-            <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">ยอดขาย</Text>
+            <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-dark-muted-foreground">ยอดขาย</Text>
             <View className="flex-row items-center gap-2">
               <Text className="text-metric-md text-foreground dark:text-dark-foreground">{formatCurrency(data.revenue)}</Text>
               {data.growth.revenue != null ? <GrowthBadge value={data.growth.revenue} /> : null}
             </View>
-            <View className="flex-row justify-between mt-2">
+            <View className="flex-row flex-wrap mt-3 border border-border dark:border-dark-border rounded-lg overflow-hidden">
               <MiniStat label="ออเดอร์" value={String(data.orderCount)} />
               <MiniStat label="ยอด/บิล" value={formatCurrency(data.avgTicket)} />
               <MiniStat label="กำไรขั้นต้น" value={formatCurrency(data.grossProfit)} />
@@ -115,9 +115,9 @@ export default function ReportsScreen() {
 
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
-    <View>
+    <View className="w-1/2 p-3 border-[0.5px] border-border dark:border-dark-border">
       <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{label}</Text>
-      <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">{value}</Text>
+      <Text className="text-[15px] font-bold text-foreground dark:text-dark-foreground">{value}</Text>
     </View>
   );
 }
@@ -126,8 +126,8 @@ function GrowthBadge({ value }: { value: number }) {
   const positive = value >= 0;
   const Icon = positive ? TrendingUp : TrendingDown;
   return (
-    <View className={`flex-row items-center gap-1 rounded-full px-2 py-0.5 ${positive ? 'bg-success/10' : 'bg-danger/10'}`}>
-      <Icon size={12} color={positive ? '#10B981' : '#EF4444'} />
+    <View className={`flex-row items-center gap-1 rounded px-1.5 py-0.5 ${positive ? 'bg-success/10' : 'bg-danger/10'}`}>
+      <Icon size={12} color={positive ? '#047857' : '#B91C1C'} />
       <Text className={`text-[11px] font-semibold ${positive ? 'text-success' : 'text-danger'}`}>{Math.abs(value).toFixed(1)}%</Text>
     </View>
   );

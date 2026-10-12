@@ -331,6 +331,7 @@ model Order {
   stampsEarned     Int         @default(0) // ดวงที่ได้จากบิลนี้ (ไว้ดึงกลับเมื่อ refund)
   stampsRedeemed   Int         @default(0) // ดวงที่ใช้แลกรางวัลในบิลนี้
   notes            String?
+  guestCount       Int?        // people seated for the bill (optional)
   customerName     String?
   customerTaxId    String?
   customerAddress  String?

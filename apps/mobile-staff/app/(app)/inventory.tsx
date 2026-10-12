@@ -30,14 +30,14 @@ export default function InventoryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row gap-2 px-4 py-3">
+      <View className="flex-row border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
         {TABS.map((t) => (
           <Pressable
             key={t.key}
             onPress={() => setTab(t.key)}
-            className={`flex-1 items-center rounded-lg py-2 ${tab === t.key ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}
+            className={`flex-1 items-center py-3 border-b-2 ${tab === t.key ? 'border-primary' : 'border-transparent'}`}
           >
-            <Text className={`text-[13px] font-semibold ${tab === t.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
+            <Text className={`text-[13px] font-semibold ${tab === t.key ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
               {t.label}
               {t.key === 'low' && lowCount > 0 ? ` (${lowCount})` : ''}
             </Text>
@@ -68,7 +68,7 @@ export default function InventoryScreen() {
             return (
               <Pressable
                 onPress={() => setSelected(item)}
-                className={`flex-row items-center justify-between rounded-xl border p-3.5 ${
+                className={`flex-row items-center justify-between rounded-lg border p-3.5 ${
                   isOut
                     ? 'border-danger bg-danger/5'
                     : isLow

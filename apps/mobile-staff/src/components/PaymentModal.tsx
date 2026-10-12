@@ -8,11 +8,13 @@ import { X, Banknote, QrCode, ScanLine, CheckCircle2, AlertTriangle } from 'luci
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { computeTotals } from '@/lib/pricing';
+import QRCode from 'react-native-qrcode-svg';
 import { Button } from '@/components/Button';
+import { generatePromptPayPayload } from '@/lib/promptpay';
 import { useOfflineQueue } from '@/stores/offlineQueue.store';
 import { useStoreConfig } from '@/stores/storeConfig.store';
 import { QrSlipScanner } from '@/components/QrSlipScanner';
-import type { CartItem } from '@/stores/cart.store';
+import { toOrderItem, type CartItem } from '@/stores/cart.store';
 import type { Order, OrderType } from '@/types/pos';
 
 interface SlipVerifyResult {
@@ -26,7 +28,7 @@ interface SlipVerifyResult {
 
 export type PaymentMode =
   | { kind: 'settle'; orderId: string }
-  | { kind: 'new'; type: OrderType; tableId?: string; items: CartItem[] };
+  | { kind: 'new'; type: OrderType; tableId?: string; guestCount?: number; items: CartItem[] };
 
 interface PaymentModalProps {
   visible: boolean;
@@ -103,6 +105,21 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     }
     return null;
   }, [mode, order, store, cachedStoreConfig]);
+
+  // PromptPay has two modes (same split as the web POS): Stripe-generated QR that confirms itself,
+  // or — when the store has no Stripe but has a PromptPay ID — a direct-to-account QR that the
+  // cashier confirms by eye (optionally backed by a scanned bank slip).
+  const stripeEnabled = !!paymentsConfig?.stripeEnabled;
+  const directPromptPayId = !stripeEnabled ? (store?.promptpayId ?? '').trim() : '';
+  const promptPayAvailable = stripeEnabled || !!directPromptPayId;
+  const directQr = useMemo(() => {
+    if (!directPromptPayId || amountDue == null || amountDue <= 0) return { payload: null as string | null, error: null as string | null };
+    try {
+      return { payload: generatePromptPayPayload(directPromptPayId, amountDue), error: null };
+    } catch (e) {
+      return { payload: null, error: e instanceof Error ? e.message : 'สร้าง QR ไม่สำเร็จ' };
+    }
+  }, [directPromptPayId, amountDue]);
 
   const receivedNum = parseFloat(received) || 0;
   const change = amountDue != null ? Math.max(0, receivedNum - amountDue) : 0;
@@ -204,7 +221,8 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
         : {
             type: mode.type,
             tableId: mode.tableId,
-            items: mode.items.map((i) => ({ productId: i.productId, quantity: i.quantity, notes: i.notes })),
+            ...(mode.guestCount ? { guestCount: mode.guestCount } : {}),
+            items: mode.items.map(toOrderItem),
             payments,
           };
 
@@ -277,10 +295,9 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           <Pressable
             onPress={() => {
               setTab('PROMPTPAY');
-              if (!intent) startPromptPay();
+              if (stripeEnabled && !intent) startPromptPay();
             }}
-            disabled={!paymentsConfig?.stripeEnabled}
-            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${tab === 'PROMPTPAY' ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'} ${!paymentsConfig?.stripeEnabled ? 'opacity-40' : ''}`}
+            className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${tab === 'PROMPTPAY' ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'} ${!promptPayAvailable ? 'opacity-40' : ''}`}
           >
             <QrCode size={16} color={tab === 'PROMPTPAY' ? '#FFFFFF' : '#6B7280'} />
             <Text className={`text-[13px] font-semibold ${tab === 'PROMPTPAY' ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>พร้อมเพย์</Text>
@@ -330,10 +347,50 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
             </View>
           ) : tab === 'PROMPTPAY' ? (
             <View className="items-center gap-4">
-              {!paymentsConfig?.stripeEnabled ? (
+              {!stripeEnabled && !directPromptPayId ? (
                 <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground text-center mt-8">
-                  พร้อมเพย์ยังไม่ได้ตั้งค่าในระบบร้านนี้
+                  ยังไม่ได้ตั้งค่าพร้อมเพย์ — ไปที่ ตั้งค่า › การชำระเงิน แล้วใส่เลขพร้อมเพย์ของร้าน
                 </Text>
+              ) : !stripeEnabled ? (
+                directQr.error ? (
+                  <View className="w-full flex-row items-start gap-1.5 rounded-lg bg-danger/10 p-3">
+                    <AlertTriangle size={16} color="#B91C1C" />
+                    <Text className="flex-1 text-[13px] text-danger">{directQr.error}</Text>
+                  </View>
+                ) : directQr.payload ? (
+                  <>
+                    <View className="rounded-xl border border-border bg-white p-3 dark:border-dark-border">
+                      <QRCode value={directQr.payload} size={220} />
+                    </View>
+                    <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground text-center">
+                      ให้ลูกค้าสแกนจ่ายตามยอด แล้วกด "ยืนยันรับเงิน" เมื่อเงินเข้าแล้ว
+                    </Text>
+                    {slip2goConfig?.slip2goEnabled ? (
+                      <Pressable onPress={() => setScannerVisible(true)} className="flex-row items-center gap-1.5 rounded-lg border border-primary px-4 py-2.5">
+                        <ScanLine size={16} color="#D25E3B" />
+                        <Text className="text-[13px] font-semibold text-primary">สแกนสลิปเพื่อตรวจสอบ (ไม่บังคับ)</Text>
+                      </Pressable>
+                    ) : null}
+                    {slipVerifying ? (
+                      <View className="flex-row items-center gap-1.5">
+                        <ActivityIndicator size="small" color="#D25E3B" />
+                        <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">กำลังตรวจสอบสลิป…</Text>
+                      </View>
+                    ) : null}
+                    {slipResult && !slipVerifying ? (
+                      <View className={`w-full flex-row items-start gap-1.5 rounded-lg p-3 ${slipResult.ok ? 'bg-success/10' : 'bg-warning/10'}`}>
+                        {slipResult.ok ? <CheckCircle2 size={16} color="#16A34A" /> : <AlertTriangle size={16} color="#CA8A04" />}
+                        <Text className={`flex-1 text-[13px] ${slipResult.ok ? 'text-success' : 'text-warning'}`}>
+                          {slipResult.ok
+                            ? `ตรวจสอบสลิปผ่าน${slipResult.amount != null ? ` · ${formatCurrency(slipResult.amount)}` : ''}${slipResult.senderName ? ` · ${slipResult.senderName}` : ''}`
+                            : slipResult.reason || 'ตรวจสอบสลิปไม่ผ่าน'}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </>
+                ) : (
+                  <ActivityIndicator color="#D25E3B" />
+                )
               ) : intent ? (
                 <>
                   <Image source={{ uri: intent.qrImageUrl }} style={{ width: 220, height: 220 }} resizeMode="contain" />
@@ -394,6 +451,27 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
               label="ยืนยันรับเงิน"
               onPress={() => amountDue != null && submit([{ method: 'CASH', amount: amountDue }])}
               disabled={!canPayCash}
+              loading={submitting}
+            />
+          </View>
+        ) : tab === 'PROMPTPAY' && !stripeEnabled && directPromptPayId ? (
+          <View className="p-4">
+            <Button
+              label="ยืนยันรับเงิน"
+              onPress={() =>
+                amountDue != null &&
+                submit([
+                  {
+                    method: 'PROMPTPAY',
+                    amount: amountDue,
+                    reference: slipResult?.transRef,
+                    slipVerified: slipResult?.ok,
+                    slipTransRef: slipResult?.transRef,
+                    slipPayload: slipResult?.raw,
+                  },
+                ])
+              }
+              disabled={amountDue == null || !directQr.payload}
               loading={submitting}
             />
           </View>

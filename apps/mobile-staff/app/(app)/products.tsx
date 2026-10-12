@@ -70,7 +70,7 @@ export default function ProductsScreen() {
           renderItem={({ item }) => (
             <Pressable
               onPress={() => openEdit(item)}
-              className="flex-row items-center gap-3 rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3"
+              className="flex-row items-center gap-3 rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3"
             >
               <View className="h-12 w-12 items-center justify-center rounded-lg bg-muted dark:bg-dark-muted overflow-hidden">
                 {item.image ? (

@@ -191,7 +191,7 @@ export default function SettingsScreen() {
             logout();
             router.replace('/login');
           }}
-          className="h-12 flex-row items-center justify-center gap-2 rounded-lg bg-muted dark:bg-dark-muted"
+          className="h-12 flex-row items-center justify-center gap-2 rounded-lg border border-danger bg-card dark:bg-dark-card"
         >
           <LogOut size={18} color="#EF4444" />
           <Text className="text-[14px] font-medium text-danger">ออกจากระบบ</Text>

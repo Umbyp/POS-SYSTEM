@@ -42,6 +42,7 @@ interface CreateOrderInput {
   customerName?: string;
   customerTaxId?: string;
   customerAddress?: string;
+  guestCount?: number;
 }
 
 interface ParkOrderInput {
@@ -247,6 +248,7 @@ export async function create(input: CreateOrderInput, io: Server) {
         stampsEarned: earnedStamps,
         stampsRedeemed: stampsToRedeem,
         notes: input.notes,
+        guestCount: input.guestCount,
         customerName: input.customerName,
         customerTaxId: input.customerTaxId,
         customerAddress: input.customerAddress,
@@ -437,7 +439,10 @@ export async function create(input: CreateOrderInput, io: Server) {
 
   dispatchKitchenPrint(order, {
     isAddOn: false,
-    legacyItems: order.items.map((it: any) => ({ name: it.product.name, quantity: it.quantity, notes: it.notes })),
+    legacyItems: order.items.map((it: any) => ({
+      name: it.product.name, quantity: it.quantity, notes: it.notes,
+      modifiers: Array.isArray(it.variants) ? it.variants.map((v: any) => v?.name).filter(Boolean) : [],
+    })),
     io,
   });
   dispatchReceiptPrint(order, io);

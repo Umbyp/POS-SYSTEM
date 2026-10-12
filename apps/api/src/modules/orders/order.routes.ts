@@ -11,6 +11,8 @@ import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from '.
 
 const router = Router();
 
+const guestCount = z.number().int().min(1).max(99).optional();
+
 // A payment line optionally carries a Slip2Go verification result the
 // frontend already fetched via POST /payments/verify-slip before the cashier
 // confirmed — see order.service.ts's CreateOrderInput doc comment.
@@ -45,6 +47,7 @@ const createSchema = z.object({
   promotionName: z.string().optional(),
   payments: z.array(paymentLineSchema).min(1),
   notes: z.string().optional(),
+  guestCount,
   // 🆕 ข้อมูลลูกค้าสำหรับใบกำกับเต็ม
   customerName: z.string().optional(),
   customerTaxId: z.string().optional(),
@@ -130,9 +133,10 @@ const openTabSchema = z.object({
   items: tabItems,
   discount: z.number().nonnegative().optional(),
   notes: z.string().optional(),
+  guestCount,
 });
 
-const roundSchema = z.object({ items: tabItems, notes: z.string().optional() });
+const roundSchema = z.object({ items: tabItems, notes: z.string().optional(), guestCount });
 
 const settleSchema = z.object({
   payments: z.array(paymentLineSchema).min(1),
@@ -210,7 +214,7 @@ router.post('/:id/items', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(roundSchem
     const io = req.app.get('io');
     const order = await tabService.addRound(
       req.params.id,
-      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items, notes: req.body.notes },
+      { storeId: req.user!.storeId, cashierId: req.user!.id, items: req.body.items, notes: req.body.notes, guestCount: req.body.guestCount },
       io
     );
     res.json(order);
@@ -307,6 +311,7 @@ router.patch('/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res, next) =
         customerTaxId: req.body.customerTaxId,
         customerAddress: req.body.customerAddress,
         notes: req.body.notes,
+        ...(req.body.guestCount !== undefined ? { guestCount: req.body.guestCount } : {}),
       },
     });
     res.json(order);

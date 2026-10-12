@@ -55,7 +55,7 @@ export function CustomerFormModal({ visible, customer, onClose, onSaved }: Custo
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">
               {isEdit ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้า'}
             </Text>
@@ -72,7 +72,7 @@ export function CustomerFormModal({ visible, customer, onClose, onSaved }: Custo
             <TextField label="หมายเหตุ" value={notes} onChangeText={setNotes} multiline numberOfLines={2} />
           </ScrollView>
 
-          <View className="p-4 border-t border-border dark:border-dark-border">
+          <View className="p-4 border-t border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Button label="บันทึก" onPress={() => save.mutate()} disabled={!name} loading={save.isPending} />
           </View>
         </SafeAreaView>

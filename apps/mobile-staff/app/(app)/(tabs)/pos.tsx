@@ -1,18 +1,22 @@
 import { useMemo, useState } from 'react';
-import { View, Text, FlatList, Pressable, TextInput, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
+import { View, Text, FlatList, Image, Pressable, TextInput, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
-import { Search } from 'lucide-react-native';
+import { Search, ImageIcon } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency, formatElapsedMinutes } from '@/lib/format';
 import { useCart } from '@/stores/cart.store';
+import { UnderlineTabs } from '@/components/UnderlineTabs';
+import { OptionPickerModal } from '@/components/OptionPickerModal';
+import { hasOptions } from '@/lib/options';
+import { resolveImageUrl } from '@/lib/imageUrl';
 import { CartSheet } from '@/components/CartSheet';
 import { CartPanel } from '@/components/CartPanel';
 import { PaymentModal, type PaymentMode } from '@/components/PaymentModal';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { TABLE_STATUS_DOT } from '@/constants/tableStatus';
 import { printReceipt, PrinterError } from '@/lib/printer';
-import type { Category, Product, Order, RestaurantTable } from '@/types/pos';
+import type { Category, Product, OrderType, Order, RestaurantTable } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
 
 export default function PosScreen() {
@@ -20,6 +24,7 @@ export default function PosScreen() {
   const isTablet = useIsTablet();
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [picking, setPicking] = useState<Product | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(null);
   const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string } | null>(null);
@@ -34,6 +39,17 @@ export default function PosScreen() {
     queryFn: async () =>
       (await api.get('/products', { params: { q: search || undefined, categoryId: categoryId || undefined } })).data as Product[],
   });
+
+  // Unfiltered list, only used for the per-category item counts on the chips.
+  const { data: allProducts = [] } = useQuery({
+    queryKey: ['products', '', null],
+    queryFn: async () => (await api.get('/products')).data as Product[],
+  });
+  const counts = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const p of allProducts) if (p.categoryId) m[p.categoryId] = (m[p.categoryId] ?? 0) + 1;
+    return m;
+  }, [allProducts]);
 
   const { data: store } = useQuery({
     queryKey: ['store-me'],
@@ -70,6 +86,16 @@ export default function PosScreen() {
     setPaymentMode(mode);
   }
 
+  function onSelectType(type: OrderType) {
+    if (type !== 'DINE_IN' && cart.type === 'DINE_IN') cart.clear();
+    cart.setType(type);
+  }
+
+  function onAddProduct(p: Product) {
+    if (hasOptions(p)) setPicking(p);
+    else cart.addItem({ productId: p.id, name: p.name, unitPrice: Number(p.sellingPrice), image: p.image ?? undefined, categoryId: p.categoryId ?? undefined });
+  }
+
   const typeLabel = cart.type === 'DINE_IN' ? 'ทานที่ร้าน' : cart.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่';
   const headerTitle = cart.type === 'DINE_IN' ? (selectedTable ? `โต๊ะ ${selectedTable.number}` : 'เลือกโต๊ะ') : typeLabel;
   const metaParts: string[] = headerTitle === typeLabel ? [] : [typeLabel];
@@ -80,35 +106,44 @@ export default function PosScreen() {
     }
   }
   const spineColor = cart.type === 'DINE_IN' && selectedTable ? TABLE_STATUS_DOT[selectedTable.status] : '#1F1F1F';
-  const summary = cart.items.map((i) => `${i.quantity}× ${i.name}`).join(' · ');
-  const qtyById = useMemo(() => Object.fromEntries(cart.items.map((i) => [i.productId, i.quantity])), [cart.items]);
+    const qtyById = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const i of cart.items) m[i.productId] = (m[i.productId] ?? 0) + i.quantity;
+    return m;
+  }, [cart.items]);
   // Sidebar (~196) + cart panel (340) take a fixed share of a tablet's width — size the grid to what's left.
   const { width: windowWidth } = useWindowDimensions();
   const columns = isTablet ? Math.max(2, Math.min(4, Math.floor((windowWidth - 196 - 340) / 150))) : 2;
 
   return (
-    <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
+    <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['top', 'bottom', 'left', 'right']}>
       <View className="flex-1 flex-row">
       <View className="flex-1">
-      <View className="flex-row items-center justify-between gap-2.5 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border px-3.5 py-2.5">
-        <View className="flex-row items-center gap-2 flex-shrink">
-          <View style={{ backgroundColor: spineColor, height: 34 }} className="w-1.5 rounded-[3px]" />
+      <View className="bg-card dark:bg-dark-card px-3.5 pt-3">
+        <View className="flex-row items-center justify-between gap-3">
           <View className="flex-shrink">
-            <Text numberOfLines={1} className="text-[15px] font-bold text-foreground dark:text-dark-foreground">{headerTitle}</Text>
+            <Text numberOfLines={1} className="text-[18px] font-bold text-foreground dark:text-dark-foreground">รับออเดอร์</Text>
             <Text numberOfLines={1} className="text-[11px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
-              {metaParts.join(' · ')}
+              {[headerTitle, ...metaParts].join(' · ')}
             </Text>
           </View>
+          {isTablet ? null : (
+            <View style={{ width: 170 }} className="overflow-hidden rounded-lg border border-border dark:border-dark-border">
+              <UnderlineTabs
+                tabs={[{ key: 'DINE_IN', label: 'ทานที่ร้าน' }, { key: 'TAKEAWAY', label: 'กลับบ้าน' }]}
+                value={cart.type === 'DELIVERY' ? 'TAKEAWAY' : cart.type}
+                onChange={(k) => onSelectType(k as OrderType)}
+                className="border-b-0"
+              />
+            </View>
+          )}
         </View>
-        <View
-          style={{ maxWidth: isTablet ? 280 : 150 }}
-          className="flex-1 flex-row items-center gap-2 rounded-[9px] border border-border dark:border-dark-border bg-background dark:bg-dark-input px-3 h-[38px]"
-        >
+        <View className="mt-3 mb-1 h-10 flex-row items-center gap-2 rounded-lg border border-border dark:border-dark-border bg-background dark:bg-dark-input px-3">
           <Search size={14} color="#A3A3A3" />
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="ค้นหาสินค้า…"
+            placeholder="ค้นหาเมนู"
             placeholderTextColor="#A3A3A3"
             className="flex-1 text-[13px] text-foreground dark:text-dark-foreground"
           />
@@ -127,10 +162,13 @@ export default function PosScreen() {
           return (
             <Pressable
               onPress={() => setCategoryId(item.id)}
-              className={`h-9 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary border-primary' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
+              className={`h-9 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary-50 border-primary' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
             >
-              <Text className={`text-[13px] ${active ? 'font-semibold text-white' : 'font-medium text-foreground dark:text-dark-foreground'}`}>
+              <Text className={`text-[13px] ${active ? 'font-semibold text-primary' : 'font-medium text-foreground dark:text-dark-foreground'}`}>
                 {item.name}
+                <Text className="text-[11px] font-normal text-muted-foreground">
+                  {' '}{item.id === null ? allProducts.length : counts[item.id] ?? 0}
+                </Text>
               </Text>
             </Pressable>
           );
@@ -148,49 +186,55 @@ export default function PosScreen() {
           data={[...products, ...Array.from({ length: (columns - (products.length % columns)) % columns }, (_, i) => ({ id: `pad-${i}`, pad: true } as unknown as Product))]}
           keyExtractor={(p) => p.id}
           numColumns={columns}
-          contentContainerStyle={{ paddingHorizontal: isTablet ? 18 : 14, paddingTop: 8, paddingBottom: itemCount > 0 && !isTablet ? 150 : 16, gap: 10 }}
+          contentContainerStyle={{ paddingHorizontal: isTablet ? 18 : 14, paddingTop: 8, paddingBottom: itemCount > 0 && !isTablet ? 90 : 16, gap: 10 }}
           columnWrapperStyle={{ gap: 10 }}
           renderItem={({ item }) => {
             if ((item as unknown as { pad?: boolean }).pad) return <View className="flex-1" />;
             const qty = qtyById[item.id] ?? 0;
             const selected = qty > 0;
-            const soldOut = item.trackStock && !!item.inventory && item.inventory.quantity <= 0;
+            const soldOut = !!item.trackStock && !!item.inventory && item.inventory.quantity <= 0;
             return (
               <Pressable
-                onPress={() => cart.addItem({ productId: item.id, name: item.name, unitPrice: Number(item.sellingPrice) })}
-                style={{ minHeight: isTablet ? 104 : 92, borderWidth: selected ? 2 : 1 }}
-                className={`flex-1 rounded-xl p-3 gap-2 ${
-                  selected
-                    ? 'border-primary bg-card dark:bg-dark-card'
-                    : soldOut
-                      ? 'border-border bg-background dark:border-dark-border dark:bg-dark-background'
-                      : 'border-border bg-card dark:border-dark-border dark:bg-dark-card'
-                }`}
+                onPress={() => !soldOut && onAddProduct(item)}
+                style={{ borderWidth: selected ? 1.5 : 1 }}
+                className={`flex-1 overflow-hidden rounded-[10px] ${
+                  selected ? 'border-primary' : 'border-border dark:border-dark-border'
+                } ${soldOut ? 'bg-background dark:bg-dark-background' : 'bg-card dark:bg-dark-card'}`}
               >
-                {selected ? (
-                  <View className="absolute -top-2 -right-1.5 z-10 min-w-[22px] h-[22px] items-center justify-center rounded-full bg-primary px-1.5">
-                    <Text className="text-[12px] font-bold text-white">{qty}</Text>
-                  </View>
-                ) : null}
-                <Text
-                  numberOfLines={2}
-                  className={`text-[14px] font-semibold ${soldOut ? 'text-muted-foreground dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}
-                >
-                  {item.name}
-                </Text>
-                <View className="mt-auto flex-row items-center justify-between">
-                  <Text className={`text-[15px] font-bold ${soldOut ? 'text-muted-foreground dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}>
-                    {formatCurrency(item.sellingPrice)}
-                  </Text>
-                  {soldOut ? (
-                    <View className="rounded-full bg-[#FEE2E2] px-2 py-[3px]">
-                      <Text className="text-[11px] font-bold text-danger">หมด</Text>
-                    </View>
+                <View className="h-[88px] items-center justify-center bg-muted dark:bg-dark-muted">
+                  {item.image ? (
+                    <Image source={{ uri: resolveImageUrl(item.image) }} className="h-full w-full" resizeMode="cover" />
                   ) : (
-                    <View className={`h-7 w-7 items-center justify-center rounded-lg ${selected ? 'bg-primary' : 'bg-primary-50'}`}>
-                      <Text className={`text-[16px] font-bold ${selected ? 'text-white' : 'text-primary-600'}`}>+</Text>
-                    </View>
+                    <ImageIcon size={22} color="#A3A3A3" />
                   )}
+                  {selected ? (
+                    <View className="absolute right-1.5 top-1.5 min-w-[20px] h-5 items-center justify-center rounded-full bg-primary px-1.5">
+                      <Text className="text-[11px] font-bold text-white">{qty}</Text>
+                    </View>
+                  ) : null}
+                  {soldOut ? (
+                    <View className="absolute left-1.5 top-1.5 rounded bg-danger px-1.5 py-0.5">
+                      <Text className="text-[10px] font-bold text-white">หมด</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <View className="gap-2 p-2.5">
+                  <Text
+                    numberOfLines={2}
+                    className={`min-h-[34px] text-[13px] font-semibold ${soldOut ? 'text-muted-foreground dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}
+                  >
+                    {item.name}
+                  </Text>
+                  <View className={isTablet ? 'gap-1.5' : 'flex-row items-center justify-between'}>
+                    <Text className={`text-[14px] font-bold ${soldOut ? 'text-muted-foreground dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}>
+                      {formatCurrency(item.sellingPrice)}
+                    </Text>
+                    {soldOut ? null : (
+                      <View className={`h-7 flex-row items-center justify-center rounded-md border border-primary px-2.5 ${isTablet ? 'w-full' : ''}`}>
+                        <Text className="text-[12px] font-semibold text-primary">+ เพิ่ม</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               </Pressable>
             );
@@ -218,24 +262,39 @@ export default function PosScreen() {
       </View>
 
       {itemCount > 0 && !isTablet ? (
-        <View className="absolute bottom-0 left-0 right-0 bg-card dark:bg-dark-card border-t border-border dark:border-dark-border px-3.5 pt-2.5 pb-3">
-          <View className="flex-row items-center justify-between pb-2 gap-2">
-            <Text numberOfLines={1} className="flex-1 text-[12px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
-              {summary}
-            </Text>
-            <Text className="text-[12px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">▲</Text>
-          </View>
+        <View className="absolute bottom-0 left-0 right-0 px-3.5 pb-3 pt-2">
           <Pressable
             onPress={() => setShowCart(true)}
-            className="h-14 flex-row items-center justify-between rounded-xl bg-primary px-[18px]"
+            className="h-14 flex-row items-center justify-between rounded-[10px] bg-primary px-4"
           >
-            <Text className="text-[15px] font-semibold text-white">
-              {itemCount} รายการ{cart.type === 'DINE_IN' ? 'ใหม่ · ส่งเข้าครัว' : ' · ดูตะกร้า'}
-            </Text>
-            <Text className="text-[19px] font-bold text-white">{formatCurrency(subtotal)}</Text>
+            <View className="flex-row items-center gap-2.5">
+              <View className="h-[26px] min-w-[26px] items-center justify-center rounded-full bg-white px-1.5">
+                <Text className="text-[13px] font-bold text-primary">{itemCount}</Text>
+              </View>
+              <Text className="text-[15px] font-semibold text-white">ดูออเดอร์</Text>
+            </View>
+            <Text className="text-[17px] font-bold text-white">{formatCurrency(subtotal)}</Text>
           </Pressable>
         </View>
       ) : null}
+
+      <OptionPickerModal
+        product={picking}
+        onClose={() => setPicking(null)}
+        onConfirm={({ quantity, variants, notes }) => {
+          if (!picking) return;
+          cart.addItem({
+            productId: picking.id,
+            name: picking.name,
+            unitPrice: Number(picking.sellingPrice) + variants.reduce((a, v) => a + v.priceDelta, 0),
+            image: picking.image ?? undefined,
+            categoryId: picking.categoryId ?? undefined,
+            notes,
+            variants: variants.length > 0 ? variants : undefined,
+            quantity,
+          });
+        }}
+      />
 
       {isTablet ? null : (
         <CartSheet visible={showCart} onClose={() => setShowCart(false)} onCheckout={onCheckout} />

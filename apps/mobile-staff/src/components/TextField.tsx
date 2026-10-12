@@ -15,7 +15,7 @@ export function TextField({ label, error, className, secureTextEntry, ...rest }:
       <Text className="text-[13px] font-medium text-muted-foreground dark:text-dark-muted-foreground">{label}</Text>
       <View className="justify-center">
         <TextInput
-          className={`h-[52px] rounded-[10px] border border-border bg-input dark:border-dark-border dark:bg-dark-input px-3.5 text-[15px] text-foreground dark:text-dark-foreground focus:border-2 focus:border-foreground dark:focus:border-dark-foreground ${isSecret ? 'pr-16' : ''} ${className ?? ''}`}
+          className={`h-[48px] rounded-[8px] border border-border bg-input dark:border-dark-border dark:bg-dark-input px-3.5 text-[15px] text-foreground dark:text-dark-foreground focus:border-primary ${isSecret ? 'pr-16' : ''} ${className ?? ''}`}
           placeholderTextColor="#A3A3A3"
           secureTextEntry={isSecret && !revealed}
           {...rest}

@@ -50,7 +50,7 @@ export function StockAdjustModal({ item, onClose }: StockAdjustModalProps) {
     <Modal visible={!!item} transparent animationType="fade" onRequestClose={onClose}>
       <SafeAreaProvider>
         <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-          <Pressable className="rounded-t-2xl bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
+          <Pressable className="rounded-t-xl bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
             <SafeAreaView edges={['bottom']}>
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ปรับสต็อก</Text>
@@ -65,14 +65,14 @@ export function StockAdjustModal({ item, onClose }: StockAdjustModalProps) {
               <View className="flex-row gap-2 mb-3">
                 <Pressable
                   onPress={() => setDirection(1)}
-                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === 1 ? 'bg-success' : 'bg-muted dark:bg-dark-muted'}`}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === 1 ? 'bg-success' : 'border border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
                 >
                   <Plus size={16} color={direction === 1 ? '#FFFFFF' : '#6B7280'} />
                   <Text className={`text-[13px] font-semibold ${direction === 1 ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>รับเข้า</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setDirection(-1)}
-                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === -1 ? 'bg-danger' : 'bg-muted dark:bg-dark-muted'}`}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === -1 ? 'bg-danger' : 'border border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
                 >
                   <Minus size={16} color={direction === -1 ? '#FFFFFF' : '#6B7280'} />
                   <Text className={`text-[13px] font-semibold ${direction === -1 ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>ตัดออก</Text>

@@ -145,7 +145,7 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">
               {isEdit ? 'แก้ไขสินค้า' : 'เพิ่มสินค้า'}
             </Text>
@@ -156,7 +156,7 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
 
           <ScrollView contentContainerClassName="p-4 gap-4">
             <Pressable onPress={pickImage} className="self-center">
-              <View className="h-24 w-24 items-center justify-center rounded-xl bg-muted dark:bg-dark-muted overflow-hidden">
+              <View className="h-24 w-24 items-center justify-center rounded-lg bg-muted dark:bg-dark-muted overflow-hidden">
                 {uploading ? (
                   <ActivityIndicator color="#D25E3B" />
                 ) : image ? (

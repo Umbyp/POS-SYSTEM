@@ -143,7 +143,8 @@ interface ReceiptStore {
 interface ReceiptOrder {
   orderNumber: string;
   createdAt: Date | string;
-  items: { product: { name: string }; quantity: number; unitPrice: number | string }[];
+  items: { product: { name: string }; quantity: number; unitPrice: number | string; variants?: { name: string }[] | null }[];
+  guestCount?: number | null;
   subtotal: number | string;
   discount: number | string;
   tax: number | string;
@@ -172,12 +173,14 @@ export function buildReceipt(store: ReceiptStore, order: ReceiptOrder): Uint8Arr
   b.line(`Date: ${new Date(order.createdAt).toLocaleString('en-US')}`);
   if (order.cashier) b.line(`Cashier: ${order.cashier.name}`);
   if (order.table) b.line(`Table: ${order.table.number}`);
+  if (order.guestCount) b.line(`Guests: ${order.guestCount}`);
   b.divider();
 
   // Items
   for (const item of order.items) {
     const price = Number(item.unitPrice) * item.quantity;
     b.line(item.product.name);
+    for (const v of item.variants ?? []) if (v?.name) b.line(`  + ${v.name}`);
     b.twoCol(`  ${item.quantity} x ${Number(item.unitPrice).toFixed(2)}`, price.toFixed(2));
   }
   b.divider();
@@ -241,6 +244,8 @@ export interface KitchenTicketInput {
   time?: Date | string | null;
   cashierName?: string | null;
   items: KitchenTicketItem[];
+  /** People seated for the bill — printed as "N ท่าน" when present. */
+  guestCount?: number | null;
   /** A later round of an already-fired order — printed in a box. */
   isAddOn?: boolean;
   /** "ใบที่ n/m" */
@@ -335,11 +340,14 @@ export function buildKitchenTicket(t: KitchenTicketInput): Uint8Array {
 
   // Info lines
   const hhmm = ktHHMM(t.time);
+  const guests = t.guestCount && t.guestCount > 0 ? `${t.guestCount} ท่าน` : '';
   if (t.isAddOn) {
     line(`${hhmm}  ${t.round ? `รอบที่ ${t.round.n}` : ''}`.trimEnd());
+    if (guests) line(guests);
   } else {
     line(`${KT_TYPE_EN[t.orderType] ?? t.orderType}  ${KT_TYPE_TH[t.orderType] ?? ''}`.trimEnd());
     line(`${hhmm}  ${t.cashierName ?? ''}`.trimEnd());
+    if (guests) line(guests);
   }
   divider();
 

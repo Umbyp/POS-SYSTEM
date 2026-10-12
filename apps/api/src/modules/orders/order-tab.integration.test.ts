@@ -70,9 +70,10 @@ describe('open-tab money path (integration)', () => {
   it('walks a full dine-in bill: open, add a round, void an item, then settle', async () => {
     // 1) Open the tab with 2x latte (฿120 subtotal, 7% VAT → ฿128.40)
     const opened = await tabService.openTab(
-      { storeId, cashierId: userId, tableId, type: 'DINE_IN', items: [{ productId, quantity: 2 }] },
+      { storeId, cashierId: userId, tableId, type: 'DINE_IN', items: [{ productId, quantity: 2 }], guestCount: 3 },
       fakeIo
     );
+    expect(opened.guestCount).toBe(3);
     expect(opened.status).toBe('PENDING');
     expect(Number(opened.subtotal)).toBe(120);
     expect(Number(opened.total)).toBeCloseTo(128.4, 2);
@@ -87,9 +88,10 @@ describe('open-tab money path (integration)', () => {
     // 2) Add a second round — 1 more latte
     const roundAdded = await tabService.addRound(
       opened.id,
-      { storeId, cashierId: userId, items: [{ productId, quantity: 1 }] },
+      { storeId, cashierId: userId, items: [{ productId, quantity: 1 }], guestCount: 5 },
       fakeIo
     );
+    expect(roundAdded.guestCount).toBe(5); // round may update the count
     expect(Number(roundAdded.subtotal)).toBe(180); // 3 lattes now
     expect(roundAdded.items).toHaveLength(2); // two OrderItem rows (one per round)
 

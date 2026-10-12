@@ -146,6 +146,7 @@ interface OpenTabInput {
   items: TabItem[];
   discount?: number;
   notes?: string;
+  guestCount?: number;
 }
 
 /** Open a new bill and fire the first round to the kitchen. */
@@ -160,6 +161,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
       name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
       quantity: d.quantity,
       notes: d.notes,
+      modifiers: Array.isArray(d.variants) ? (d.variants as any[]).map((v) => v?.name).filter(Boolean) : [],
     }));
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
     const orderDiscount = new Prisma.Decimal(input.discount || 0);
@@ -172,6 +174,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
         customerId: input.customerId, tableId: input.tableId, type: input.type,
         status: OrderStatus.PENDING, subtotal, discount: orderDiscount,
         tax, serviceCharge, total, notes: input.notes,
+        guestCount: input.guestCount,
         items: { create: itemsData },
       },
       include: ORDER_INCLUDE,
@@ -203,7 +206,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
 /** Append another round of items to an existing open bill and fire them. */
 export async function addRound(
   orderId: string,
-  input: { storeId: string; cashierId: string; items: TabItem[]; notes?: string },
+  input: { storeId: string; cashierId: string; items: TabItem[]; notes?: string; guestCount?: number },
   io: Server,
 ) {
   if (!input.items?.length) throw BadRequest('No items');
@@ -224,6 +227,7 @@ export async function addRound(
       name: products.find((p: any) => p.id === d.productId)?.name ?? '?',
       quantity: d.quantity,
       notes: d.notes,
+      modifiers: Array.isArray(d.variants) ? (d.variants as any[]).map((v) => v?.name).filter(Boolean) : [],
     }));
     for (const d of itemsData) {
       const row = await tx.orderItem.create({ data: { orderId, ...d } });
@@ -252,6 +256,7 @@ export async function addRound(
       data: {
         subtotal: newSubtotal, tax, serviceCharge, total,
         notes: combinedNotes,
+        ...(input.guestCount != null ? { guestCount: input.guestCount } : {}),
         ...(wasReady ? { status: 'PENDING' } : {}),
       },
       include: ORDER_INCLUDE,

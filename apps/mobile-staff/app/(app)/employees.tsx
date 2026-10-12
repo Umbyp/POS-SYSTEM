@@ -65,7 +65,7 @@ export default function EmployeesScreen() {
           renderItem={({ item }) => {
             const canToggle = item.id !== me?.id && item.role !== 'OWNER';
             return (
-              <View className="flex-row items-center justify-between rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5">
+              <View className="flex-row items-center justify-between rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5">
                 <View className="flex-1">
                   <Text className="text-[14px] font-medium text-foreground dark:text-dark-foreground">{item.name}</Text>
                   <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">

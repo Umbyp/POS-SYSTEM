@@ -52,11 +52,11 @@ export default function TablesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row flex-wrap gap-x-3 gap-y-1.5 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border px-3.5 py-2.5">
+      <View className="flex-row flex-wrap gap-x-2 gap-y-1.5 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border px-3.5 py-2.5">
         {legend.map(({ status, count }) => (
-          <View key={status} className="flex-row items-center gap-1.5">
-            <View style={{ backgroundColor: TABLE_STATUS_DOT[status] }} className="h-2.5 w-2.5 rounded-[3px]" />
-            <Text style={{ color: TABLE_STATUS_DOT[status] }} className="text-[11px] font-semibold">
+          <View key={status} className="flex-row items-center gap-1.5 rounded-full border border-border dark:border-dark-border bg-background dark:bg-dark-background px-2.5 py-1">
+            <View style={{ backgroundColor: TABLE_STATUS_DOT[status] }} className="h-2 w-2 rounded-full" />
+            <Text className="text-[11px] font-semibold text-foreground dark:text-dark-foreground">
               {TABLE_STATUS_LABEL[status]} {count}
             </Text>
           </View>
@@ -78,7 +78,7 @@ export default function TablesScreen() {
           refreshing={isRefetching}
           onRefresh={refetch}
           ListHeaderComponent={
-            <View className="h-[22px] mb-1 items-center justify-center rounded bg-border dark:bg-dark-border">
+            <View className="h-[22px] mb-1 items-center justify-center rounded-md bg-muted dark:bg-dark-muted">
               <Text className="text-[9px] font-semibold tracking-widest text-muted-foreground dark:text-dark-muted-foreground">
                 เคาน์เตอร์ / ครัว
               </Text>
@@ -109,8 +109,8 @@ export default function TablesScreen() {
                   style={{
                     backgroundColor: c.bg,
                     borderColor: c.border,
-                    borderWidth: c.solid || item.status === 'DIRTY' ? 1 : 2,
-                    borderRadius: round ? 999 : 8,
+                    borderWidth: 1,
+                    borderRadius: round ? 999 : 10,
                     aspectRatio: round ? 1 : undefined,
                     paddingVertical: round ? 0 : 9,
                   }}

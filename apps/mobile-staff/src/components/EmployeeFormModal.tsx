@@ -58,7 +58,7 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">เพิ่มพนักงาน</Text>
             <Pressable onPress={onClose} hitSlop={12}>
               <X size={22} color="#9CA3AF" />
@@ -87,7 +87,7 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
             <SelectField label="ตำแหน่ง *" value={role} options={ROLE_OPTIONS} onChange={(v) => setRole(v as Role)} />
           </ScrollView>
 
-          <View className="p-4 border-t border-border dark:border-dark-border">
+          <View className="p-4 border-t border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Button label="บันทึก" onPress={() => save.mutate()} disabled={!canSave} loading={save.isPending} />
           </View>
         </SafeAreaView>
