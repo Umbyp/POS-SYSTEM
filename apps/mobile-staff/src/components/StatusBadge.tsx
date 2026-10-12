@@ -11,25 +11,26 @@ const LABEL: Record<OrderStatus, string> = {
   REFUNDED: 'คืนเงิน',
 };
 
+// Compact solid pills with white text.
 const COLOR: Record<OrderStatus, { bg: string; fg: string }> = {
-  DRAFT: { bg: '#E7DACE', fg: '#7A6A5C' },
-  PENDING: { bg: '#FEF3C7', fg: '#B45309' },
-  PREPARING: { bg: '#DBEAFE', fg: '#1D4ED8' },
-  READY: { bg: '#D1FAE5', fg: '#047857' },
-  COMPLETED: { bg: '#E7DACE', fg: '#4A382C' },
-  CANCELLED: { bg: '#FEE2E2', fg: '#B91C1C' },
-  REFUNDED: { bg: '#FEE2E2', fg: '#B91C1C' },
+  DRAFT: { bg: '#A3A3A3', fg: '#FFFFFF' },
+  PENDING: { bg: '#B45309', fg: '#FFFFFF' },
+  PREPARING: { bg: '#1D4ED8', fg: '#FFFFFF' },
+  READY: { bg: '#047857', fg: '#FFFFFF' },
+  COMPLETED: { bg: '#707070', fg: '#FFFFFF' },
+  CANCELLED: { bg: '#B91C1C', fg: '#FFFFFF' },
+  REFUNDED: { bg: '#B91C1C', fg: '#FFFFFF' },
 };
 
 /** Left "status spine" colour per order status (mockup 1g/2d). */
 export const SPINE_COLOR: Record<OrderStatus, string> = {
-  DRAFT: '#D8C7B8',
+  DRAFT: '#D4D4D4',
   PENDING: '#B45309',
   PREPARING: '#1D4ED8',
   READY: '#047857',
-  COMPLETED: '#D8C7B8',
-  CANCELLED: '#D8C7B8',
-  REFUNDED: '#D8C7B8',
+  COMPLETED: '#D4D4D4',
+  CANCELLED: '#D4D4D4',
+  REFUNDED: '#D4D4D4',
 };
 
 export const OVERDUE_COLOR = '#B91C1C';
@@ -45,8 +46,8 @@ export function overdueMinutes(status: OrderStatus, createdAt: string): number {
 export function StatusBadge({ status }: { status: OrderStatus }) {
   const c = COLOR[status];
   return (
-    <View style={{ backgroundColor: c.bg }} className="rounded-full px-[9px] py-1 self-start">
-      <Text style={{ color: c.fg }} className="text-[11px] font-bold">
+    <View style={{ backgroundColor: c.bg }} className="rounded-full px-2 py-[3px] self-start">
+      <Text style={{ color: c.fg }} className="text-[10px] font-bold">
         {LABEL[status]}
       </Text>
     </View>

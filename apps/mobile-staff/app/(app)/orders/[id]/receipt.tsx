@@ -41,7 +41,7 @@ export default function ReceiptScreen() {
   if (isLoading || !order) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#C9622E" />
+        <ActivityIndicator color="#D25E3B" />
       </View>
     );
   }
@@ -49,7 +49,7 @@ export default function ReceiptScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
       <ScrollView contentContainerClassName="p-4">
-        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-2">
+        <View className="rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-2">
           <Text className="text-center text-[15px] font-bold text-foreground dark:text-dark-foreground">ใบเสร็จรับเงิน</Text>
           <Text className="text-center text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
             #{order.orderNumber} · {formatDate(order.createdAt)}

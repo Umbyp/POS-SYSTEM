@@ -45,10 +45,14 @@ export function buildReceiptESCPOS(store: StoreSettings, order: Order): Uint8Arr
   line(`วันที่: ${new Date(order.createdAt).toLocaleString('th-TH')}`);
   if (order.cashier) line(`พนักงาน: ${order.cashier.name}`);
   if (order.table) line(`โต๊ะ: ${order.table.number}`);
+  if (order.guestCount) line(`จำนวนลูกค้า: ${order.guestCount} ท่าน`);
   line('--------------------------------');
 
   for (const it of order.items) {
     line(it.product.name);
+    for (const v of Array.isArray(it.variants) ? it.variants : []) {
+      if (v?.name) line(`  + ${v.name}`);
+    }
     twoCol(`  ${it.quantity} x ${Number(it.unitPrice).toFixed(2)}`,
            (Number(it.unitPrice) * it.quantity).toFixed(2));
   }
@@ -100,6 +104,8 @@ export interface KitchenTicketInput {
   time?: Date | string | null;
   cashierName?: string | null;
   items: KitchenTicketItem[];
+  /** People seated for the bill — printed as "N ท่าน" when present. */
+  guestCount?: number | null;
   /** A later round of an already-fired order — printed in a box. */
   isAddOn?: boolean;
   /** "ใบที่ n/m" */
@@ -194,11 +200,14 @@ export function buildKitchenTicket(t: KitchenTicketInput): Uint8Array {
 
   // Info lines
   const hhmm = ktHHMM(t.time);
+  const guests = t.guestCount && t.guestCount > 0 ? `${t.guestCount} ท่าน` : '';
   if (t.isAddOn) {
     line(`${hhmm}  ${t.round ? `รอบที่ ${t.round.n}` : ''}`.trimEnd());
+    if (guests) line(guests);
   } else {
     line(`${KT_TYPE_EN[t.orderType] ?? t.orderType}  ${KT_TYPE_TH[t.orderType] ?? ''}`.trimEnd());
     line(`${hhmm}  ${t.cashierName ?? ''}`.trimEnd());
+    if (guests) line(guests);
   }
   divider();
 
@@ -237,12 +246,13 @@ export function buildKitchenTicket(t: KitchenTicketInput): Uint8Array {
  * Manual reprint from the KDS screen — prints every current item on the order
  * (the per-round auto-print goes through the print-job queue instead).
  */
-export function buildKitchenTicketESCPOS(order: Order, items: { name: string; quantity: number; notes?: string | null }[]): Uint8Array {
+export function buildKitchenTicketESCPOS(order: Order, items: { name: string; quantity: number; notes?: string | null; modifiers?: string[] }[]): Uint8Array {
   return buildKitchenTicket({
     orderNumber: order.orderNumber,
     tableNumber: order.table?.number ?? null,
     orderType: order.type,
     cashierName: order.cashier?.name,
+    guestCount: order.guestCount ?? null,
     items,
   });
 }

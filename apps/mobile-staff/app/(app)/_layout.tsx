@@ -18,13 +18,19 @@ export default function AppLayout() {
   if (isLoading || !user) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#C9622E" />
+        <ActivityIndicator color="#D25E3B" />
       </View>
     );
   }
 
   const stack = (
-    <Stack screenOptions={{ headerShown: true, headerShadowVisible: false }}>
+    <Stack screenOptions={{
+        headerShown: true,
+        headerShadowVisible: false,
+        headerStyle: { backgroundColor: '#FFFFFF' },
+        headerTitleStyle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
+        headerTintColor: '#D25E3B',
+      }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="products" options={{ title: 'สินค้า' }} />

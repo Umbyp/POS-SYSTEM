@@ -265,6 +265,7 @@ async function buildPayload(job: any, printer: any) {
       orderType: order.type,
       time: new Date(Math.max(...items.map((i: any) => new Date(i.createdAt).getTime()))).toISOString(),
       cashierName: order.cashier?.name ?? null,
+      guestCount: order.guestCount ?? null,
       items: items.map((it: any) => ({
         name: it.product.name,
         quantity: it.quantity,

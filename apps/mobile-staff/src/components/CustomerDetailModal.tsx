@@ -55,7 +55,7 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
     <Modal visible={!!customerId} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
-          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
+          <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ข้อมูลลูกค้า</Text>
             <View className="flex-row items-center gap-4">
               <Pressable onPress={onEdit} hitSlop={12}>
@@ -69,11 +69,11 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
 
           {isLoading || !customer ? (
             <View className="flex-1 items-center justify-center">
-              <ActivityIndicator color="#C9622E" />
+              <ActivityIndicator color="#D25E3B" />
             </View>
           ) : (
             <ScrollView contentContainerClassName="p-4 gap-4">
-              <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
+              <View className="rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
                 <View className="flex-row items-center gap-2">
                   <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">{customer.name}</Text>
                   {customer.tier ? (
@@ -111,7 +111,7 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
               ) : null}
 
               <View className="flex-row gap-3">
-                <View className="flex-1 rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-2">
+                <View className="flex-1 rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-2">
                   <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">แต้มสะสม</Text>
                   <Text className="text-[20px] font-bold text-foreground dark:text-dark-foreground">{customer.points}</Text>
                   <View className="flex-row gap-2">
@@ -119,7 +119,7 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
                     <IconBtn icon={Minus} onPress={() => promptAdjust('points', -1)} />
                   </View>
                 </View>
-                <View className="flex-1 rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-2">
+                <View className="flex-1 rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-2">
                   <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">ดวงสะสม</Text>
                   <Text className="text-[20px] font-bold text-foreground dark:text-dark-foreground">{customer.stamps}</Text>
                   <View className="flex-row gap-2">

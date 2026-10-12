@@ -31,4 +31,13 @@ describe('buildKitchenTicket (mockup 4a)', () => {
     const t = ascii(buildKitchenTicket({ ...base, isAddOn: true, round: { n: 2, m: 2 } }));
     expect(t).toContain('+--------------+');
   });
+
+  it('prints the guest count only when present', () => {
+    const withGuests = buildKitchenTicket({ ...base, guestCount: 4 });
+    const without = buildKitchenTicket(base);
+    expect(withGuests.length).toBeGreaterThan(without.length);
+    // "4" then a space and Thai bytes for "ท่าน" on its own line
+    expect(ascii(withGuests)).toMatch(/\n4 \.+\n/);
+    expect(ascii(without)).not.toMatch(/\n4 \.+\n/);
+  });
 });

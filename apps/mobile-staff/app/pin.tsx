@@ -91,10 +91,10 @@ export default function PinScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-card dark:bg-dark-background">
+    <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
       <ScrollView contentContainerClassName="px-[26px] pb-6 pt-5 self-center w-full max-w-[420px]">
         <Text className="text-[22px] font-bold text-foreground dark:text-dark-foreground">เข้ากะ</Text>
-        <Text className="mt-1.5 text-[12px] text-[#B9A392]">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
+        <Text className="mt-1.5 text-[12px] text-[#A3A3A3]">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
 
         <View className="mt-5 gap-[9px]">
           {staff.isLoading ? <ActivityIndicator /> : null}
@@ -107,18 +107,18 @@ export default function PinScreen() {
               <Pressable
                 key={s.id}
                 onPress={() => { setSelected(s.id); setPin(''); setError(''); }}
-                className={`flex-row items-center gap-[11px] rounded-xl p-[13px] ${
-                  on ? 'border-2 border-[#2B1F17] dark:border-dark-foreground' : 'border border-border dark:border-dark-border'
+                className={`flex-row items-center gap-[11px] rounded-[10px] bg-card p-[13px] dark:bg-dark-card ${
+                  on ? 'border-2 border-primary' : 'border border-border dark:border-dark-border'
                 }`}
               >
-                <View className={`h-[38px] w-[38px] items-center justify-center rounded-full ${on ? 'bg-[#2B1F17]' : 'bg-muted dark:bg-dark-muted'}`}>
+                <View className={`h-[38px] w-[38px] items-center justify-center rounded-full ${on ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}>
                   <Text className={`text-[13px] font-semibold ${on ? 'text-white' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{initials(s.name)}</Text>
                 </View>
                 <View className="flex-1">
                   <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">{s.name}</Text>
                   <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{ROLE_LABEL[s.role]}</Text>
                 </View>
-                {on ? <Text className="text-[14px] font-bold text-foreground dark:text-dark-foreground">✓</Text> : null}
+                {on ? <Text className="text-[14px] font-bold text-primary">✓</Text> : null}
               </Pressable>
             );
           })}
@@ -126,7 +126,7 @@ export default function PinScreen() {
 
         <View className="mb-1.5 mt-[26px] flex-row justify-center gap-2.5">
           {Array.from({ length: Math.max(MIN_LEN, pin.length) }).map((_, i) => (
-            <View key={i} className={`h-[15px] w-[15px] rounded-full ${i < pin.length ? 'bg-[#2B1F17] dark:bg-dark-foreground' : 'bg-border dark:bg-dark-border'}`} />
+            <View key={i} className={`h-[15px] w-[15px] rounded-full ${i < pin.length ? 'bg-primary' : 'bg-border dark:bg-dark-border'}`} />
           ))}
         </View>
         <Text className="mb-3 h-[18px] text-center text-[12px] font-medium text-[#B91C1C]">{error}</Text>
@@ -139,14 +139,14 @@ export default function PinScreen() {
                 key={k}
                 onPress={() => press(k)}
                 disabled={!selected && !plain}
-                className={`h-[58px] w-[31.5%] items-center justify-center rounded-xl ${
-                  plain ? '' : 'border border-border bg-background active:bg-muted dark:border-dark-border dark:bg-dark-card'
+                className={`h-[58px] w-[31.5%] items-center justify-center rounded-[10px] ${
+                  plain ? '' : 'border border-border bg-card active:bg-muted dark:border-dark-border dark:bg-dark-card'
                 } ${!selected && !plain ? 'opacity-40' : ''}`}
               >
                 {k === 'email' ? (
                   <Text className="text-[12px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ใช้อีเมล</Text>
                 ) : k === 'del' ? (
-                  <Delete size={22} color="#7A6A5C" />
+                  <Delete size={22} color="#707070" />
                 ) : (
                   <Text className="text-[22px] font-semibold text-foreground dark:text-dark-foreground">{k}</Text>
                 )}

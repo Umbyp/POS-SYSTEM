@@ -46,7 +46,7 @@ export default function CustomersScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList
@@ -64,7 +64,7 @@ export default function CustomersScreen() {
           renderItem={({ item }) => (
             <Pressable
               onPress={() => setSelectedId(item.id)}
-              className="flex-row items-center justify-between rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5"
+              className="flex-row items-center justify-between rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5"
             >
               <View className="flex-1">
                 <Text className="text-[14px] font-medium text-foreground dark:text-dark-foreground">{item.name}</Text>

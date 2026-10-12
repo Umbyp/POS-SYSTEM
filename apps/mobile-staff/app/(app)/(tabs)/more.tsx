@@ -26,12 +26,12 @@ export default function MoreScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
       <ScrollView>
-        <View className="mx-3.5 mt-3.5 flex-row items-center gap-3 rounded-[14px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card">
+        <View className="mx-3.5 mt-3.5 flex-row items-center gap-3 rounded-[10px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card">
           <View className="h-10 w-10 items-center justify-center rounded-full bg-muted dark:bg-dark-muted">
             {avatarInitial(user?.name) ? (
               <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">{avatarInitial(user?.name)}</Text>
             ) : (
-              <User size={18} color="#7A6A5C" />
+              <User size={18} color="#707070" />
             )}
           </View>
           <View className="flex-1">
@@ -42,7 +42,7 @@ export default function MoreScreen() {
           </View>
         </View>
 
-        <View className="mx-3.5 mt-3 overflow-hidden rounded-[14px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
+        <View className="mx-3.5 mt-3 overflow-hidden rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
           {items.map((item, i) => {
             const Icon = item.icon;
             return (
@@ -51,17 +51,17 @@ export default function MoreScreen() {
                 onPress={() => router.push(item.href as never)}
                 className={`flex-row items-center gap-3 px-3.5 py-3.5 active:bg-muted dark:active:bg-dark-muted ${i > 0 ? 'border-t border-muted dark:border-dark-muted' : ''}`}
               >
-                <Icon size={20} color="#7A6A5C" />
+                <Icon size={20} color="#707070" />
                 <Text className="flex-1 text-[14px] font-medium text-foreground dark:text-dark-foreground">
                   {TH_LABEL[item.key] ?? item.label}
                 </Text>
-                <ChevronRight size={18} color="#A89684" />
+                <ChevronRight size={18} color="#A3A3A3" />
               </Pressable>
             );
           })}
         </View>
 
-        <View className="mx-3.5 mb-6 mt-3 overflow-hidden rounded-[14px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
+        <View className="mx-3.5 mb-6 mt-3 overflow-hidden rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
           <Pressable
             onPress={() => {
               logout();

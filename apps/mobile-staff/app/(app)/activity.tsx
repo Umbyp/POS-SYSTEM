@@ -51,9 +51,9 @@ export default function ActivityScreen() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => setAction(item.key)}
-            className={`rounded-full px-3.5 py-1.5 ${action === item.key ? 'bg-primary' : 'bg-muted dark:bg-dark-muted'}`}
+            className={`rounded-full border px-3.5 py-1.5 ${action === item.key ? 'border-primary/40 bg-primary-50' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
           >
-            <Text className={`text-[13px] font-medium ${action === item.key ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
+            <Text className={`text-[13px] font-medium ${action === item.key ? 'text-primary' : 'text-foreground dark:text-dark-foreground'}`}>
               {item.label}
             </Text>
           </Pressable>
@@ -62,7 +62,7 @@ export default function ActivityScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#C9622E" />
+          <ActivityIndicator color="#D25E3B" />
         </View>
       ) : (
         <FlatList
@@ -78,7 +78,7 @@ export default function ActivityScreen() {
             </View>
           }
           renderItem={({ item }) => (
-            <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-1">
+            <View className="rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5 gap-1">
               <View className="flex-row items-center justify-between">
                 <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">
                   {ACTION_LABEL[item.action] ?? item.action}

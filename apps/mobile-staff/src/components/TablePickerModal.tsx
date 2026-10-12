@@ -21,7 +21,7 @@ export function TablePickerModal({ visible, onClose, onSelect }: TablePickerModa
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-2xl bg-card dark:bg-dark-card p-5 gap-4 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-4 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
           <View className="flex-row items-center justify-between">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">เลือกโต๊ะ</Text>
             <Pressable onPress={onClose} hitSlop={12}>
@@ -39,8 +39,8 @@ export function TablePickerModal({ visible, onClose, onSelect }: TablePickerModa
               return (
                 <Pressable
                   onPress={() => onSelect(item)}
-                  style={{ backgroundColor: c.bg, borderColor: c.border }}
-                  className="flex-1 aspect-square rounded-lg border items-center justify-center"
+                  style={{ backgroundColor: c.bg, borderColor: item.status === 'OCCUPIED' ? '#D4D4D4' : c.border }}
+                  className="flex-1 aspect-square rounded-[10px] border items-center justify-center"
                 >
                   <Text style={{ color: c.fg }} className="text-[15px] font-bold">
                     {item.number}

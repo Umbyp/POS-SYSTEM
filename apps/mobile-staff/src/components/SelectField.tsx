@@ -20,7 +20,7 @@ export function SelectField({ label, value, placeholder = 'เลือก', opt
       <Text className="text-[13px] font-medium text-muted-foreground dark:text-dark-muted-foreground">{label}</Text>
       <Pressable
         onPress={() => setOpen(true)}
-        className="h-12 flex-row items-center justify-between rounded-lg border border-border bg-input dark:border-dark-border dark:bg-dark-input px-3.5"
+        className="h-[46px] flex-row items-center justify-between rounded-[8px] border border-border bg-input dark:border-dark-border dark:bg-dark-input px-3.5"
       >
         <Text className={`text-[15px] ${selected ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
           {selected?.label ?? placeholder}

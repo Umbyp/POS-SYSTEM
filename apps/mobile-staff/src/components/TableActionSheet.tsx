@@ -27,7 +27,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
   return (
     <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-2xl bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
+        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
           {table && showQr ? (
             <TableQrView table={table} onBack={() => setShowQr(false)} onClose={onClose} />
           ) : table ? (
@@ -41,7 +41,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 
               <Pressable
                 onPress={onOpenBill}
-                className="h-14 flex-row items-center justify-center gap-2 rounded-xl bg-primary"
+                className="h-12 flex-row items-center justify-center gap-2 rounded-[10px] bg-primary"
               >
                 <Text className="text-[15px] font-semibold text-white">ไปที่บิล / POS</Text>
                 <ArrowRight size={18} color="#FFFFFF" />
@@ -49,14 +49,14 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 
               <Pressable
                 onPress={() => setShowQr(true)}
-                className="h-14 flex-row items-center justify-center gap-2 rounded-xl bg-muted dark:bg-dark-muted"
+                className="h-12 flex-row items-center justify-center gap-2 rounded-[10px] border border-primary bg-card dark:bg-dark-card"
               >
-                <QrCode size={18} color="#7A6A5C" />
-                <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">ดู QR โต๊ะ</Text>
+                <QrCode size={18} color="#D25E3B" />
+                <Text className="text-[15px] font-semibold text-primary">ดู QR โต๊ะ</Text>
               </Pressable>
 
               <View className="gap-2">
-                <Text className="text-[12px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">เปลี่ยนสถานะ</Text>
+                <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">เปลี่ยนสถานะ</Text>
                 <View className="flex-row flex-wrap gap-2">
                   {TABLE_STATUS_ORDER.map((status) => {
                     const active = table.status === status;
@@ -112,7 +112,7 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
     <>
       <View className="flex-row items-center justify-between">
         <Pressable onPress={onBack} hitSlop={12} className="flex-row items-center gap-1.5">
-          <ArrowLeft size={18} color="#7A6A5C" />
+          <ArrowLeft size={18} color="#707070" />
           <Text className="text-[13px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ย้อนกลับ</Text>
         </Pressable>
         <Pressable onPress={onClose} hitSlop={12}>
@@ -128,11 +128,11 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
           <Text className="text-[13px] text-danger py-8">โหลด QR ไม่สำเร็จ ลองใหม่อีกครั้ง</Text>
         ) : !link ? (
           <View className="py-8">
-            <ActivityIndicator color="#C9622E" />
+            <ActivityIndicator color="#D25E3B" />
           </View>
         ) : (
           <>
-            <View className="bg-white p-4 rounded-2xl border border-border dark:border-dark-border">
+            <View className="bg-white p-4 rounded-[10px] border border-border dark:border-dark-border">
               <QRCode value={link} size={200} />
             </View>
             <Pressable onPress={() => Linking.openURL(link)} className="mt-1">

@@ -2,7 +2,7 @@ import { View, Text, Image, ScrollView, ActivityIndicator, Pressable } from 'rea
 import { useQuery } from '@tanstack/react-query';
 import { Printer, ImageOff } from 'lucide-react-native';
 import { api } from '@/lib/api';
-import { formatCurrency, formatDate } from '@/lib/format';
+import { formatCurrency, formatDate, formatMinutes } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { StatusBadge, SPINE_COLOR, OVERDUE_COLOR, overdueMinutes } from '@/components/StatusBadge';
 import type { Order } from '@/types/pos';
@@ -32,7 +32,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
   if (isLoading || !order) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#C9622E" />
+        <ActivityIndicator color="#D25E3B" />
       </View>
     );
   }
@@ -43,33 +43,33 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
 
   return (
     <>
-      <ScrollView contentContainerClassName="p-4 gap-4">
-        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
+      <ScrollView contentContainerClassName="p-4 gap-3">
+        <View className="rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
           <View className="flex-row items-center gap-2.5">
             <View className="h-10 w-1.5 rounded-[3px]" style={{ backgroundColor: late ? OVERDUE_COLOR : SPINE_COLOR[order.status] }} />
             <View className="flex-1">
               <Text className="text-[19px] font-bold text-foreground dark:text-dark-foreground">#{order.orderNumber}</Text>
               <Text className={`text-[11px] ${late ? 'text-danger' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
-                {late ? `เกินเวลาครัว ${late} นาที · ` : ''}{typeLabel}
+                {late ? `เกินเวลาครัว ${formatMinutes(late)} · ` : ''}{typeLabel}
               </Text>
             </View>
             <StatusBadge status={order.status} />
           </View>
           <View className="flex-row flex-wrap gap-[7px]">
             {chips.map((c, i) => (
-              <View key={i} className="rounded-full bg-muted px-2.5 py-[5px] dark:bg-dark-muted">
-                <Text className="text-[11px] font-semibold text-[#4A382C] dark:text-dark-foreground">{c}</Text>
+              <View key={i} className="rounded-md bg-muted px-2 py-1 dark:bg-dark-muted">
+                <Text className="text-[11px] font-semibold text-[#3A3A3A] dark:text-dark-foreground">{c}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
-          <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground">รายการ</Text>
+        <View className="rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-3">
+          <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">รายการ</Text>
           {order.items.map((item) => (
             <View key={item.id} className="flex-row items-start justify-between gap-2">
               <View className="flex-row items-start flex-1 gap-2.5">
-                <View className="w-11 h-11 rounded-lg bg-muted dark:bg-dark-muted overflow-hidden items-center justify-center">
+                <View className="w-11 h-11 rounded-md bg-muted dark:bg-dark-muted overflow-hidden items-center justify-center">
                   {item.product?.image ? (
                     <Image source={{ uri: resolveImageUrl(item.product.image) }} className="w-full h-full" resizeMode="cover" />
                   ) : (
@@ -95,20 +95,20 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
           ))}
         </View>
 
-        <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
+        <View className="rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
           <Row label="ยอดรวม" value={formatCurrency(order.subtotal)} />
           {Number(order.discount) > 0 && <Row label="ส่วนลด" value={`-${formatCurrency(order.discount)}`} />}
           {Number(order.serviceCharge) > 0 && <Row label="ค่าบริการ" value={formatCurrency(order.serviceCharge)} />}
           {Number(order.tax) > 0 && <Row label="ภาษี" value={formatCurrency(order.tax)} />}
           <View className="mt-1 flex-row items-baseline justify-between border-t border-border pt-2.5 dark:border-dark-border">
             <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">ยอดสุทธิ</Text>
-            <Text className="text-[26px] font-bold text-foreground dark:text-dark-foreground">{formatCurrency(order.total)}</Text>
+            <Text className="text-[24px] font-bold text-foreground dark:text-dark-foreground">{formatCurrency(order.total)}</Text>
           </View>
         </View>
 
         {order.payments.length > 0 ? (
-          <View className="rounded-xl border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
-            <Text className="text-[12px] font-semibold text-[#8C6A4F] dark:text-dark-muted-foreground mb-1">การชำระเงิน</Text>
+          <View className="rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
+            <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground mb-1">การชำระเงิน</Text>
             {order.payments.map((p, i) => (
               <Row key={i} label={PAYMENT_LABEL[p.method] ?? p.method} value={formatCurrency(p.amount)} />
             ))}
@@ -118,7 +118,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
         <Pressable
           onPress={() => onReceipt(order.id)}
           disabled={receiptBusy}
-          className={`h-[52px] flex-row items-center justify-center gap-2 rounded-[11px] bg-primary ${receiptBusy ? 'opacity-50' : ''}`}
+          className={`h-[52px] flex-row items-center justify-center gap-2 rounded-[10px] bg-primary ${receiptBusy ? 'opacity-50' : ''}`}
         >
           <Printer size={18} color="#FFFFFF" />
           <Text className="text-[15px] font-bold text-white">ใบเสร็จ / พิมพ์</Text>

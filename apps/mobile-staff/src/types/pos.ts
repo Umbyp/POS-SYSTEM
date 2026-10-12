@@ -21,6 +21,30 @@ export interface Product {
   isIngredient: boolean;
   trackStock: boolean;
   inventory: { quantity: number; lowStockAt: number } | null;
+  /** Legacy per-product variants. */
+  variants?: { id?: string; name: string; priceDelta: string | number }[];
+  /** Store-level option groups attached to this product. */
+  optionGroups?: ProductOptionGroup[];
+}
+
+export interface OptionItem {
+  id: string;
+  name: string;
+  priceDelta: string | number;
+  isDefault?: boolean;
+}
+
+export interface OptionGroup {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number; // 0 = unlimited
+  isActive?: boolean;
+  options: OptionItem[];
+}
+
+export interface ProductOptionGroup {
+  group: OptionGroup;
 }
 
 export type OrderStatus = 'DRAFT' | 'PENDING' | 'PREPARING' | 'READY' | 'COMPLETED' | 'CANCELLED' | 'REFUNDED';
@@ -35,6 +59,7 @@ export interface OrderItem {
   unitPrice: string;
   notes: string | null;
   refundedQty: number;
+  variants?: { name: string; priceDelta: number }[] | null;
 }
 
 export interface OrderPayment {
@@ -60,6 +85,7 @@ export interface Order {
   table: { id: string; number: string } | null;
   customer: { id: string; name: string } | null;
   customerName: string | null;
+  guestCount?: number | null;
   cashier: { id: string; name: string } | null;
 }
 
