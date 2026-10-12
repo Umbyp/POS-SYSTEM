@@ -3,7 +3,7 @@ import { createJSONStorage, persist, type StateStorage } from 'zustand/middlewar
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface KdsAlertState {
-  /** Mutes the new-order vibration (the on-screen flash always shows). */
+  /** Mutes the new-order chime + vibration (the on-screen flash always shows). */
   muted: boolean;
   setMuted: (muted: boolean) => void;
 }

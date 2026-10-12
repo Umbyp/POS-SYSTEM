@@ -1,7 +1,7 @@
 import { View, Text, Image, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Printer, ImageOff, Ban, Undo2 } from 'lucide-react-native';
+import { Printer, ImageOff, Ban, Undo2, FileText } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency, formatDate, formatMinutes } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
@@ -11,6 +11,7 @@ import { BillOpButtons, BillOpsModal, type BillOp } from '@/components/BillOpsSh
 import { useAuthStore } from '@/stores/auth.store';
 import type { Order } from '@/types/pos';
 import { useThemeColors } from '@/lib/theme';
+import { TaxInvoiceModal } from '@/components/TaxInvoiceModal';
 
 const PAYMENT_LABEL: Record<string, string> = {
   CASH: 'เงินสด',
@@ -33,6 +34,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
   const role = useAuthStore((s) => s.user?.role);
   const [action, setAction] = useState<OrderAction | null>(null);
   const [billOp, setBillOp] = useState<BillOp | null>(null);
+  const [showTaxInvoice, setShowTaxInvoice] = useState(false);
   const { data: order, isLoading } = useQuery({
     queryKey: ['orders', id],
     queryFn: async () => (await api.get(`/orders/${id}`)).data as Order,
@@ -57,6 +59,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
     (role === 'OWNER' || role === 'ADMIN') && paid && order.status !== 'REFUNDED' && order.status !== 'CANCELLED' &&
     order.items.some((i) => i.quantity - (i.refundedQty || 0) > 0);
   const refundedTotal = Number(order.refundedAmount || 0);
+  const canIssueTaxInvoice = paid && staff;
 
   const late = overdueMinutes(order.status, order.createdAt);
   const typeLabel = order.table ? `โต๊ะ ${order.table.number}` : order.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่';
@@ -168,6 +171,13 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
           <Text className="text-[15px] font-bold text-white">ใบเสร็จ / พิมพ์</Text>
         </Pressable>
 
+        {canIssueTaxInvoice ? (
+          <Pressable onPress={() => setShowTaxInvoice(true)} className="h-[52px] flex-row items-center justify-center gap-2 rounded-[10px] border border-primary bg-card dark:bg-dark-card">
+            <FileText size={18} color={theme.primary} />
+            <Text className="text-[15px] font-bold text-primary">{order.taxInvoiceNo ? 'ดู / แชร์ใบกำกับภาษี' : 'ออกใบกำกับภาษี'}</Text>
+          </Pressable>
+        ) : null}
+
         {canRefund ? (
           <Pressable
             onPress={() => setAction({ kind: 'refund' })}
@@ -189,6 +199,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
       </ScrollView>
       <OrderActionSheet order={order} action={action} onClose={() => setAction(null)} />
       <BillOpsModal order={order} op={billOp} onClose={() => setBillOp(null)} />
+      <TaxInvoiceModal order={order} visible={showTaxInvoice} onClose={() => setShowTaxInvoice(false)} />
     </>
   );
 }

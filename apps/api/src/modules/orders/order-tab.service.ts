@@ -9,6 +9,7 @@
  * money path is untouched. Pricing/stock logic mirrors create() exactly.
  */
 import { Server } from 'socket.io';
+import { emitStockUpdated } from '../inventory/stock-alerts';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
@@ -206,7 +207,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
 
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.created);
   io.to(`store:${input.storeId}`).emit('order:created', result.created);
-  io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
+  emitStockUpdated(io, input.storeId, result.productIds);
   if (result.table) io.to(`store:${input.storeId}`).emit('table:updated', result.table);
   dispatchKitchenPrint(result.created, { isAddOn: false, legacyItems: printItems, io });
   return result.created;
@@ -278,7 +279,7 @@ export async function addRound(
   });
 
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.updated);
-  io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: result.productIds });
+  emitStockUpdated(io, input.storeId, result.productIds);
   io.to(`store:${input.storeId}`).emit('order:status', { id: orderId, status: result.updated.status });
   io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: result.updated.status });
   if (result.wasReady) {
@@ -634,7 +635,7 @@ export async function voidItem(orderId: string, input: VoidItemInput, io: Server
   });
 
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.updated);
-  io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: [result.productId] });
+  emitStockUpdated(io, input.storeId, [result.productId]);
   return result.updated;
 }
 
@@ -708,7 +709,7 @@ export async function cancelOrder(
 
   const { storeId } = input;
   if (result.table) io.to(`store:${storeId}`).emit('table:updated', result.table);
-  io.to(`store:${storeId}`).emit('stock:updated', { productIds: result.productIds });
+  emitStockUpdated(io, storeId, result.productIds);
   io.to(`store:${storeId}`).emit('order:status', { id: orderId, status: 'CANCELLED' });
   io.to(`store:${storeId}:kds`).emit('kds:status', { id: orderId, status: 'CANCELLED' });
   io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: 'CANCELLED' });

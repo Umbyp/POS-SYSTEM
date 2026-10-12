@@ -125,6 +125,9 @@ export default function OrdersScreen() {
           renderItem={({ item }) => {
             const late = overdueMinutes(item.status, item.createdAt);
             const dead = item.status === 'CANCELLED' || item.status === 'REFUNDED';
+            const refunded = Number(item.refundedAmount || 0);
+            const partiallyRefunded = refunded > 0 && !dead;
+            const netTotal = Math.max(0, Number(item.total) - refunded);
             return (
               <Pressable
                 onPress={() => (isTablet ? setSelectedId(item.id) : router.push(`/orders/${item.id}` as never))}
@@ -135,11 +138,13 @@ export default function OrdersScreen() {
                 <View className="flex-1 px-[13px] py-3">
                   <View className="flex-row items-baseline justify-between gap-2">
                     <Text numberOfLines={1} className="flex-shrink text-[15px] font-bold text-foreground dark:text-dark-foreground">#{item.orderNumber}</Text>
-                    <Text
-                      className={`text-[15px] font-bold ${dead ? 'text-muted-foreground line-through dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}
-                    >
-                      {formatCurrency(item.total)}
-                    </Text>
+                    <View className="items-end">
+                      {partiallyRefunded ? <Text className="text-[10px] font-semibold text-danger">คืนแล้ว {formatCurrency(refunded)}</Text> : null}
+                      <Text className={`text-[15px] font-bold ${dead ? 'text-muted-foreground line-through dark:text-dark-muted-foreground' : 'text-foreground dark:text-dark-foreground'}`}>
+                        {formatCurrency(partiallyRefunded ? netTotal : item.total)}
+                      </Text>
+                      {partiallyRefunded ? <Text className="text-[10px] text-muted-foreground dark:text-dark-muted-foreground">สุทธิหลังคืนเงิน</Text> : null}
+                    </View>
                   </View>
                   <View className="mt-1.5 flex-row items-center justify-between gap-2">
                     <Text className="flex-1 text-[12px] text-muted-foreground dark:text-dark-muted-foreground" numberOfLines={1}>

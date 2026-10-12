@@ -7,7 +7,8 @@ import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
 import * as billOps from './order-bill-ops.service';
-import { BadRequest } from '../../utils/errors';
+import { BadRequest, Conflict, NotFound } from '../../utils/errors';
+import * as taxInvoice from './tax-invoice.service';
 import { readIdempotencyKey, runIdempotent, addRoundScope, settleScope, moveScope, mergeScope, splitScope } from './idempotency';
 import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from './escpos';
 
@@ -384,6 +385,16 @@ router.post(
 // 🆕 PATCH /:id - แก้ไขข้อมูลลูกค้า (สำหรับ ออกใบกำกับเต็มย้อนหลัง)
 router.patch('/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res, next) => {
   try {
+    const existing = await prisma.order.findFirst({
+      where: { id: req.params.id, storeId: req.user!.storeId },
+      select: { taxInvoiceNo: true },
+    });
+    if (!existing) throw NotFound('Order not found');
+    // ใบกำกับภาษีที่ออกแล้วแก้ข้อมูลผู้ซื้อไม่ได้ (ต้องออกใบลดหนี้/ใบกำกับใหม่แทน)
+    const touchesBuyer = ['customerName', 'customerTaxId', 'customerAddress'].some((k) => req.body[k] !== undefined);
+    if (existing.taxInvoiceNo && touchesBuyer) {
+      throw Conflict('ออกใบกำกับภาษีแล้ว แก้ไขข้อมูลผู้ซื้อไม่ได้', 'TAX_INVOICE_ISSUED');
+    }
     const order = await prisma.order.update({
       where: { id: req.params.id, storeId: req.user!.storeId },
       data: {
@@ -395,6 +406,28 @@ router.patch('/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res, next) =
       },
     });
     res.json(order);
+  } catch (e) { next(e); }
+});
+
+// ===== ใบกำกับภาษีเต็มรูป =====
+const taxInvoiceSchema = z.object({
+  customerName: z.string().trim().min(1).max(200),
+  customerTaxId: z.string().trim().min(1).max(32),
+  customerAddress: z.string().trim().min(1).max(500),
+  customerBranch: z.string().trim().max(32).optional().nullable(),
+});
+
+// Idempotent: already issued → 200 with the existing invoice (buyer in the body is ignored).
+router.post('/:id/tax-invoice', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(taxInvoiceSchema), async (req, res, next) => {
+  try {
+    res.json(await taxInvoice.issueTaxInvoice(req.params.id, req.user!.storeId, req.user!.id, req.body));
+  } catch (e) { next(e); }
+});
+
+router.get('/:id/tax-invoice', async (req, res, next) => {
+  try {
+    const width = req.query.width === '48' ? 48 : 32;
+    res.json(await taxInvoice.getTaxInvoice(req.params.id, req.user!.storeId, width));
   } catch (e) { next(e); }
 });
 

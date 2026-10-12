@@ -7,6 +7,7 @@ import { usePrintQueue } from '@/hooks/usePrintQueue';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { useThemeColors } from '@/lib/theme';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { StockAlertBanner } from '@/components/StockAlertBanner';
 import { SidebarNav } from '@/components/SidebarNav';
 
 export default function AppLayout() {
@@ -33,10 +34,13 @@ export default function AppLayout() {
         contentStyle: { backgroundColor: t.background },
         headerTitleStyle: { fontSize: 16, fontWeight: '700', color: t.foreground },
         headerTintColor: t.primary,
+        // The tabs group has no title, so iOS would label the back button "(tabs)".
+        headerBackTitle: 'ย้อนกลับ',
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />
       <Stack.Screen name="shift" options={{ title: 'กะทำงาน' }} />
+      <Stack.Screen name="zreport" options={{ title: 'ปิดยอดวัน' }} />
       <Stack.Screen name="products" options={{ title: 'สินค้า' }} />
       <Stack.Screen name="inventory" options={{ title: 'สต๊อก' }} />
       <Stack.Screen name="customers" options={{ title: 'ลูกค้า · สมาชิก' }} />
@@ -51,6 +55,7 @@ export default function AppLayout() {
   return (
     <View className="flex-1">
       <OfflineBanner />
+      <StockAlertBanner />
       {isTablet ? (
         <View className="flex-1 flex-row">
           <SidebarNav />

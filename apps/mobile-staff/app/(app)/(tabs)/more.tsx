@@ -12,6 +12,7 @@ import { useThemeColors } from '@/lib/theme';
 const TH_LABEL: Record<string, string> = {
   orders: 'ออเดอร์',
   shift: 'กะทำงาน',
+  zreport: 'ปิดยอดวัน',
   products: 'สินค้า',
   inventory: 'สต็อก',
   customers: 'ลูกค้า · สมาชิก',

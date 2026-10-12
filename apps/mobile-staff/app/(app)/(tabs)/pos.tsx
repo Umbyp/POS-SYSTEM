@@ -132,10 +132,10 @@ export default function PosScreen() {
             <View className="mt-1.5 flex-row"><ShiftChip /></View>
           </View>
           {isTablet ? null : (
-            <View style={{ width: 170 }} className="overflow-hidden rounded-lg border border-border dark:border-dark-border">
+            <View style={{ width: 224 }} className="overflow-hidden rounded-lg border border-border dark:border-dark-border">
               <UnderlineTabs
-                tabs={[{ key: 'DINE_IN', label: 'ทานที่ร้าน' }, { key: 'TAKEAWAY', label: 'กลับบ้าน' }]}
-                value={cart.type === 'DELIVERY' ? 'TAKEAWAY' : cart.type}
+                tabs={[{ key: 'DINE_IN', label: 'ที่ร้าน' }, { key: 'TAKEAWAY', label: 'กลับบ้าน' }, { key: 'DELIVERY', label: 'เดลิเวอรี่' }]}
+                value={cart.type}
                 onChange={(k) => onSelectType(k as OrderType)}
                 className="border-b-0"
               />
@@ -166,7 +166,7 @@ export default function PosScreen() {
           return (
             <Pressable
               onPress={() => setCategoryId(item.id)}
-              className={`h-9 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary-50 border-primary dark:bg-dark-muted' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
+              className={`h-11 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary-50 border-primary dark:bg-dark-muted' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
             >
               <Text className={`text-[13px] ${active ? 'font-semibold text-primary' : 'font-medium text-foreground dark:text-dark-foreground'}`}>
                 {item.name}
@@ -196,7 +196,7 @@ export default function PosScreen() {
             if ((item as unknown as { pad?: boolean }).pad) return <View className="flex-1" />;
             const qty = qtyById[item.id] ?? 0;
             const selected = qty > 0;
-            const soldOut = !!item.trackStock && !!item.inventory && item.inventory.quantity <= 0;
+            const soldOut = item.soldOut ?? (!!item.trackStock && !!item.inventory && item.inventory.quantity <= 0);
             return (
               <Pressable
                 onPress={() => !soldOut && onAddProduct(item)}
@@ -234,7 +234,7 @@ export default function PosScreen() {
                       {formatCurrency(item.sellingPrice)}
                     </Text>
                     {soldOut ? null : (
-                      <View className={`h-7 flex-row items-center justify-center rounded-md border border-primary px-2.5 ${isTablet ? 'w-full' : ''}`}>
+                      <View className={`h-11 min-w-11 flex-row items-center justify-center rounded-md border border-primary px-2.5 ${isTablet ? 'w-full' : ''}`}>
                         <Text className="text-[12px] font-semibold text-primary">+ เพิ่ม</Text>
                       </View>
                     )}

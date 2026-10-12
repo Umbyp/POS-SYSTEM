@@ -117,4 +117,30 @@ describe('refund accuracy (integration)', () => {
     expect(sum).toBeCloseTo(total, 2);
     expect(Number((await prisma.order.findUniqueOrThrow({ where: { id: o.id } })).refundedAmount)).toBeCloseTo(total, 2);
   });
+
+  it('restores recipe ingredients exactly as the sale deducted them (partial → partial → full, no over-restock)', async () => {
+    const ingProduct = await prisma.product.create({
+      data: { name: 'Ing', sku: `T-ING-${stamp}`, costPrice: 1, sellingPrice: 1, categoryId, storeId, trackStock: true, isIngredient: true },
+    });
+    const ingInv = await prisma.inventory.create({ data: { productId: ingProduct.id, quantity: 100 } });
+    await prisma.recipeItem.create({ data: { productId, ingredientId: ingProduct.id, quantity: 1.5, unit: 'g' } });
+    try {
+      const o = await tabService.openTab({ storeId, cashierId: userId, type: 'TAKEAWAY', items: [{ productId, quantity: 3 }] }, fakeIo);
+      const settled: any = await tabService.settleTab(o.id, { storeId, cashierId: userId, payments: [{ method: 'CASH', amount: 1000 }] }, fakeIo);
+      const ing = async () => (await prisma.inventory.findUniqueOrThrow({ where: { id: ingInv.id } })).quantity;
+      expect(await ing()).toBe(100 - 5); // ceil(3 × 1.5)
+      const id = settled.items[0].id;
+      await orderService.refundItems(o.id, userId, { items: [{ orderItemId: id, qty: 1 }] }, fakeIo, storeId);
+      expect(await ing()).toBe(100 - 5 + 2); // ceil(1.5)
+      await orderService.refundItems(o.id, userId, { items: [{ orderItemId: id, qty: 1 }] }, fakeIo, storeId);
+      expect(await ing()).toBe(100 - 5 + 3); // ceil(3.0), not 2 + 2
+      await orderService.refund(o.id, userId, fakeIo, storeId);
+      expect(await ing()).toBe(100); // everything back, exactly once
+    } finally {
+      await prisma.stockMovement.deleteMany({ where: { inventoryId: ingInv.id } });
+      await prisma.recipeItem.deleteMany({ where: { productId } });
+      await prisma.inventory.delete({ where: { id: ingInv.id } });
+    }
+    await prisma.product.delete({ where: { id: ingProduct.id } }).catch(() => {});
+  });
 });

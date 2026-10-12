@@ -8,9 +8,11 @@ import { formatTime } from '@/lib/format';
 import { SpineGauge } from '@/components/Spine';
 import { useKdsOrders } from '@/hooks/useKdsOrders';
 import { useNewOrderAlert } from '@/hooks/useNewOrderAlert';
+import { playNewOrderSound } from '@/lib/orderSound';
 import { useKdsAlert } from '@/stores/kdsAlert.store';
 import { useSocketStatus } from '@/lib/socket';
 import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { printKitchenTicket, PrinterError } from '@/lib/printer';
 import type { Order, OrderStatus } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
@@ -26,14 +28,21 @@ const NEXT_ACTION: Partial<Record<OrderStatus, { label: string; next: OrderStatu
   PREPARING: { label: 'เสร็จแล้ว', next: 'READY' },
 };
 
-// KDS is always dark (kitchen-wall display), independent of system theme.
-const K = { bg: '#161616', card: '#212121', card2: '#2C2C2C', border: '#3A3A3A', fg: '#F5F5F5', muted: '#A3A3A3', accent: '#E07A57' };
-const SPINE = { PENDING: '#FBBF24', PREPARING: '#60A5FA', READY: '#4ADE80', overdue: '#F87171' };
 const ALLOWED_SEC = 15 * 60;
 const MONO = Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' });
 
 export default function KdsScreen() {
   const qc = useQueryClient();
+  // Follows the app theme (light grey + orange / dark), same tokens as every other screen.
+  const t = useThemeColors();
+  const K = { bg: t.background, card: t.card, card2: t.muted, border: t.border, fg: t.foreground, muted: t.mutedForeground, accent: t.primary };
+  // Status colours: text variants are contrast-tuned per theme (theme.ts); the gauge fill can be brighter.
+  const SPINE = t.isDark
+    ? { PENDING: '#FBBF24', PREPARING: '#60A5FA', READY: '#4ADE80', overdue: '#F87171' }
+    : { PENDING: '#D97706', PREPARING: '#2563EB', READY: '#059669', overdue: '#DC2626' };
+  const SPINE_TEXT = t.isDark
+    ? SPINE
+    : { PENDING: '#B45309', PREPARING: '#1D4ED8', READY: '#047857', overdue: '#B91C1C' };
   const isTablet = useIsTablet();
   // Content area = window − 196 sidebar; ~330pt per ticket column (2 on portrait iPad, 3 on 12.9" landscape).
   const { width: winW } = useWindowDimensions();
@@ -72,7 +81,7 @@ export default function KdsScreen() {
   // Real connection state: socket down OR the HTTP poll failing => not live.
   const live: 'ok' | 'connecting' | 'down' =
     isError || socketStatus === 'disconnected' ? 'down' : socketStatus === 'connecting' ? 'connecting' : 'ok';
-  const dotColor = live === 'ok' ? '#4ADE80' : live === 'connecting' ? '#FBBF24' : '#F87171';
+  const dotColor = live === 'ok' ? t.success : live === 'connecting' ? t.warning : t.danger;
   const liveLabel = live === 'ok' ? 'เชื่อมต่อแล้ว' : live === 'connecting' ? 'กำลังเชื่อมต่อ…' : 'ขาดการเชื่อมต่อ';
 
   const { data: store } = useQuery({
@@ -131,9 +140,13 @@ export default function KdsScreen() {
         </View>
         <View className="flex-row items-center gap-3.5">
           <Pressable
-            onPress={() => setMuted(!muted)}
+            onPress={() => {
+              // un-muting plays the chime once so the cook can confirm the volume
+              if (muted) playNewOrderSound();
+              setMuted(!muted);
+            }}
             hitSlop={10}
-            accessibilityLabel={muted ? 'เปิดการสั่นเตือนออเดอร์ใหม่' : 'ปิดการสั่นเตือนออเดอร์ใหม่'}
+            accessibilityLabel={muted ? 'เปิดเสียงเตือนออเดอร์ใหม่' : 'ปิดเสียงเตือนออเดอร์ใหม่'}
             className="h-9 w-9 items-center justify-center"
           >
             {muted ? <VolumeX size={20} color={K.muted} /> : <Volume2 size={20} color={K.accent} />}
@@ -170,8 +183,8 @@ export default function KdsScreen() {
       ) : null}
 
       {live === 'down' ? (
-        <View style={{ backgroundColor: '#3B1D1D' }} className="px-4 py-1.5">
-          <Text style={{ color: '#F87171' }} className="text-center text-[12px] font-semibold">
+        <View style={{ backgroundColor: t.isDark ? '#3B1D1D' : '#FEE2E2' }} className="px-4 py-1.5">
+          <Text style={{ color: t.danger }} className="text-center text-[12px] font-semibold">
             ขาดการเชื่อมต่อ — ออเดอร์อาจไม่อัปเดตจนกว่าจะเชื่อมต่อใหม่
           </Text>
         </View>
@@ -179,7 +192,7 @@ export default function KdsScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
         <FlatList
@@ -227,13 +240,13 @@ export default function KdsScreen() {
                           <Printer size={18} color={K.muted} />
                         </Pressable>
                         <Text
-                          style={{ color: overdue ? SPINE.overdue : item.status === 'READY' ? SPINE.READY : K.muted, fontFamily: MONO }}
+                          style={{ color: overdue ? SPINE_TEXT.overdue : item.status === 'READY' ? SPINE_TEXT.READY : K.muted, fontFamily: MONO }}
                           className="text-[20px] font-bold"
                         >
                           {item.status === 'READY' ? 'พร้อม' : `${mm}:${ss}`}
                         </Text>
                       </View>
-                      <Text style={{ color }} className="text-[11px] font-semibold">{statusLabel}</Text>
+                      <Text style={{ color: overdue ? SPINE_TEXT.overdue : SPINE_TEXT[item.status as 'PENDING' | 'PREPARING' | 'READY'] ?? SPINE_TEXT.PENDING }} className="text-[11px] font-semibold">{statusLabel}</Text>
                     </View>
                   </View>
                   <View style={{ backgroundColor: K.border }} className="h-px" />
@@ -245,7 +258,7 @@ export default function KdsScreen() {
                           {li.quantity}× {li.product?.name ?? 'สินค้า'}
                         </Text>
                         {li.notes ? (
-                          <Text style={{ color: '#FBBF24' }} className="text-[15px] font-semibold">{li.notes}</Text>
+                          <Text style={{ color: t.warning }} className="text-[15px] font-semibold">{li.notes}</Text>
                         ) : null}
                       </View>
                     ))}

@@ -34,6 +34,8 @@ interface Product {
   image: string | null;
   sellingPrice: number;
   categoryId: string;
+  // Out of stock (own stock at 0, or a recipe ingredient is short) — shown greyed out and not orderable.
+  soldOut?: boolean;
   // Present only when the API returns option groups for the public menu;
   // missing/empty means the product has no options.
   optionGroups?: any[];
@@ -180,6 +182,7 @@ export default function SelfOrderPage() {
 
   // Products with option groups open the picker; plain ones add straight away.
   const tapAdd = (p: Product) => {
+    if (p.soldOut) return;
     if (getOptionGroups(p).length > 0) setPickerProduct(p);
     else addLine(p, 1);
   };
@@ -476,7 +479,7 @@ export default function SelfOrderPage() {
                         transition={{ duration: 0.2, delay: Math.min(i, 8) * 0.02 }}
                         className={`bg-card border rounded-2xl overflow-hidden shadow-card transition-colors ${
                           qty > 0 ? 'border-primary/50' : 'border-border'
-                        }`}
+                        } ${p.soldOut ? 'opacity-60' : ''}`}
                       >
                         <div className="relative aspect-square bg-muted">
                           {p.image ? (
@@ -491,7 +494,11 @@ export default function SelfOrderPage() {
                               <UtensilsCrossed className="w-8 h-8 text-muted-foreground/25" />
                             </div>
                           )}
-                          {qty === 0 ? (
+                          {p.soldOut && qty === 0 ? (
+                            <span className="absolute bottom-2 right-2 rounded-full bg-foreground/80 text-background text-[11px] font-bold px-2.5 py-1">
+                              หมด
+                            </span>
+                          ) : qty === 0 ? (
                             <button
                               onClick={() => tapAdd(p)}
                               aria-label={t('common.add')}
