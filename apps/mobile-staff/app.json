@@ -4,14 +4,17 @@
     "slug": "restropos-staff",
     "scheme": "restropos-staff",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": false,
       "bundleIdentifier": "com.restropos.staff",
       "infoPlist": {
+        "UISupportedInterfaceOrientations": ["UIInterfaceOrientationPortrait"],
+        "UISupportedInterfaceOrientations~ipad": ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
         "NSPhotoLibraryUsageDescription": "แอปต้องเข้าถึงคลังรูปภาพเพื่ออัปโหลดรูปสินค้า",
         "NSCameraUsageDescription": "แอปต้องใช้กล้องเพื่อสแกน QR บนสลิปโอนเงิน",
         "NSLocalNetworkUsageDescription": "แอปต้องเชื่อมต่อเครื่องพิมพ์ใบเสร็จ/ใบครัวในเครือข่ายเดียวกัน",

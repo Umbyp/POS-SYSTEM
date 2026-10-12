@@ -67,7 +67,7 @@ export function CartPanel({ active, header, onCheckout }: CartPanelProps) {
   }, [openOrder?.id]);
 
   const pricing = useCartPricing(openOrder);
-  const { store, totals, discounts, baseSubtotal, appliedPromo } = pricing;
+  const { store, totals, discounts, baseSubtotal, appliedPromo, stampRewardName } = pricing;
   const pendingOpenOpId = cart.pendingOpenOpId;
   const openOpStillQueued = useOfflineQueue((s) => !!pendingOpenOpId && s.tabOps.some((o) => o.id === pendingOpenOpId));
 
@@ -349,6 +349,7 @@ export function CartPanel({ active, header, onCheckout }: CartPanelProps) {
               accent
             />
           ) : null}
+          {discounts.stamp > 0 ? <SummaryRow label={`รางวัลดวง: ${stampRewardName}`} value={`−${formatCurrency(discounts.stamp)}`} accent /> : null}
           {discounts.points > 0 ? <SummaryRow label={`ใช้แต้ม ${discounts.points.toLocaleString()}`} value={`−${formatCurrency(discounts.pointsAmount)}`} accent /> : null}
           {store && totals && totals.serviceCharge > 0 ? (
             <SummaryRow label={`ค่าบริการ ${store.serviceCharge}%`} value={formatCurrency(totals.serviceCharge)} />

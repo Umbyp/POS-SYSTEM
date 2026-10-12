@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, FlatList, Pressable, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, Pressable, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -50,7 +50,9 @@ export default function TablesScreen() {
     status: st,
     count: tables.filter((tb) => tb.status === st).length,
   }));
-  const columns = isTablet ? 5 : 3;
+  // Wider (landscape) iPads get more tiles per row instead of oversized ones; the sidebar takes 196.
+  const { width: winW } = useWindowDimensions();
+  const columns = isTablet ? Math.max(5, Math.min(8, Math.floor((winW - 196 - 28) / 150))) : 3;
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>

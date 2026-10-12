@@ -29,7 +29,7 @@ export default function PosScreen() {
   const [picking, setPicking] = useState<Product | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(null);
-  const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null } | null>(null);
+  const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null } | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -115,7 +115,7 @@ export default function PosScreen() {
   }, [cart.items]);
   // Sidebar (~196) + cart panel (340) take a fixed share of a tablet's width — size the grid to what's left.
   const { width: windowWidth } = useWindowDimensions();
-  const columns = isTablet ? Math.max(2, Math.min(4, Math.floor((windowWidth - 196 - 340) / 150))) : 2;
+  const columns = isTablet ? Math.max(2, Math.min(5, Math.floor((windowWidth - 196 - 340) / 150))) : 2;
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['top', 'bottom', 'left', 'right']}>
@@ -346,6 +346,18 @@ export default function PosScreen() {
                   ? `มอบของรางวัล: ${success.appliedReward.name}`
                   : `รางวัล ${success.appliedReward.name} −${formatCurrency(success.appliedReward.discountApplied)}`}
               </Text>
+            ) : null}
+            {(success.stampsRedeemed ?? 0) > 0 ? (
+              <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                ใช้ดวงแลกรางวัล {success.stampsRedeemed} ดวง
+              </Text>
+            ) : null}
+            {(success.stampsEarned ?? 0) > 0 ? (
+              <View className="rounded-full bg-primary-50 px-3 py-1 dark:bg-dark-muted">
+                <Text className="text-[13px] font-bold text-primary dark:text-primary-400">
+                  ได้รับ {success.stampsEarned} ดวง
+                </Text>
+              </View>
             ) : null}
             {(success.pointsEarned ?? 0) > 0 ? (
               <View className="rounded-full bg-primary-50 px-3 py-1 dark:bg-dark-muted">

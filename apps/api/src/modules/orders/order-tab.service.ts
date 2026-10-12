@@ -19,9 +19,9 @@ import type { KitchenTicketItem } from './escpos';
 import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
 import {
   allocateDiscounts, capLineDiscount, resolvePromotion, consumePromotionUse, claimRedemption,
-  attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView,
+  attachRedemptionToOrder, redemptionNote, releaseRedemptionForOrder, joinNotes, appliedRewardView,
 } from './checkout-discounts';
-import { recordIdempotencyKey } from './idempotency';
+import { recordIdempotencyKey, addRoundScope, settleScope } from './idempotency';
 
 export interface TabItem {
   productId: string;
@@ -215,7 +215,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
 /** Append another round of items to an existing open bill and fire them. */
 export async function addRound(
   orderId: string,
-  input: { storeId: string; cashierId: string; items: TabItem[]; notes?: string; guestCount?: number },
+  input: { storeId: string; cashierId: string; items: TabItem[]; notes?: string; guestCount?: number; idempotencyKey?: string },
   io: Server,
 ) {
   if (!input.items?.length) throw BadRequest('No items');
@@ -230,6 +230,9 @@ export async function addRound(
     if (order.payments.length > 0 || !OPEN_STATUSES.includes(order.status)) {
       throw BadRequest('บิลนี้ปิดแล้ว เพิ่มรายการไม่ได้');
     }
+    // Recorded first: a concurrent retry blocks on the unique index until this
+    // transaction commits, then loses with P2002 and replays the result.
+    if (input.idempotencyKey) await recordIdempotencyKey(tx, input.storeId, addRoundScope(orderId), input.idempotencyKey, orderId);
 
     const { products, productIds, itemsData, subtotal: addSubtotal, allRecipes } = await buildItems(tx, input.storeId, input.items);
     printItems = itemsData.map((d) => ({
@@ -326,6 +329,10 @@ interface SettleInput {
   customerName?: string;
   customerTaxId?: string;
   customerAddress?: string;
+  /** Discount reason / free-text note; appended to order.notes. */
+  notes?: string;
+  /** Idempotency-Key — see orders/idempotency.ts. */
+  idempotencyKey?: string;
 }
 
 /** Take payment on an open bill, complete it, free the table, award points. */
@@ -350,6 +357,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
     if (order.payments.length > 0 || !OPEN_STATUSES.includes(order.status)) {
       throw BadRequest('บิลนี้ชำระแล้ว');
     }
+    if (input.idempotencyKey) await recordIdempotencyKey(tx, input.storeId, settleScope(orderId), input.idempotencyKey, orderId);
 
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
     const customerId = input.customerId ?? order.customerId ?? undefined;
@@ -423,7 +431,9 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         status: OrderStatus.COMPLETED, completedAt: new Date(), customerId,
         discount: orderDiscount, promotionDiscount: promoDiscount,
         promotionId: resolvedPromo?.promotionId ?? null, promotionName: resolvedPromo?.promotionName ?? null,
-        ...(claimed ? { notes: joinNotes(order.notes, redemptionNote(claimed, applied.reward)) } : {}),
+        ...(claimed || input.notes?.trim()
+          ? { notes: joinNotes(order.notes, input.notes?.trim(), claimed ? redemptionNote(claimed, applied.reward) : undefined) ?? null }
+          : {}),
         tax, serviceCharge, total,
         pointsRedeemed: pointsToRedeem, pointsEarned: earnedPoints,
         stampsEarned: earnedStamps, stampsRedeemed: stampsToRedeem,
@@ -674,6 +684,7 @@ export async function cancelOrder(
     if (order.tableId) {
       table = await tx.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE', occupiedAt: null } });
     }
+    await releaseRedemptionForOrder(tx, orderId, input.storeId, input.userId, 'CANCEL_ORDER');
     await tx.activityLog.create({
       data: { userId: input.userId, action: 'CANCEL_ORDER', metadata: { orderId, reason: input.reason ?? null } },
     });

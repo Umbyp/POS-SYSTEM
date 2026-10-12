@@ -44,7 +44,7 @@ interface PaymentModalProps {
   visible: boolean;
   mode: PaymentMode | null;
   onClose: () => void;
-  onSuccess: (order: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null }) => void;
+  onSuccess: (order: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null }) => void;
   /** Payment couldn't reach the server and was queued for later — no order
    * data to show yet, so the caller should skip the receipt/success screen. */
   onQueuedOffline: () => void;
@@ -227,7 +227,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     const idempotencyKey = uuid();
     const payload =
       mode.kind === 'settle'
-        ? { payments, ...adjustmentFields }
+        ? { payments, ...adjustmentFields, ...(manualDiscount?.reason ? { notes: `ส่วนลด: ${manualDiscount.reason}` } : {}) }
         : {
             type: mode.type,
             tableId: mode.tableId,
@@ -253,9 +253,9 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
         return;
       }
 
-      let result: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null };
+      let result: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null };
       if (mode.kind === 'settle') {
-        result = (await api.post(`/orders/${mode.orderId}/settle`, payload)).data;
+        result = (await api.post(`/orders/${mode.orderId}/settle`, payload, { headers: { 'Idempotency-Key': idempotencyKey } })).data;
       } else {
         result = (await api.post('/orders', payload, { headers: { 'Idempotency-Key': idempotencyKey } })).data;
       }
@@ -297,6 +297,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           {discounts.total > 0 ? (
             <Text className="mt-1 text-[12px] font-medium text-primary dark:text-primary-400">
               รวมส่วนลด −{formatCurrency(discounts.total)}
+              {discounts.stamp > 0 ? ` (รางวัลดวง −${formatCurrency(discounts.stamp)})` : ''}
               {discounts.points > 0 ? ` (ใช้ ${discounts.points.toLocaleString()} แต้ม)` : ''}
             </Text>
           ) : null}

@@ -336,7 +336,7 @@ export default function DashboardScreen() {
         </View>
       ) : null}
       <ScrollView
-        contentContainerClassName={wide ? 'p-5 gap-4' : 'p-3.5 gap-3'}
+        contentContainerClassName={wide ? 'p-5 gap-4 w-full max-w-[1180px] self-center' : 'p-3.5 gap-3'}
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.primary} />}
       >
         {wide ? (

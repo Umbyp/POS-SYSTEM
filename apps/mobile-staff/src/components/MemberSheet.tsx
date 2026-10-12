@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ScrollView, TextInput, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { Modal, View, Text, Pressable, ScrollView, TextInput, Switch, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
-import { X, Search, UserRound, Gift, Sparkles } from 'lucide-react-native';
+import { X, Search, UserRound, Gift, Sparkles, Stamp } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { useCart } from '@/stores/cart.store';
 import { useCartPricing } from '@/hooks/useCartPricing';
@@ -28,7 +28,8 @@ export function MemberSheet({ visible, onClose, order }: MemberSheetProps) {
   const setCustomer = useCart((s) => s.setCustomer);
   const setPointsToRedeem = useCart((s) => s.setPointsToRedeem);
   const setRedemption = useCart((s) => s.setRedemption);
-  const { pointsEnabled, pointValue, minRedeemPoints, maxPoints, discounts } = useCartPricing(order);
+  const setUseStampReward = useCart((s) => s.setUseStampReward);
+  const { pointsEnabled, pointValue, minRedeemPoints, maxPoints, discounts, stampsEnabled, stampsPerReward, stampRewardValue, stampRewardName, stampRewardAvailable, stampRewardActive } = useCartPricing(order);
 
   const [q, setQ] = useState('');
   const [pointsText, setPointsText] = useState('');
@@ -204,6 +205,45 @@ export function MemberSheet({ visible, onClose, order }: MemberSheetProps) {
                       ลด {formatCurrency(discounts.pointsAmount)} · เหลือ {(customer.points - discounts.points).toLocaleString()} แต้ม
                     </Text>
                   ) : null}
+                </View>
+              ) : null}
+
+              {customer && stampsEnabled && stampsPerReward > 0 ? (
+                <View className="gap-2 rounded-[10px] border border-border p-3 dark:border-dark-border">
+                  <View className="flex-row items-center gap-1.5">
+                    <Stamp size={14} color="#D25E3B" />
+                    <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">บัตรสะสมดวง</Text>
+                  </View>
+                  <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                    สะสม {customer.stamps}/{stampsPerReward} ดวง
+                  </Text>
+                  {stampRewardAvailable ? (
+                    <Pressable
+                      onPress={() => setUseStampReward(!stampRewardActive)}
+                      className={`flex-row items-center gap-3 rounded-lg border p-3 ${stampRewardActive ? 'border-primary bg-primary-50 dark:bg-dark-muted' : 'border-border dark:border-dark-border'}`}
+                    >
+                      <View className="flex-1">
+                        <Text className="text-[13px] font-bold text-foreground dark:text-dark-foreground">ใช้รางวัลดวง</Text>
+                        <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                          {stampRewardName} · ลด {formatCurrency(stampRewardValue)} · ใช้ {stampsPerReward} ดวง
+                        </Text>
+                        {stampRewardActive ? (
+                          <Text className="mt-0.5 text-[12px] font-semibold text-primary">
+                            ลดจริง {formatCurrency(discounts.stamp)} · เหลือ {customer.stamps - stampsPerReward} ดวง
+                          </Text>
+                        ) : null}
+                      </View>
+                      <Switch
+                        value={stampRewardActive}
+                        onValueChange={setUseStampReward}
+                        trackColor={{ true: '#D25E3B' }}
+                      />
+                    </Pressable>
+                  ) : (
+                    <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                      ต้องสะสมอีก {Math.max(0, stampsPerReward - customer.stamps)} ดวงจึงจะแลกรางวัลได้
+                    </Text>
+                  )}
                 </View>
               ) : null}
 

@@ -13,7 +13,14 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BadRequest } from '../../utils/errors';
 
-export type IdempotencyScope = 'orders:create' | 'orders:open';
+export type IdempotencyScope =
+  | 'orders:create'
+  | 'orders:open'
+  | `orders:items:${string}`   // add-round, scoped to the order id
+  | `orders:settle:${string}`; // settle, scoped to the order id
+
+export const addRoundScope = (orderId: string): IdempotencyScope => `orders:items:${orderId}`;
+export const settleScope = (orderId: string): IdempotencyScope => `orders:settle:${orderId}`;
 
 const KEY_RE = /^[A-Za-z0-9_.:\-]{8,128}$/;
 const KEEP_MS = 7 * 24 * 3600_000;
@@ -43,7 +50,7 @@ export const isIdempotencyConflict = (e: unknown) =>
 export async function findReplay(storeId: string, scope: IdempotencyScope, key: string) {
   const row = await prisma.idempotencyKey.findUnique({ where: { storeId_scope_key: { storeId, scope, key } } });
   if (!row) return null;
-  return prisma.order.findUnique({
+  const order = await prisma.order.findUnique({
     where: { id: row.orderId },
     include: {
       items: { include: { product: true } },
@@ -53,6 +60,21 @@ export async function findReplay(storeId: string, scope: IdempotencyScope, key: 
       cashier: { select: { id: true, name: true } },
     },
   });
+  if (!order) return null;
+  // A settle response carries `appliedReward`; rebuild it so a replay looks the same.
+  if (scope.startsWith('orders:settle:')) {
+    const red = await prisma.rewardRedemption.findFirst({
+      where: { orderId: order.id, storeId },
+      include: { reward: { select: { name: true, kind: true, discountAmount: true } } },
+    });
+    const applied = red && red.reward.kind === 'DISCOUNT'
+      ? Math.min(Number(red.reward.discountAmount ?? 0), Math.max(0, Number(order.discount) - Number(order.promotionDiscount ?? 0)))
+      : 0;
+    return Object.assign(order, {
+      appliedReward: red ? { code: red.code, name: red.reward.name, kind: red.reward.kind, discountApplied: applied } : null,
+    });
+  }
+  return order;
 }
 
 /** Opportunistic cleanup so the table doesn't grow forever (no cron needed). */
