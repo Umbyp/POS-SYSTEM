@@ -12,6 +12,7 @@ export default function OrdersLayout() {
         contentStyle: { backgroundColor: t.background },
         headerTitleStyle: { fontSize: 16, fontWeight: '700', color: t.foreground },
         headerTintColor: t.primary,
+        headerBackTitle: 'ย้อนกลับ',
       }}
     >
       <Stack.Screen name="index" options={{ title: 'ออเดอร์' }} />

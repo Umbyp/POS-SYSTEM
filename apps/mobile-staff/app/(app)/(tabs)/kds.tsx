@@ -8,6 +8,7 @@ import { formatTime } from '@/lib/format';
 import { SpineGauge } from '@/components/Spine';
 import { useKdsOrders } from '@/hooks/useKdsOrders';
 import { useNewOrderAlert } from '@/hooks/useNewOrderAlert';
+import { playNewOrderSound } from '@/lib/orderSound';
 import { useKdsAlert } from '@/stores/kdsAlert.store';
 import { useSocketStatus } from '@/lib/socket';
 import { useIsTablet } from '@/hooks/useIsTablet';
@@ -131,9 +132,13 @@ export default function KdsScreen() {
         </View>
         <View className="flex-row items-center gap-3.5">
           <Pressable
-            onPress={() => setMuted(!muted)}
+            onPress={() => {
+              // un-muting plays the chime once so the cook can confirm the volume
+              if (muted) playNewOrderSound();
+              setMuted(!muted);
+            }}
             hitSlop={10}
-            accessibilityLabel={muted ? 'เปิดการสั่นเตือนออเดอร์ใหม่' : 'ปิดการสั่นเตือนออเดอร์ใหม่'}
+            accessibilityLabel={muted ? 'เปิดเสียงเตือนออเดอร์ใหม่' : 'ปิดเสียงเตือนออเดอร์ใหม่'}
             className="h-9 w-9 items-center justify-center"
           >
             {muted ? <VolumeX size={20} color={K.muted} /> : <Volume2 size={20} color={K.accent} />}

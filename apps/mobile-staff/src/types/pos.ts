@@ -21,6 +21,8 @@ export interface Product {
   isIngredient: boolean;
   trackStock: boolean;
   inventory: { quantity: number; lowStockAt: number } | null;
+  /** Server-computed: own stock at 0 or a recipe ingredient can't cover one serving. */
+  soldOut?: boolean;
   /** Legacy per-product variants. */
   variants?: { id?: string; name: string; priceDelta: string | number }[];
   /** Store-level option groups attached to this product. */

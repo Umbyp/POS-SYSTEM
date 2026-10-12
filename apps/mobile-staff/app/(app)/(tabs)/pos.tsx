@@ -196,7 +196,7 @@ export default function PosScreen() {
             if ((item as unknown as { pad?: boolean }).pad) return <View className="flex-1" />;
             const qty = qtyById[item.id] ?? 0;
             const selected = qty > 0;
-            const soldOut = !!item.trackStock && !!item.inventory && item.inventory.quantity <= 0;
+            const soldOut = item.soldOut ?? (!!item.trackStock && !!item.inventory && item.inventory.quantity <= 0);
             return (
               <Pressable
                 onPress={() => !soldOut && onAddProduct(item)}

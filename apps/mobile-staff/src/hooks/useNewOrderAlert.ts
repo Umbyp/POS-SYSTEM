@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Vibration } from 'react-native';
 import { useKdsAlert } from '@/stores/kdsAlert.store';
+import { playNewOrderSound } from '@/lib/orderSound';
 import type { Order } from '@/types/pos';
 
 const FLASH_MS = 5000;
@@ -11,9 +12,9 @@ const PATTERN = [0, 350, 150, 350];
  * the ids seen so far. Works for socket pushes (event -> invalidate -> refetch)
  * and for the 10s poll alike, so no separate socket listener is needed.
  *
- * No audio library is installed (expo-av/expo-audio would need a native
- * rebuild), so the alert is a visual flash (`newCount > 0` for ~5s) plus a
- * vibration that the persisted mute toggle silences.
+ * The alert is a visual flash (`newCount > 0` for ~5s) plus a chime and a
+ * vibration; the persisted mute toggle silences both. The chime needs a build
+ * that includes expo-audio (see lib/orderSound.ts) and degrades silently without.
  */
 export function useNewOrderAlert(orders: Order[] | undefined) {
   const muted = useKdsAlert((s) => s.muted);
@@ -36,6 +37,7 @@ export function useNewOrderAlert(orders: Order[] | undefined) {
 
     setNewCount((c) => c + fresh.length);
     if (!muted) {
+      playNewOrderSound();
       try {
         Vibration.vibrate(PATTERN);
       } catch {
