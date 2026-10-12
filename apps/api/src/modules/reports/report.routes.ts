@@ -3,6 +3,8 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
+import { buildZReport, bangkokToday } from './z-report.service';
+import { BadRequest } from '../../utils/errors';
 
 const router = Router();
 router.use(authMiddleware, rbac('OWNER', 'ADMIN'));
@@ -24,6 +26,17 @@ function getPrevPeriod(from: Date, to: Date) {
     to: from,
   };
 }
+
+// GET /reports/z-report?date=YYYY-MM-DD (store day, Asia/Bangkok; default today)
+router.get('/z-report', async (req, res, next) => {
+  try {
+    const date = (req.query.date as string | undefined) ?? bangkokToday();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00:00+07:00`).getTime())) {
+      throw BadRequest('date must be YYYY-MM-DD');
+    }
+    res.json(await buildZReport(req.user!.storeId, date));
+  } catch (e) { next(e); }
+});
 
 // GET /reports/summary?from=&to=
 router.get('/summary', async (req, res, next) => {

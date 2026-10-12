@@ -59,6 +59,8 @@ model Store {
   promptpayId   String?
   invoicePrefix String?
   branchCode    String?
+  branchName    String?    // ชื่อสาขาที่พิมพ์บนใบกำกับภาษี (null = "สำนักงานใหญ่" หรือ "สาขา {branchCode}")
+  taxInvoiceCounter Int    @default(0) // เลขลำดับใบกำกับภาษีล่าสุด (ต่อเนื่องต่อร้าน เพิ่มแบบ atomic ใน transaction เดียวกับการออกใบ)
   createdAt     DateTime   @default(now())
   smsWebhookToken String?
   dailyTarget     Decimal  @default(0) @db.Decimal(12, 2)
@@ -336,6 +338,9 @@ model Order {
   customerName     String?
   customerTaxId    String?
   customerAddress  String?
+  customerBranch   String?     // สาขาผู้ซื้อ (นิติบุคคล) "สำนักงานใหญ่" หรือรหัส 5 หลัก
+  taxInvoiceNo       String?   // เลขที่ใบกำกับภาษีเต็มรูป — ออกแล้วแก้ไม่ได้
+  taxInvoiceIssuedAt DateTime?
   createdAt        DateTime    @default(now())
   completedAt      DateTime?
   refundedAmount   Decimal     @default(0) @db.Decimal(10, 2) // ยอดที่คืนเงินแล้วสะสม (คืนบางรายการ + คืนเต็ม)
@@ -349,6 +354,7 @@ model Order {
   selfOrderRequests SelfOrderRequest[]
 
   @@unique([storeId, orderNumber])
+  @@unique([storeId, taxInvoiceNo])
   @@index([storeId, createdAt])
   @@index([storeId, status, createdAt])
   @@index([status])
