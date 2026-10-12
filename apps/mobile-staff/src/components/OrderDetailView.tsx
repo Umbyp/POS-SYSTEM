@@ -7,6 +7,7 @@ import { formatCurrency, formatDate, formatMinutes } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { StatusBadge, SPINE_COLOR, OVERDUE_COLOR, overdueMinutes } from '@/components/StatusBadge';
 import { OrderActionSheet, type OrderAction } from '@/components/OrderActionSheet';
+import { BillOpButtons, BillOpsModal, type BillOp } from '@/components/BillOpsSheets';
 import { useAuthStore } from '@/stores/auth.store';
 import type { Order } from '@/types/pos';
 import { useThemeColors } from '@/lib/theme';
@@ -31,6 +32,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
   const theme = useThemeColors();
   const role = useAuthStore((s) => s.user?.role);
   const [action, setAction] = useState<OrderAction | null>(null);
+  const [billOp, setBillOp] = useState<BillOp | null>(null);
   const { data: order, isLoading } = useQuery({
     queryKey: ['orders', id],
     queryFn: async () => (await api.get(`/orders/${id}`)).data as Order,
@@ -150,6 +152,13 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
           </View>
         ) : null}
 
+        {staff && openUnpaid ? (
+          <View className="gap-2.5 rounded-[10px] border border-border bg-card p-4 dark:border-dark-border dark:bg-dark-card">
+            <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">จัดการบิล</Text>
+            <BillOpButtons order={order} onPick={setBillOp} />
+          </View>
+        ) : null}
+
         <Pressable
           onPress={() => onReceipt(order.id)}
           disabled={receiptBusy}
@@ -179,6 +188,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
         ) : null}
       </ScrollView>
       <OrderActionSheet order={order} action={action} onClose={() => setAction(null)} />
+      <BillOpsModal order={order} op={billOp} onClose={() => setBillOp(null)} />
     </>
   );
 }

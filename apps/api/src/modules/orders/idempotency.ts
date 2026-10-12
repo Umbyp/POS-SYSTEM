@@ -17,9 +17,15 @@ export type IdempotencyScope =
   | 'orders:create'
   | 'orders:open'
   | `orders:items:${string}`   // add-round, scoped to the order id
-  | `orders:settle:${string}`; // settle, scoped to the order id
+  | `orders:settle:${string}`   // settle, scoped to the order id
+  | `orders:move:${string}`     // move-table, scoped to the order id
+  | `orders:merge:${string}`    // merge (target order id)
+  | `orders:split:${string}`;   // split (source order id); key row points at the NEW bill
 
 export const addRoundScope = (orderId: string): IdempotencyScope => `orders:items:${orderId}`;
+export const moveScope = (orderId: string): IdempotencyScope => `orders:move:${orderId}`;
+export const mergeScope = (orderId: string): IdempotencyScope => `orders:merge:${orderId}`;
+export const splitScope = (orderId: string): IdempotencyScope => `orders:split:${orderId}`;
 export const settleScope = (orderId: string): IdempotencyScope => `orders:settle:${orderId}`;
 
 const KEY_RE = /^[A-Za-z0-9_.:\-]{8,128}$/;

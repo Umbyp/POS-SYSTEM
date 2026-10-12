@@ -12,7 +12,8 @@ import { hasOptions } from '@/lib/options';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { CartSheet } from '@/components/CartSheet';
 import { CartPanel } from '@/components/CartPanel';
-import { PaymentModal, type PaymentMode, type AppliedReward } from '@/components/PaymentModal';
+import { ShiftChip } from '@/components/ShiftChip';
+import { PaymentModal, type PaymentMode, type PaidOrder } from '@/components/PaymentModal';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { TABLE_STATUS_DOT } from '@/constants/tableStatus';
 import { printReceipt, PrinterError } from '@/lib/printer';
@@ -29,7 +30,7 @@ export default function PosScreen() {
   const [picking, setPicking] = useState<Product | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(null);
-  const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null } | null>(null);
+  const [success, setSuccess] = useState<PaidOrder | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -128,6 +129,7 @@ export default function PosScreen() {
             <Text numberOfLines={1} className="text-[11px] font-medium text-muted-foreground dark:text-dark-muted-foreground">
               {[headerTitle, ...metaParts].join(' · ')}
             </Text>
+            <View className="mt-1.5 flex-row"><ShiftChip /></View>
           </View>
           {isTablet ? null : (
             <View style={{ width: 170 }} className="overflow-hidden rounded-lg border border-border dark:border-dark-border">
@@ -330,6 +332,24 @@ export default function PosScreen() {
             <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">
               #{success.orderNumber} · {formatCurrency(success.total)}
             </Text>
+            {success.paymentLines && success.paymentLines.length > 0 ? (
+              <View className="w-full gap-1 rounded-lg bg-background px-3 py-2 dark:bg-dark-background">
+                {success.paymentLines.map((l, i) => (
+                  <View key={i} className="flex-row justify-between">
+                    <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                      {l.method === 'CASH' ? 'เงินสด' : l.method === 'PROMPTPAY' ? 'พร้อมเพย์' : l.method === 'CREDIT_CARD' ? 'บัตร' : 'โอนเงิน'}
+                    </Text>
+                    <Text className="text-[12px] font-semibold text-foreground dark:text-dark-foreground">{formatCurrency(l.amount)}</Text>
+                  </View>
+                ))}
+                {(success.change ?? 0) > 0 ? (
+                  <View className="flex-row justify-between border-t border-border pt-1 dark:border-dark-border">
+                    <Text className="text-[12px] font-semibold text-foreground dark:text-dark-foreground">เงินทอน</Text>
+                    <Text className="text-[12px] font-bold text-primary dark:text-primary-400">{formatCurrency(success.change ?? 0)}</Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             {Number(success.discount) > 0 ? (
               <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
                 ส่วนลดรวม −{formatCurrency(success.discount ?? 0)}

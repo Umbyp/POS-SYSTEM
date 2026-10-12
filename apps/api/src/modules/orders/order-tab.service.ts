@@ -12,7 +12,7 @@ import { Server } from 'socket.io';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
-import { generateOrderNumber } from './order.service';
+import { generateOrderNumber, tableHasOtherOpenBill } from './order.service';
 import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnabled } from './points.service';
 import * as stripeService from '../payments/stripe.service';
 import type { KitchenTicketItem } from './escpos';
@@ -32,9 +32,9 @@ export interface TabItem {
 }
 
 // "Open bill" = fired to kitchen but not yet paid. Excludes DRAFT (legacy park).
-const OPEN_STATUSES: OrderStatus[] = ['PENDING', 'PREPARING', 'READY'];
+export const OPEN_STATUSES: OrderStatus[] = ['PENDING', 'PREPARING', 'READY'];
 
-const ORDER_INCLUDE = {
+export const ORDER_INCLUDE = {
   items: { include: { product: true } },
   payments: true,
   customer: true,
@@ -290,10 +290,23 @@ export async function addRound(
 
 /** The open (unpaid) bill for a table, if any. */
 export function getOpenByTable(storeId: string, tableId: string) {
+  // A table can hold several open bills after a split. The single-bill callers
+  // (POS cart, self-order add-round) get the OLDEST one — the original bill —
+  // so they keep working on the same bill as before the split. Use
+  // listOpenByTable() to see them all.
   return prisma.order.findFirst({
     where: { storeId, tableId, status: { in: OPEN_STATUSES }, payments: { none: {} } },
     include: ORDER_INCLUDE,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
+/** Every open (unpaid) bill at a table, oldest first. */
+export function listOpenByTable(storeId: string, tableId: string) {
+  return prisma.order.findMany({
+    where: { storeId, tableId, status: { in: OPEN_STATUSES }, payments: { none: {} } },
+    include: ORDER_INCLUDE,
+    orderBy: { createdAt: 'asc' },
   });
 }
 
@@ -491,7 +504,8 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
     });
 
     let table = null;
-    if (order.tableId) {
+    // A split-off bill may still be open at the same table — keep it occupied then.
+    if (order.tableId && !(await tableHasOtherOpenBill(tx, order.tableId, orderId))) {
       table = await tx.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE', occupiedAt: null } });
     }
     return { updated: Object.assign(updated, { appliedReward: appliedRewardView(claimed, applied.reward) }), table };
@@ -681,7 +695,8 @@ export async function cancelOrder(
       where: { id: orderId }, data: { status: OrderStatus.CANCELLED }, include: ORDER_INCLUDE,
     });
     let table = null;
-    if (order.tableId) {
+    // A split-off bill may still be open at the same table — keep it occupied then.
+    if (order.tableId && !(await tableHasOtherOpenBill(tx, order.tableId, orderId))) {
       table = await tx.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE', occupiedAt: null } });
     }
     await releaseRedemptionForOrder(tx, orderId, input.storeId, input.userId, 'CANCEL_ORDER');

@@ -5,6 +5,7 @@ import { authMiddleware } from '../../middleware/auth.middleware';
 import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
+import { computeShiftSummary } from './shift-summary';
 import { isValidPin, hashPin } from '../auth/pin.logic';
 
 const router = Router();
@@ -136,44 +137,50 @@ router.post('/shifts/open', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-router.post('/shifts/:id/close', async (req, res, next) => {
+/** A shift in this store; a cashier may only see/close their OWN, OWNER/ADMIN any. */
+async function loadShiftFor(req: any, res: any) {
+  const shift = await prisma.shift.findFirst({
+    where: { id: req.params.id, user: { storeId: req.user!.storeId } },
+  });
+  if (!shift) { res.status(404).json({ error: 'ไม่พบกะ' }); return null; }
+  if (shift.userId !== req.user!.id && !['OWNER', 'ADMIN'].includes(req.user!.role)) {
+    res.status(403).json({ error: 'ปิด/ดูกะของคนอื่นได้เฉพาะเจ้าของหรือแอดมิน', code: 'SHIFT_NOT_YOURS' });
+    return null;
+  }
+  return shift;
+}
+
+// GET /shifts/:id/summary - cash reconciliation (works for open and closed shifts)
+router.get('/shifts/:id/summary', async (req, res, next) => {
   try {
-    // คำนวณยอดขาย/cash ระหว่างกะ
-    // ต้องเป็นกะของพนักงานในร้านตัวเองเท่านั้น (กันปิดกะข้ามร้าน)
-    const shift = await prisma.shift.findFirst({
-      where: { id: req.params.id, user: { storeId: req.user!.storeId } },
-    });
-    if (!shift) return res.status(404).json({ error: 'ไม่พบกะ' });
+    const shift = await loadShiftFor(req, res);
+    if (!shift) return;
+    res.json(await computeShiftSummary(shift, req.user!.storeId));
+  } catch (e) { next(e); }
+});
+
+const closeSchema = z.object({
+  closingCash: z.coerce.number().nonnegative(),
+  notes: z.string().max(500).optional(),
+});
+
+router.post('/shifts/:id/close', validate(closeSchema), async (req, res, next) => {
+  try {
+    const shift = await loadShiftFor(req, res);
+    if (!shift) return;
     if (shift.endTime) return res.status(400).json({ error: 'กะนี้ปิดไปแล้ว' });
 
-    // นับเงินสดที่รับใน shift นี้
-    const orders = await prisma.order.findMany({
-      where: {
-        cashierId: shift.userId,
-        createdAt: { gte: shift.startTime },
-        status: { notIn: ['CANCELLED', 'REFUNDED'] },
-      },
-      include: { payments: true },
-    });
-    const cashSales = orders.reduce((sum, o) => {
-      const cash = o.payments
-        .filter((p) => p.method === 'CASH')
-        .reduce((s, p) => s + Number(p.amount), 0);
-      return sum + cash;
-    }, 0);
-    const totalSales = orders.reduce((s, o) => s + Number(o.total), 0);
-
+    const endTime = new Date();
+    const calc = await computeShiftSummary({ ...shift, endTime, closingCash: req.body.closingCash }, req.user!.storeId);
+    // cashSales is stored NET of change (cash that actually stayed in the drawer).
     const updated = await prisma.shift.update({
-      where: { id: req.params.id },
+      where: { id: shift.id },
       data: {
-        endTime: new Date(),
-        closingCash: req.body.closingCash,
-        cashSales,
-        totalSales,
-        notes: req.body.notes,
+        endTime, closingCash: req.body.closingCash, cashSales: calc.cashSales,
+        totalSales: calc.totalSales, notes: req.body.notes,
       },
     });
-    res.json(updated);
+    res.json({ ...updated, summary: calc });
   } catch (e) { next(e); }
 });
 

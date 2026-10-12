@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Modal, View, Text, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { Modal, View, Text, Pressable, ActivityIndicator, Linking, ScrollView } from 'react-native';
+import { useQuery } from '@tanstack/react-query';
 import QRCode from 'react-native-qrcode-svg';
 import { X, ArrowRight, QrCode, ArrowLeft } from 'lucide-react-native';
 import { TABLE_STATUS_LABEL, TABLE_STATUS_ORDER, tableStatusColor } from '@/constants/tableStatus';
 import { WEB_URL } from '@/constants/config';
 import { api } from '@/lib/api';
+import { formatCurrency, formatElapsedMinutes } from '@/lib/format';
+import { StatusBadge } from '@/components/StatusBadge';
+import { BillOpView, BillOpButtons, liveItemCount, type BillOp } from '@/components/BillOpsSheets';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { sheetClasses } from '@/lib/layout';
 import { useThemeColors } from '@/lib/theme';
-import type { RestaurantTable, TableStatus } from '@/types/pos';
+import type { Order, RestaurantTable, TableStatus } from '@/types/pos';
 
 interface TableActionSheetProps {
   table: RestaurantTable | null;
@@ -22,18 +26,31 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
   const t = useThemeColors();
   const sheet = sheetClasses(useIsTablet());
   const [showQr, setShowQr] = useState(false);
+  const [billOp, setBillOp] = useState<{ op: BillOp; orderId: string } | null>(null);
+
+  const { data: bills = [] } = useQuery({
+    queryKey: ['orders', 'open-by-table', table?.id, 'all'],
+    queryFn: async () => (await api.get(`/orders/open/by-table/${table!.id}/all`)).data as Order[],
+    enabled: !!table,
+  });
+  const opOrder = billOp ? bills.find((b) => b.id === billOp.orderId) : undefined;
 
   // Reset back to the main sheet each time it's reopened for a (possibly
   // different) table, rather than reopening mid-QR-view.
   useEffect(() => {
-    if (!table) setShowQr(false);
+    if (!table) {
+      setShowQr(false);
+      setBillOp(null);
+    }
   }, [table]);
 
   return (
     <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable className={sheet.overlay} onPress={onClose}>
-        <Pressable className={`${sheet.panel} bg-card dark:bg-dark-card p-5 gap-4`} onPress={(e) => e.stopPropagation()}>
-          {table && showQr ? (
+        <Pressable className={`${sheet.panel} max-h-[90%] bg-card dark:bg-dark-card p-5 gap-4`} onPress={(e) => e.stopPropagation()}>
+          {table && billOp && opOrder ? (
+            <BillOpView op={billOp.op} order={opOrder} onBack={() => setBillOp(null)} onClose={onClose} />
+          ) : table && showQr ? (
             <TableQrView table={table} onBack={() => setShowQr(false)} onClose={onClose} />
           ) : table ? (
             <>
@@ -59,6 +76,30 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
                 <QrCode size={18} color={t.primary} />
                 <Text className="text-[15px] font-semibold text-primary dark:text-primary-400">ดู QR โต๊ะ</Text>
               </Pressable>
+
+              {bills.length > 0 ? (
+                <View className="gap-2">
+                  <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">จัดการบิล</Text>
+                  <ScrollView className="max-h-[260px]" contentContainerClassName="gap-2">
+                    {bills.map((b) => (
+                      <View key={b.id} className="gap-2 rounded-[10px] border border-border bg-card p-3 dark:border-dark-border dark:bg-dark-card">
+                        <View className="flex-row items-center justify-between gap-2">
+                          <View className="flex-1">
+                            <Text className="text-[14px] font-bold text-foreground dark:text-dark-foreground">
+                              #{b.orderNumber} · {formatCurrency(b.total)}
+                            </Text>
+                            <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                              {liveItemCount(b)} รายการ · {formatElapsedMinutes(b.createdAt)}
+                            </Text>
+                          </View>
+                          <StatusBadge status={b.status} />
+                        </View>
+                        <BillOpButtons compact order={b} onPick={(op) => setBillOp({ op, orderId: b.id })} />
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ) : null}
 
               <View className="gap-2">
                 <Text className="text-[11px] font-semibold tracking-wider text-muted-foreground dark:text-dark-muted-foreground">เปลี่ยนสถานะ</Text>

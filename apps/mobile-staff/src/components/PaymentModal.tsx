@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal, View, Text, Pressable, TextInput, Image, ActivityIndicator, Alert } from 'react-native';
+import { Modal, View, Text, Pressable, TextInput, Image, ActivityIndicator, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import NetInfo from '@react-native-community/netinfo';
-import { X, Banknote, QrCode, ScanLine, CheckCircle2, AlertTriangle } from 'lucide-react-native';
+import { X, Banknote, QrCode, ScanLine, CheckCircle2, AlertTriangle, Clock } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { useCartPricing } from '@/hooks/useCartPricing';
@@ -17,16 +18,13 @@ import { useOfflineQueue } from '@/stores/offlineQueue.store';
 import { useStoreConfig } from '@/stores/storeConfig.store';
 import { QrSlipScanner } from '@/components/QrSlipScanner';
 import { toOrderItem, type CartItem } from '@/stores/cart.store';
+import { SplitPayment } from '@/components/SplitPayment';
+import { useAuthStore } from '@/stores/auth.store';
+import { useActiveShift } from '@/hooks/useShift';
+import { centered } from '@/lib/layout';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { buildSplitPayments, parseAmount, splitTotals, type PaymentLinePayload, type SlipVerifyResult, type SplitLine } from '@/lib/splitPayment';
 import type { Order, OrderType } from '@/types/pos';
-
-interface SlipVerifyResult {
-  ok: boolean;
-  reason?: string;
-  transRef?: string;
-  amount?: number;
-  senderName?: string;
-  raw?: string;
-}
 
 /** Server's echo of a redeemed reward code (see api checkout-discounts.ts appliedRewardView). */
 export interface AppliedReward {
@@ -34,6 +32,23 @@ export interface AppliedReward {
   name: string;
   kind: 'DISCOUNT' | 'FREE_ITEM';
   discountApplied: number;
+}
+
+/** What PaymentModal hands back on success: the server's order plus the payment lines sent and any cash change. */
+export interface PaidOrder {
+  id: string;
+  orderNumber: string;
+  total: string;
+  discount?: string;
+  pointsEarned?: number | null;
+  pointsRedeemed?: number | null;
+  stampsEarned?: number | null;
+  stampsRedeemed?: number | null;
+  appliedReward?: AppliedReward | null;
+  /** Lines actually recorded against the bill (cash lines are net of change). */
+  paymentLines?: { method: string; amount: number }[];
+  /** Cash handed back to the customer (0 when none). */
+  change?: number;
 }
 
 export type PaymentMode =
@@ -44,7 +59,7 @@ interface PaymentModalProps {
   visible: boolean;
   mode: PaymentMode | null;
   onClose: () => void;
-  onSuccess: (order: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null }) => void;
+  onSuccess: (order: PaidOrder) => void;
   /** Payment couldn't reach the server and was queued for later — no order
    * data to show yet, so the caller should skip the receipt/success screen. */
   onQueuedOffline: () => void;
@@ -64,6 +79,15 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
   const [scannerVisible, setScannerVisible] = useState(false);
   const [slipVerifying, setSlipVerifying] = useState(false);
   const [slipResult, setSlipResult] = useState<SlipVerifyResult | null>(null);
+  const [split, setSplit] = useState(false);
+  const [lines, setLines] = useState<SplitLine[]>([]);
+  /** Which split line the slip scanner is currently scanning for (null = the single-payment flow). */
+  const [scanLineId, setScanLineId] = useState<string | null>(null);
+  const router = useRouter();
+  const isTablet = useIsTablet();
+  const role = useAuthStore((s) => s.user?.role);
+  const { data: activeShift } = useActiveShift(visible && role === 'CASHIER');
+  const noShift = role === 'CASHIER' && activeShift === null;
 
   const isSettle = mode?.kind === 'settle';
   const settleOrderId = mode?.kind === 'settle' ? mode.orderId : undefined;
@@ -130,6 +154,11 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     }
   }, [directPromptPayId, amountDue]);
 
+  // Split lines can only use the direct (account-bound) PromptPay QR — Stripe intents are per full bill.
+  const splitPromptPayId = (store?.promptpayId ?? '').trim();
+  const splitPromptPayHint = splitPromptPayId ? null : 'พร้อมเพย์ใช้ไม่ได้ในโหมดแบ่งจ่าย — ยังไม่ได้ตั้งเลขพร้อมเพย์ของร้าน (ตั้งค่า › การชำระเงิน)';
+  const splitInfo = splitTotals(lines, amountDue ?? 0);
+
   const receivedNum = parseFloat(received) || 0;
   const change = amountDue != null ? Math.max(0, receivedNum - amountDue) : 0;
   const canPayCash = amountDue != null && receivedNum + 0.001 >= amountDue;
@@ -141,8 +170,24 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     setSlipResult(null);
     setSlipVerifying(false);
     setScannerVisible(false);
+    setSplit(false);
+    setLines([]);
+    setScanLineId(null);
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
+  }
+
+  function enterSplit() {
+    if (amountDue == null || amountDue <= 0) return;
+    if (intent) cancelPromptPay();
+    setLines([{ id: uuid(), method: 'CASH', amount: amountDue.toFixed(2) }]);
+    setSplit(true);
+  }
+
+  function leaveSplit() {
+    setSplit(false);
+    setLines([]);
+    setScanLineId(null);
   }
 
   useEffect(() => {
@@ -194,34 +239,35 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
 
   async function onSlipScanned(qrData: string) {
     setScannerVisible(false);
-    setSlipVerifying(true);
-    setSlipResult(null);
+    const lineId = scanLineId;
+    const line = lineId ? lines.find((l) => l.id === lineId) : null;
+    const expectedAmount = line ? parseAmount(line.amount) : amountDue ?? undefined;
+    const setResult = (r: SlipVerifyResult | null, verifying: boolean) => {
+      if (lineId) setLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, slip: r, slipVerifying: verifying } : l)));
+      else {
+        setSlipResult(r);
+        setSlipVerifying(verifying);
+      }
+    };
+    setResult(null, true);
     try {
       const { data } = await api.post('/payments/verify-slip-qr', {
         qrCode: qrData,
-        expectedAmount: amountDue ?? undefined,
+        expectedAmount: expectedAmount || undefined,
       });
-      setSlipResult(data);
+      setResult(data, false);
     } catch (err) {
-      setSlipResult({
-        ok: false,
-        reason: isAxiosError(err) ? err.response?.data?.error ?? 'ตรวจสอบสลิปไม่สำเร็จ' : 'ตรวจสอบสลิปไม่สำเร็จ',
-      });
-    } finally {
-      setSlipVerifying(false);
+      setResult(
+        {
+          ok: false,
+          reason: isAxiosError(err) ? err.response?.data?.error ?? 'ตรวจสอบสลิปไม่สำเร็จ' : 'ตรวจสอบสลิปไม่สำเร็จ',
+        },
+        false
+      );
     }
   }
 
-  async function submit(
-    payments: {
-      method: string;
-      amount: number;
-      reference?: string;
-      slipVerified?: boolean;
-      slipTransRef?: string;
-      slipPayload?: string;
-    }[]
-  ) {
+  async function submit(payments: PaymentLinePayload[], change = 0) {
     if (!mode) return;
     setSubmitting(true);
     const idempotencyKey = uuid();
@@ -253,7 +299,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
         return;
       }
 
-      let result: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; stampsEarned?: number | null; stampsRedeemed?: number | null; appliedReward?: AppliedReward | null };
+      let result: PaidOrder;
       if (mode.kind === 'settle') {
         result = (await api.post(`/orders/${mode.orderId}/settle`, payload, { headers: { 'Idempotency-Key': idempotencyKey } })).data;
       } else {
@@ -262,7 +308,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['kds-orders'] });
       qc.invalidateQueries({ queryKey: ['tables'] });
-      onSuccess(result);
+      onSuccess({ ...result, paymentLines: payments.map((p) => ({ method: p.method, amount: p.amount })), change });
     } catch (err) {
       // The device thought it was online but the request never got a
       // response (server unreachable, dropped connection, etc.) — queue it
@@ -282,6 +328,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <SafeAreaProvider>
       <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, ...centered(isTablet) }}>
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border">
           <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ชำระเงิน</Text>
           <Pressable onPress={onClose} hitSlop={12}>
@@ -289,7 +336,23 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           </Pressable>
         </View>
 
-        <View className="items-center py-6">
+        {noShift ? (
+          <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5">
+            <Clock size={16} color="#B45309" />
+            <Text className="flex-1 text-[12px] text-warning dark:text-dark-warning">ยังไม่ได้เปิดกะ — ยอดขายนี้จะไม่ถูกนับในกะของคุณ</Text>
+            <Pressable
+              onPress={() => {
+                onClose();
+                router.push('/shift' as never);
+              }}
+              hitSlop={8}
+            >
+              <Text className="text-[12px] font-bold text-warning underline dark:text-dark-warning">เปิดกะ</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View className={`items-center ${split ? 'py-3' : 'py-6'}`}>
           <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ยอดที่ต้องชำระ</Text>
           <Text className="text-metric-lg text-foreground dark:text-dark-foreground">
             {amountDue != null ? formatCurrency(amountDue) : '—'}
@@ -304,8 +367,48 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           {redemption?.kind === 'FREE_ITEM' ? (
             <Text className="mt-1 text-[12px] font-medium text-primary dark:text-primary-400">มอบของรางวัล: {redemption.rewardName}</Text>
           ) : null}
+          {amountDue != null && amountDue > 0 && !submitting ? (
+            <Pressable
+              onPress={split ? leaveSplit : enterSplit}
+              className="mt-2.5 h-8 items-center justify-center rounded-full border border-primary px-4"
+            >
+              <Text className="text-[12px] font-semibold text-primary dark:text-primary-400">{split ? 'จ่ายวิธีเดียว' : 'แบ่งจ่าย'}</Text>
+            </Pressable>
+          ) : null}
         </View>
 
+        {split ? (
+          <>
+            <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 16 }} keyboardShouldPersistTaps="handled">
+              <SplitPayment
+                total={amountDue ?? 0}
+                lines={lines}
+                onChange={setLines}
+                promptPayId={splitPromptPayId}
+                promptPayHint={splitPromptPayHint}
+                slipEnabled={!!slip2goConfig?.slip2goEnabled}
+                onScanSlip={(id) => {
+                  setScanLineId(id);
+                  setScannerVisible(true);
+                }}
+              />
+            </ScrollView>
+            <View className="gap-2 border-t border-border p-4 dark:border-dark-border">
+              {splitInfo.blocker ? (
+                <Text className="text-center text-[12px] text-muted-foreground dark:text-dark-muted-foreground">{splitInfo.blocker}</Text>
+              ) : splitInfo.change > 0 ? (
+                <Text className="text-center text-[13px] font-semibold text-foreground dark:text-dark-foreground">ทอนเงินสด {formatCurrency(splitInfo.change)}</Text>
+              ) : null}
+              <Button
+                label="ยืนยันรับเงิน"
+                onPress={() => amountDue != null && submit(buildSplitPayments(lines, amountDue), splitInfo.change)}
+                disabled={amountDue == null || !!splitInfo.blocker || lines.some((l) => l.slipVerifying)}
+                loading={submitting}
+              />
+            </View>
+          </>
+        ) : (
+        <>
         <View className="flex-row gap-2 px-4">
           <Pressable
             onPress={() => setTab('CASH')}
@@ -388,7 +491,10 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
                       ให้ลูกค้าสแกนจ่ายตามยอด แล้วกด "ยืนยันรับเงิน" เมื่อเงินเข้าแล้ว
                     </Text>
                     {slip2goConfig?.slip2goEnabled ? (
-                      <Pressable onPress={() => setScannerVisible(true)} className="flex-row items-center gap-1.5 rounded-lg border border-primary px-4 py-2.5">
+                      <Pressable onPress={() => {
+                  setScanLineId(null);
+                  setScannerVisible(true);
+                }} className="flex-row items-center gap-1.5 rounded-lg border border-primary px-4 py-2.5">
                         <ScanLine size={16} color="#D25E3B" />
                         <Text className="text-[13px] font-semibold text-primary">สแกนสลิปเพื่อตรวจสอบ (ไม่บังคับ)</Text>
                       </Pressable>
@@ -431,7 +537,10 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           ) : (
             <View className="items-center gap-4 pt-4">
               <Pressable
-                onPress={() => setScannerVisible(true)}
+                onPress={() => {
+                  setScanLineId(null);
+                  setScannerVisible(true);
+                }}
                 className="h-12 w-full flex-row items-center justify-center gap-2 rounded-lg bg-primary"
               >
                 <ScanLine size={18} color="#FFFFFF" />
@@ -471,7 +580,7 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           <View className="p-4">
             <Button
               label="ยืนยันรับเงิน"
-              onPress={() => amountDue != null && submit([{ method: 'CASH', amount: amountDue }])}
+              onPress={() => amountDue != null && submit([{ method: 'CASH', amount: amountDue }], change)}
               disabled={!canPayCash}
               loading={submitting}
             />
@@ -520,7 +629,11 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           </View>
         ) : null}
 
+        </>
+        )}
+
         <QrSlipScanner visible={scannerVisible} onClose={() => setScannerVisible(false)} onScanned={onSlipScanned} />
+      </KeyboardAvoidingView>
       </SafeAreaView>
       </SafeAreaProvider>
     </Modal>

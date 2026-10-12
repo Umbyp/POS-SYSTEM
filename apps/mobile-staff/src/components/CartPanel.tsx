@@ -47,11 +47,14 @@ export function CartPanel({ active, header, onCheckout }: CartPanelProps) {
   const isDineIn = cart.type === 'DINE_IN';
   const hasUnsent = cart.items.length > 0;
 
-  const { data: openOrder } = useQuery({
-    queryKey: ['orders', 'open-by-table', cart.tableId],
-    queryFn: async () => (await api.get(`/orders/open/by-table/${cart.tableId}`)).data as Order | null,
+  // Every open bill at the table (oldest first): several exist after a split. The bill the cashier
+  // is working on is cart.openOrderId, falling back to the oldest.
+  const { data: openBills = [] } = useQuery({
+    queryKey: ['orders', 'open-by-table', cart.tableId, 'all'],
+    queryFn: async () => (await api.get(`/orders/open/by-table/${cart.tableId}/all`)).data as Order[],
     enabled: active && cart.type === 'DINE_IN' && !!cart.tableId,
   });
+  const openOrder: Order | undefined = openBills.find((b) => b.id === cart.openOrderId) ?? openBills[0];
 
   const { data: tables = [] } = useQuery({
     queryKey: ['tables'],
@@ -65,6 +68,13 @@ export function CartPanel({ active, header, onCheckout }: CartPanelProps) {
     if (!openOrder && cart.openOrderId) cart.setOpenOrder(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openOrder?.id]);
+
+  function switchBill(b: Order) {
+    if (b.id === openOrder?.id) return;
+    // Discount / member / points were set for the previous bill.
+    cart.clearAdjustments();
+    cart.setOpenOrder(b.id);
+  }
 
   const pricing = useCartPricing(openOrder);
   const { store, totals, discounts, baseSubtotal, appliedPromo, stampRewardName } = pricing;
@@ -228,10 +238,34 @@ export function CartPanel({ active, header, onCheckout }: CartPanelProps) {
       ) : null}
 
       {isDineIn && openOrder ? (
-        <View className="mx-4 mt-2 rounded-lg bg-primary-50 dark:bg-dark-muted px-3.5 py-2.5">
+        <View className="mx-4 mt-2 gap-2 rounded-lg bg-primary-50 dark:bg-dark-muted px-3.5 py-2.5">
           <Text className="text-[12px] text-foreground dark:text-dark-foreground">
-            บิลเปิดอยู่ #{openOrder.orderNumber} · ส่งแล้ว {formatCurrency(openOrder.total)}
+            {openBills.length > 1 ? `บิล ${openBills.findIndex((b) => b.id === openOrder.id) + 1}/${openBills.length} · ` : 'บิลเปิดอยู่ '}
+            #{openOrder.orderNumber} · ส่งแล้ว {formatCurrency(openOrder.total)}
           </Text>
+          {openBills.length > 1 ? (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerClassName="gap-1.5">
+                {openBills.map((b, i) => {
+                  const on = b.id === openOrder.id;
+                  return (
+                    <Pressable
+                      key={b.id}
+                      onPress={() => switchBill(b)}
+                      className={`rounded-full border px-3 py-1.5 ${on ? 'border-primary bg-primary' : 'border-border bg-card dark:border-dark-border dark:bg-dark-card'}`}
+                    >
+                      <Text className={`text-[11.5px] font-semibold ${on ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>
+                        บิล {i + 1}/{openBills.length} · #{b.orderNumber}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
+                ส่งเข้าครัวและชำระเงินจะทำกับบิลที่เลือกเท่านั้น
+              </Text>
+            </>
+          ) : null}
         </View>
       ) : null}
 
