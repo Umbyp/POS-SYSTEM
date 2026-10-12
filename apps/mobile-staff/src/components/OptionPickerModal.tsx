@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal, View, Text, Pressable, ScrollView, TextInput } from 'react-native';
 import { Check, Minus, Plus, X } from 'lucide-react-native';
 import { formatCurrency } from '@/lib/format';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { sheetClasses } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { buildGroups, type RenderGroup } from '@/lib/options';
 import type { CartVariant } from '@/stores/cart.store';
 import type { Product } from '@/types/pos';
@@ -14,6 +17,8 @@ interface Props {
 
 /** Bottom-sheet option picker — same rules/payload as apps/web VariantPicker. */
 export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
+  const t = useThemeColors();
+  const sheet = sheetClasses(useIsTablet());
   const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [selected, setSelected] = useState<Record<string, string[]>>({});
@@ -60,9 +65,9 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
 
   return (
     <Modal visible={!!product} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable className="flex-1 justify-end bg-black/40" onPress={onClose}>
+      <Pressable className={sheet.overlay} onPress={onClose}>
         <Pressable
-          className="max-h-[85%] rounded-t-2xl bg-card dark:bg-dark-card"
+          className={`max-h-[85%] ${sheet.panel} bg-card dark:bg-dark-card`}
           onPress={(e) => e.stopPropagation()}
         >
           <View className="flex-row items-center justify-between border-b border-border dark:border-dark-border px-4 py-3.5">
@@ -73,7 +78,7 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
               </Text>
             </View>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
 
@@ -89,7 +94,7 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
                   <View className="flex-row items-baseline justify-between">
                     <Text className="text-[13px] font-bold text-foreground dark:text-dark-foreground">{g.name}</Text>
                     <Text
-                      className={`text-[11px] ${g.minSelect > 0 && ids.length < g.minSelect ? 'font-semibold text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}
+                      className={`text-[11px] ${g.minSelect > 0 && ids.length < g.minSelect ? 'font-semibold text-primary dark:text-primary-400' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}
                     >
                       {hint}
                     </Text>
@@ -101,7 +106,7 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
                         <Pressable
                           key={o.id}
                           onPress={() => toggle(g, o.id)}
-                          className={`flex-row items-center justify-between rounded-lg border px-3 py-2.5 ${on ? 'border-primary bg-primary-50' : 'border-border bg-card dark:border-dark-border dark:bg-dark-card'}`}
+                          className={`flex-row items-center justify-between rounded-lg border px-3 py-2.5 ${on ? 'border-primary bg-primary-50 dark:bg-dark-muted' : 'border-border bg-card dark:border-dark-border dark:bg-dark-card'}`}
                         >
                           <View className="flex-row items-center gap-2.5">
                             <View
@@ -130,7 +135,8 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="เช่น ไม่ใส่ผัก"
-                placeholderTextColor="#A3A3A3"
+                placeholderTextColor={t.placeholder}
+                keyboardAppearance={t.isDark ? 'dark' : 'light'}
                 className="h-10 rounded-lg border border-border dark:border-dark-border px-3 text-[13px] text-foreground dark:text-dark-foreground"
               />
             </View>
@@ -139,11 +145,11 @@ export function OptionPickerModal({ product, onClose, onConfirm }: Props) {
           <View className="flex-row items-center gap-3 border-t border-border dark:border-dark-border p-4">
             <View className="flex-row items-center gap-3">
               <Pressable onPress={() => setQuantity((q) => Math.max(1, q - 1))} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-lg border border-border dark:border-dark-border">
-                <Minus size={16} color="#707070" />
+                <Minus size={16} color={t.mutedForeground} />
               </Pressable>
               <Text className="w-5 text-center text-[15px] font-bold text-foreground dark:text-dark-foreground">{quantity}</Text>
               <Pressable onPress={() => setQuantity((q) => q + 1)} hitSlop={8} className="h-9 w-9 items-center justify-center rounded-lg border border-border dark:border-dark-border">
-                <Plus size={16} color="#707070" />
+                <Plus size={16} color={t.mutedForeground} />
               </Pressable>
             </View>
             <Pressable

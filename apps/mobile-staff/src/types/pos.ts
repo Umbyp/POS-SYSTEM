@@ -59,6 +59,7 @@ export interface OrderItem {
   unitPrice: string;
   notes: string | null;
   refundedQty: number;
+  refundReason?: string | null;
   variants?: { name: string; priceDelta: number }[] | null;
 }
 
@@ -77,6 +78,10 @@ export interface Order {
   payments: OrderPayment[];
   subtotal: string;
   discount: string;
+  promotionName?: string | null;
+  promotionDiscount?: string | null;
+  pointsRedeemed?: number | null;
+  pointsEarned?: number | null;
   serviceCharge: string;
   tax: string;
   total: string;
@@ -99,4 +104,51 @@ export interface RestaurantTable {
   size: TableSize;
   status: TableStatus;
   occupiedAt: string | null;
+}
+
+export type PromotionType = 'PERCENT_OFF' | 'FIXED_OFF' | 'BUY_X_GET_Y' | 'FIXED_PRICE';
+export type PromotionScope = 'ALL_ORDER' | 'CATEGORY' | 'PRODUCT';
+
+/** GET /promotions row (Decimal columns arrive as strings). */
+export interface Promotion {
+  id: string;
+  name: string;
+  code: string | null;
+  type: PromotionType;
+  scope: PromotionScope;
+  value: string | number;
+  buyQty: number | null;
+  getQty: number | null;
+  productIds: string[];
+  categoryIds: string[];
+  minSpend: string | number | null;
+  startAt: string | null;
+  endAt: string | null;
+  daysOfWeek: number[];
+  hourStart: number | null;
+  hourEnd: number | null;
+  memberOnly: boolean;
+  isActive: boolean;
+  usageLimit: number | null;
+  usageCount: number;
+}
+
+/** GET /customers?q= row as used by the POS member picker. */
+export interface PosCustomer {
+  id: string;
+  name: string;
+  phone: string | null;
+  points: number;
+  stamps: number;
+  tier?: { name: string; color: string | null } | null;
+}
+
+/** GET /loyalty/redemptions/code/:code */
+export interface RewardRedemption {
+  id: string;
+  code: string;
+  status: 'ACTIVE' | 'USED' | 'CANCELLED';
+  customerId: string;
+  reward: { id: string; name: string; kind: 'DISCOUNT' | 'FREE_ITEM'; discountAmount: number };
+  customer?: { id: string; name: string; phone: string | null };
 }

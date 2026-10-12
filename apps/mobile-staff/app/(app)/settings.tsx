@@ -6,6 +6,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { LogOut } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { SectionCard } from '@/components/SectionCard';
 import { TextField } from '@/components/TextField';
@@ -15,6 +18,8 @@ import { PrintersSection } from '@/components/PrintersSection';
 import type { StoreSettings } from '@/types/backoffice';
 
 export default function SettingsScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -104,14 +109,14 @@ export default function SettingsScreen() {
   if (isLoading || !store) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#D25E3B" />
+        <ActivityIndicator color={t.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerClassName="p-4 gap-4">
+      <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
         <SectionCard title="บัญชีของฉัน">
           <Text className="text-[14px] font-medium text-foreground dark:text-dark-foreground">{user?.name}</Text>
           <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
@@ -191,10 +196,10 @@ export default function SettingsScreen() {
             logout();
             router.replace('/login');
           }}
-          className="h-12 flex-row items-center justify-center gap-2 rounded-lg border border-danger bg-card dark:bg-dark-card"
+          className="h-12 flex-row items-center justify-center gap-2 rounded-lg border border-danger dark:border-dark-danger bg-card dark:bg-dark-card"
         >
-          <LogOut size={18} color="#EF4444" />
-          <Text className="text-[14px] font-medium text-danger">ออกจากระบบ</Text>
+          <LogOut size={18} color={t.danger} />
+          <Text className="text-[14px] font-medium text-danger dark:text-dark-danger">ออกจากระบบ</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>

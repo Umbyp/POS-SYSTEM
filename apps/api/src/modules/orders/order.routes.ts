@@ -7,11 +7,15 @@ import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
 import { BadRequest } from '../../utils/errors';
+import { readIdempotencyKey, runIdempotent } from './idempotency';
 import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from './escpos';
 
 const router = Router();
 
 const guestCount = z.number().int().min(1).max(99).optional();
+// Optional retry key (alternative to the Idempotency-Key header).
+const clientRequestId = z.string().min(8).max(128).optional();
+const redemptionCode = z.string().trim().min(1).max(32).optional();
 
 // A payment line optionally carries a Slip2Go verification result the
 // frontend already fetched via POST /payments/verify-slip before the cashier
@@ -45,6 +49,8 @@ const createSchema = z.object({
   promotionId: z.string().optional(),
   promotionDiscount: z.number().nonnegative().optional(),
   promotionName: z.string().optional(),
+  redemptionCode,
+  clientRequestId,
   payments: z.array(paymentLineSchema).min(1),
   notes: z.string().optional(),
   guestCount,
@@ -66,10 +72,10 @@ router.get('/print-config', (_req, res) => {
 router.post('/', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(createSchema), async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    const order = await service.create(
-      { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id },
-      io
-    );
+    const key = readIdempotencyKey(req);
+    const { order, replay } = await runIdempotent(req.user!.storeId, 'orders:create', key, (k) =>
+      service.create({ ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id, idempotencyKey: k }, io));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
     res.status(201).json(order);
   } catch (e) { next(e); }
 });
@@ -113,7 +119,7 @@ router.get('/parked', async (req, res, next) => {
 router.delete('/parked/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    res.json(await service.deleteParked(req.params.id, req.user!.id, io));
+    res.json(await service.deleteParked(req.params.id, req.user!.id, io, req.user!.storeId));
   } catch (e) { next(e); }
 });
 
@@ -134,6 +140,7 @@ const openTabSchema = z.object({
   discount: z.number().nonnegative().optional(),
   notes: z.string().optional(),
   guestCount,
+  clientRequestId,
 });
 
 const roundSchema = z.object({ items: tabItems, notes: z.string().optional(), guestCount });
@@ -147,6 +154,7 @@ const settleSchema = z.object({
   promotionId: z.string().optional(),
   promotionDiscount: z.number().nonnegative().optional(),
   promotionName: z.string().optional(),
+  redemptionCode,
   customerName: z.string().optional(),
   customerTaxId: z.string().optional(),
   customerAddress: z.string().optional(),
@@ -156,10 +164,10 @@ const settleSchema = z.object({
 router.post('/open', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(openTabSchema), async (req, res, next) => {
   try {
     const io = req.app.get('io');
-    const order = await tabService.openTab(
-      { ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id },
-      io
-    );
+    const key = readIdempotencyKey(req);
+    const { order, replay } = await runIdempotent(req.user!.storeId, 'orders:open', key, (k) =>
+      tabService.openTab({ ...req.body, storeId: req.user!.storeId, cashierId: req.user!.id, idempotencyKey: k }, io));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
     res.status(201).json(order);
   } catch (e) { next(e); }
 });
@@ -186,7 +194,7 @@ router.get('/', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    res.json(await service.getById(req.params.id));
+    res.json(await service.getById(req.params.id, req.user!.storeId));
   } catch (e) { next(e); }
 });
 
@@ -194,6 +202,7 @@ router.get('/:id', async (req, res, next) => {
 // as a 500 (Prisma validation error) instead of telling the caller what's wrong.
 const updateStatusSchema = z.object({
   status: z.enum(['DRAFT', 'PENDING', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED', 'REFUNDED']),
+  reason: z.string().max(200).optional(), // recorded in the activity log when status = CANCELLED
 });
 
 router.patch(
@@ -203,7 +212,13 @@ router.patch(
   async (req, res, next) => {
     try {
       const io = req.app.get('io');
-      res.json(await service.updateStatus(req.params.id, req.body.status, io));
+      if (req.body.status === 'CANCELLED') {
+        res.json(await tabService.cancelOrder(req.params.id, {
+          storeId: req.user!.storeId, userId: req.user!.id, reason: req.body.reason,
+        }, io));
+      } else {
+        res.json(await service.updateStatus(req.params.id, req.body.status, io, req.user!.storeId));
+      }
     } catch (e) { next(e); }
   },
 );
@@ -276,7 +291,7 @@ router.post('/:id/refund', rbac('OWNER', 'ADMIN'), async (req, res, next) => {
       );
     }
     const io = req.app.get('io');
-    res.json(await service.refund(req.params.id, req.user!.id, io));
+    res.json(await service.refund(req.params.id, req.user!.id, io, req.user!.storeId));
   } catch (e) { next(e); }
 });
 
@@ -296,7 +311,7 @@ router.post(
   async (req, res, next) => {
     try {
       const io = req.app.get('io');
-      res.json(await service.refundItems(req.params.id, req.user!.id, req.body, io));
+      res.json(await service.refundItems(req.params.id, req.user!.id, req.body, io, req.user!.storeId));
     } catch (e) { next(e); }
   }
 );
@@ -305,7 +320,7 @@ router.post(
 router.patch('/:id', rbac('OWNER', 'ADMIN', 'CASHIER'), async (req, res, next) => {
   try {
     const order = await prisma.order.update({
-      where: { id: req.params.id },
+      where: { id: req.params.id, storeId: req.user!.storeId },
       data: {
         customerName: req.body.customerName,
         customerTaxId: req.body.customerTaxId,
@@ -327,7 +342,7 @@ router.post('/:id/print/escpos', async (req, res, next) => {
       throw BadRequest('Network printer not configured. Set PRINTER_IP env var.');
     }
 
-    const order = await service.getById(req.params.id);
+    const order = await service.getById(req.params.id, req.user!.storeId);
     const store = await prisma.store.findUnique({ where: { id: req.user!.storeId } });
     if (!store) throw BadRequest('Store not found');
 

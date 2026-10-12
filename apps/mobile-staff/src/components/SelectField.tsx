@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
+import { useThemeColors } from '@/lib/theme';
 import { SelectModal, type SelectOption } from './SelectModal';
 
 interface SelectFieldProps {
@@ -12,6 +13,7 @@ interface SelectFieldProps {
 }
 
 export function SelectField({ label, value, placeholder = 'เลือก', options, onChange }: SelectFieldProps) {
+  const t = useThemeColors();
   const [open, setOpen] = useState(false);
   const selected = options.find((o) => o.value === value);
 
@@ -25,7 +27,7 @@ export function SelectField({ label, value, placeholder = 'เลือก', opt
         <Text className={`text-[15px] ${selected ? 'text-foreground dark:text-dark-foreground' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
           {selected?.label ?? placeholder}
         </Text>
-        <ChevronDown size={18} color="#9CA3AF" />
+        <ChevronDown size={18} color={t.mutedForeground} />
       </Pressable>
       <SelectModal
         visible={open}

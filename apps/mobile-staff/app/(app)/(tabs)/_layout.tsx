@@ -3,10 +3,12 @@ import { Tabs } from 'expo-router';
 import { LayoutDashboard, ShoppingCart, ChefHat, Grid3X3, MoreHorizontal } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 
 export default function TabsLayout() {
   const role = useAuthStore((s) => s.user?.role);
   const isTablet = useIsTablet();
+  const t = useThemeColors();
   const can = (roles: string[]) => !!role && roles.includes(role);
 
   return (
@@ -14,17 +16,18 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: true,
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#FFFFFF' },
-        headerTitleStyle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
-        tabBarActiveTintColor: '#D25E3B',
+        headerStyle: { backgroundColor: t.card },
+        sceneStyle: { backgroundColor: t.background },
+        headerTitleStyle: { fontSize: 16, fontWeight: '700', color: t.foreground },
+        tabBarActiveTintColor: t.primary,
         // The sidebar (SidebarNav) owns primary navigation on tablet, so the
         // bottom tab bar is redundant there — hide it instead of removing
         // the navigator, which would require a second routing structure.
-        tabBarInactiveTintColor: '#707070',
+        tabBarInactiveTintColor: t.mutedForeground,
         tabBarLabelStyle: { fontSize: 10, fontWeight: '600' },
         tabBarStyle: isTablet
           ? { display: 'none' }
-          : { backgroundColor: '#FFFFFF', borderTopColor: '#E6E6E6', borderTopWidth: StyleSheet.hairlineWidth, elevation: 0, shadowOpacity: 0 },
+          : { backgroundColor: t.card, borderTopColor: t.border, borderTopWidth: StyleSheet.hairlineWidth, elevation: 0, shadowOpacity: 0 },
       }}
     >
       <Tabs.Screen

@@ -2,7 +2,10 @@ import { Modal, View, Text, Pressable, FlatList } from 'react-native';
 import { X } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { TABLE_STATUS_COLOR, TABLE_STATUS_LABEL } from '@/constants/tableStatus';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { sheetClasses } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
+import { tableStatusColor, TABLE_STATUS_LABEL } from '@/constants/tableStatus';
 import type { RestaurantTable } from '@/types/pos';
 
 interface TablePickerModalProps {
@@ -12,6 +15,8 @@ interface TablePickerModalProps {
 }
 
 export function TablePickerModal({ visible, onClose, onSelect }: TablePickerModalProps) {
+  const t = useThemeColors();
+  const sheet = sheetClasses(useIsTablet());
   const { data: tables = [] } = useQuery({
     queryKey: ['tables'],
     queryFn: async () => (await api.get('/tables')).data as RestaurantTable[],
@@ -20,12 +25,12 @@ export function TablePickerModal({ visible, onClose, onSelect }: TablePickerModa
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-4 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
+      <Pressable className={sheet.overlay} onPress={onClose}>
+        <Pressable className={`${sheet.panel} bg-card dark:bg-dark-card p-5 gap-4 max-h-[70%]`} onPress={(e) => e.stopPropagation()}>
           <View className="flex-row items-center justify-between">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">เลือกโต๊ะ</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
           <FlatList
@@ -35,11 +40,11 @@ export function TablePickerModal({ visible, onClose, onSelect }: TablePickerModa
             columnWrapperStyle={{ gap: 8 }}
             contentContainerStyle={{ gap: 8 }}
             renderItem={({ item }) => {
-              const c = TABLE_STATUS_COLOR[item.status];
+              const c = tableStatusColor(item.status, t.isDark);
               return (
                 <Pressable
                   onPress={() => onSelect(item)}
-                  style={{ backgroundColor: c.bg, borderColor: item.status === 'OCCUPIED' ? '#D4D4D4' : c.border }}
+                  style={{ backgroundColor: c.bg, borderColor: item.status === 'OCCUPIED' ? (t.isDark ? '#6B6B6B' : '#D4D4D4') : c.border }}
                   className="flex-1 aspect-square rounded-[10px] border items-center justify-center"
                 >
                   <Text style={{ color: c.fg }} className="text-[15px] font-bold">

@@ -61,7 +61,7 @@ function ReadyBoardContent() {
 
   if (!storeId) {
     return (
-      <div className="min-h-[100dvh] bg-background flex items-center justify-center p-6 text-center">
+      <div className="customer-theme min-h-[100dvh] bg-background flex items-center justify-center p-6 text-center">
         <div className="max-w-sm space-y-3">
           <AlertCircle className="w-10 h-10 mx-auto text-warning" />
           <h1 className="text-lg font-semibold">ไม่พบลิงก์ของร้านค้า</h1>
@@ -74,7 +74,7 @@ function ReadyBoardContent() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background flex flex-col p-6 sm:p-10">
+    <div className="customer-theme min-h-[100dvh] bg-background flex flex-col p-6 sm:p-10">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-3">
           <Bell className="w-8 h-8 text-success" />
@@ -98,12 +98,12 @@ function ReadyBoardContent() {
                 initial={{ opacity: 0, scale: 0.85 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
-                className="bg-success/10 border-4 border-success rounded-3xl p-6 flex flex-col items-center text-center shadow-lg"
+                className="bg-card border-2 border-success rounded-2xl p-6 flex flex-col items-center text-center"
               >
                 <div className="text-4xl sm:text-5xl font-black tabular-nums text-success tracking-tight">
                   {pickupLabel(o)}
                 </div>
-                <div className="mt-3 text-sm text-muted-foreground line-clamp-2">
+                <div className="mt-3 text-sm sm:text-base text-muted-foreground line-clamp-2">
                   {o.items.map((i) => `${i.product.name}${i.quantity > 1 ? ` x${i.quantity}` : ''}`).join(', ')}
                 </div>
               </motion.div>
@@ -117,7 +117,7 @@ function ReadyBoardContent() {
 
 export default function ReadyBoardPage() {
   return (
-    <Suspense fallback={<div className="min-h-[100dvh] bg-background" />}>
+    <Suspense fallback={<div className="customer-theme min-h-[100dvh] bg-background" />}>
       <ReadyBoardContent />
     </Suspense>
   );

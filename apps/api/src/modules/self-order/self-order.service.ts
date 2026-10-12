@@ -11,12 +11,44 @@ import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import * as orderTabService from '../orders/order-tab.service';
 import { buildMemberProfile, listRewardsForMember, redeemReward } from '../loyalty/loyalty.service';
+import { resolveVariants, type GroupDef, type RequestedVariant } from './options';
 import { recordPoints, recordStamps, calcEarnedPoints, calcEarnedStamps, pointsEnabled, stampsEnabled } from '../orders/points.service';
 
 export interface SelfOrderItemInput {
   productId: string;
   quantity: number;
   notes?: string;
+  variants?: RequestedVariant[];
+}
+
+/** The product's pickable option groups, as the validator + the public menu see them. */
+const OPTION_GROUPS_INCLUDE = {
+  optionGroups: {
+    orderBy: { sortOrder: 'asc' as const },
+    where: { group: { isActive: true } },
+    include: { group: { include: { options: { orderBy: { sortOrder: 'asc' as const } } } } },
+  },
+  variants: true,
+};
+
+function toGroupDefs(p: any): GroupDef[] {
+  const groups: GroupDef[] = (p.optionGroups ?? []).map((pg: any) => ({
+    id: pg.group.id,
+    name: pg.group.name,
+    minSelect: pg.group.minSelect,
+    maxSelect: pg.group.maxSelect,
+    options: pg.group.options.map((o: any) => ({
+      id: o.id, name: o.name, priceDelta: Number(o.priceDelta), isDefault: o.isDefault,
+    })),
+  }));
+  // Legacy per-product variants (pre option-groups): a single optional pick.
+  if (p.variants?.length) {
+    groups.push({
+      id: 'legacy-variants', name: 'ตัวเลือก', minSelect: 0, maxSelect: 1,
+      options: p.variants.map((v: any) => ({ id: v.id, name: v.name, priceDelta: Number(v.priceDelta), isDefault: false })),
+    });
+  }
+  return groups;
 }
 
 async function findTableByQr(qrCode: string) {
@@ -39,7 +71,7 @@ export async function getMenu(qrCode: string) {
     }),
     prisma.product.findMany({
       where: { storeId: table.storeId, isActive: true, isIngredient: false },
-      include: { variants: true },
+      include: OPTION_GROUPS_INCLUDE,
       orderBy: { name: 'asc' },
     }),
   ]);
@@ -64,6 +96,8 @@ export async function getMenu(qrCode: string) {
       sellingPrice: p.sellingPrice,
       categoryId: p.categoryId,
       variants: p.variants,
+      // Pickers for the page: min/max are enforced again on submit.
+      optionGroups: toGroupDefs({ optionGroups: p.optionGroups, variants: [] }),
     })),
   };
 }
@@ -82,6 +116,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
   const productIds = input.items.map((i) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds }, storeId: table.storeId, isActive: true, isIngredient: false },
+    include: OPTION_GROUPS_INCLUDE,
   });
   if (products.length !== new Set(productIds).size) {
     throw BadRequest('Some items are no longer available');
@@ -90,6 +125,29 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) {
       throw BadRequest('Invalid quantity');
     }
+  }
+
+  // Price + validate picks server-side; only productId/quantity/notes and the
+  // resolved variants are forwarded — never a client price or discount.
+  const items = input.items.map((it) => {
+    const p = products.find((x) => x.id === it.productId)!;
+    const variants = resolveVariants(p.name, toGroupDefs(p), it.variants);
+    return {
+      productId: it.productId,
+      quantity: it.quantity,
+      notes: it.notes?.trim() ? it.notes.trim().slice(0, 200) : undefined,
+      ...(variants.length ? { variants } : {}),
+    };
+  });
+
+  // The customer id comes from an unauthenticated client — only accept one
+  // that really is a member of THIS store.
+  let customerId: string | undefined;
+  if (input.customerId) {
+    const member = await prisma.customer.findFirst({
+      where: { id: input.customerId, storeId: table.storeId, isActive: true }, select: { id: true },
+    });
+    customerId = member?.id;
   }
 
   // Find a cashier/admin/owner of the store to associate with the order
@@ -116,7 +174,6 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
   }
   const cashierId = cashier.id;
 
-  const items = input.items as unknown as SelfOrderItemInput[];
   const existing = await orderTabService.getOpenByTable(table.storeId, table.id);
 
   let orderId: string;
@@ -127,10 +184,10 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       io
     );
     orderId = existing.id;
-    if (input.customerId && !existing.customerId) {
+    if (customerId && !existing.customerId) {
       await prisma.order.update({
         where: { id: existing.id },
-        data: { customerId: input.customerId },
+        data: { customerId },
       });
     }
   } else {
@@ -142,7 +199,7 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
         type: 'DINE_IN',
         items,
         notes: input.note,
-        customerId: input.customerId,
+        customerId,
       },
       io
     );
@@ -154,11 +211,11 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
       storeId: table.storeId,
       tableId: table.id,
       orderId,
-      items: input.items as any,
+      items: items as any,
       note: input.note,
       status: 'APPROVED',
       resolvedAt: new Date(),
-      customerId: input.customerId || null,
+      customerId: customerId ?? null,
     },
   });
 

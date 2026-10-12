@@ -4,6 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Boxes } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered, GRID_MAX } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { StockAdjustModal } from '@/components/StockAdjustModal';
 import type { Inventory } from '@/types/backoffice';
 
@@ -13,6 +16,8 @@ const TABS = [
 ] as const;
 
 export default function InventoryScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('all');
   const [selected, setSelected] = useState<Inventory | null>(null);
 
@@ -30,35 +35,37 @@ export default function InventoryScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
+      <View className="border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
+      <View style={centered(isTablet)} className="flex-row">
         {TABS.map((t) => (
           <Pressable
             key={t.key}
             onPress={() => setTab(t.key)}
             className={`flex-1 items-center py-3 border-b-2 ${tab === t.key ? 'border-primary' : 'border-transparent'}`}
           >
-            <Text className={`text-[13px] font-semibold ${tab === t.key ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
+            <Text className={`text-[13px] font-semibold ${tab === t.key ? 'text-primary dark:text-primary-400' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
               {t.label}
               {t.key === 'low' && lowCount > 0 ? ` (${lowCount})` : ''}
             </Text>
           </Pressable>
         ))}
       </View>
+      </View>
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(i) => i.id}
-          contentContainerStyle={{ padding: 16, gap: 8 }}
+          contentContainerStyle={{ padding: 16, gap: 8, ...centered(isTablet) }}
           refreshing={isRefetching}
           onRefresh={refetch}
           ListEmptyComponent={
             <View className="items-center py-16 gap-2">
-              <Boxes size={28} color="#9CA3AF" />
+              <Boxes size={28} color={t.faint} />
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ไม่มีรายการ</Text>
             </View>
           }
@@ -83,7 +90,7 @@ export default function InventoryScreen() {
                   </Text>
                 </View>
                 <View className="items-end">
-                  <Text className={`text-[16px] font-bold ${isOut ? 'text-danger' : isLow ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
+                  <Text className={`text-[16px] font-bold ${isOut ? 'text-danger dark:text-dark-danger' : isLow ? 'text-warning dark:text-dark-warning' : 'text-foreground dark:text-dark-foreground'}`}>
                     {item.quantity}
                   </Text>
                   <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">ขั้นต่ำ {item.lowStockAt}</Text>

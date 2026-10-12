@@ -666,6 +666,22 @@ model PinLockout {
 // Process-independent login-attempt rate limiting for express-rate-limit
 // (replaces its default in-memory store, which reset on every restart/was
 // per-instance and double-counted across multiple API instances).
+// Retry-safe order creation: a client (mobile app on a flaky connection) may
+// resend POST /orders or /orders/open with the same Idempotency-Key. The row is
+// written in the SAME transaction as the order, so a key exists iff its order
+// committed, and the unique index makes two concurrent retries race safely.
+model IdempotencyKey {
+  id        String   @id @default(cuid())
+  storeId   String
+  scope     String   // "orders:create" | "orders:open"
+  key       String
+  orderId   String
+  createdAt DateTime @default(now())
+
+  @@unique([storeId, scope, key])
+  @@index([createdAt])
+}
+
 model RateLimitCounter {
   key     String   @id
   count   Int      @default(0)

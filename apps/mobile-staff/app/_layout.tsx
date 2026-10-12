@@ -8,11 +8,14 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { queryClient } from '@/lib/queryClient';
 import { useAuthStore } from '@/stores/auth.store';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useThemeColors } from '@/lib/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
+  const t = useThemeColors();
 
   useEffect(() => {
     if (hasHydrated) SplashScreen.hideAsync().catch(() => {});
@@ -26,12 +29,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="login" />
-            <Stack.Screen name="pin" />
-            <Stack.Screen name="(app)" />
-          </Stack>
+          <StatusBar style={t.isDark ? 'light' : 'dark'} />
+          <ErrorBoundary>
+            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.background } }}>
+              <Stack.Screen name="login" />
+              <Stack.Screen name="pin" />
+              <Stack.Screen name="(app)" />
+            </Stack>
+          </ErrorBoundary>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

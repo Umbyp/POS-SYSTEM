@@ -27,7 +27,7 @@ export function UnderlineTabs<K extends string>({ tabs, value, onChange, fill = 
             className={`items-center border-b-2 py-3 ${fill ? 'flex-1' : 'px-4'} ${on ? 'border-primary' : 'border-transparent'}`}
             style={{ marginBottom: -1 }}
           >
-            <Text className={`text-[13px] ${on ? 'font-bold text-primary' : 'font-medium text-muted-foreground dark:text-dark-muted-foreground'}`}>
+            <Text className={`text-[13px] ${on ? 'font-bold text-primary dark:text-primary-400' : 'font-medium text-muted-foreground dark:text-dark-muted-foreground'}`}>
               {t.label}
             </Text>
           </Pressable>

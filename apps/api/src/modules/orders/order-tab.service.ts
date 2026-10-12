@@ -17,6 +17,11 @@ import { recordPoints, recordStamps, calcEarnedPoints, pointsEnabled, stampsEnab
 import * as stripeService from '../payments/stripe.service';
 import type { KitchenTicketItem } from './escpos';
 import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
+import {
+  allocateDiscounts, capLineDiscount, resolvePromotion, consumePromotionUse, claimRedemption,
+  attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView,
+} from './checkout-discounts';
+import { recordIdempotencyKey } from './idempotency';
 
 export interface TabItem {
   productId: string;
@@ -69,7 +74,7 @@ async function buildItems(tx: any, storeId: string, items: TabItem[]) {
     }
     const variantDelta = (it.variants || []).reduce((s, v) => s + Number(v.priceDelta), 0);
     const unitPrice = new Prisma.Decimal(p.sellingPrice).plus(variantDelta);
-    const itemDiscount = new Prisma.Decimal(it.discount || 0);
+    const itemDiscount = capLineDiscount(unitPrice.mul(it.quantity), it.discount);
     subtotal = subtotal.plus(unitPrice.mul(it.quantity).minus(itemDiscount));
     itemsData.push({
       productId: p.id,
@@ -147,6 +152,8 @@ interface OpenTabInput {
   discount?: number;
   notes?: string;
   guestCount?: number;
+  /** Idempotency-Key / clientRequestId — see orders/idempotency.ts. */
+  idempotencyKey?: string;
 }
 
 /** Open a new bill and fire the first round to the kitchen. */
@@ -164,7 +171,8 @@ export async function openTab(input: OpenTabInput, io: Server) {
       modifiers: Array.isArray(d.variants) ? (d.variants as any[]).map((v) => v?.name).filter(Boolean) : [],
     }));
     const store = await tx.store.findUniqueOrThrow({ where: { id: input.storeId } });
-    const orderDiscount = new Prisma.Decimal(input.discount || 0);
+    // Manual discount can't exceed the bill.
+    const { total: orderDiscount } = allocateDiscounts(subtotal, { manual: new Prisma.Decimal(input.discount || 0) });
     const { tax, serviceCharge, total } = computeTotals(subtotal, orderDiscount, store);
     const orderNumber = await generateOrderNumber(tx, input.storeId);
 
@@ -180,6 +188,7 @@ export async function openTab(input: OpenTabInput, io: Server) {
       include: ORDER_INCLUDE,
     });
 
+    if (input.idempotencyKey) await recordIdempotencyKey(tx, input.storeId, 'orders:open', input.idempotencyKey, created.id);
     await deductStock(tx, input.items, products, allRecipes, created.id, orderNumber, input.cashierId);
     await tx.activityLog.create({
       data: { userId: input.cashierId, action: 'OPEN_TAB', metadata: { orderId: created.id, orderNumber } },
@@ -312,6 +321,8 @@ interface SettleInput {
   promotionId?: string;
   promotionDiscount?: number;
   promotionName?: string;
+  /** Code of an ACTIVE loyalty RewardRedemption to apply to this bill. */
+  redemptionCode?: string;
   customerName?: string;
   customerTaxId?: string;
   customerAddress?: string;
@@ -330,7 +341,10 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
   }
 
   const result = await prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({ where: { id: orderId }, include: { payments: true } });
+    const order = await tx.order.findUnique({
+      where: { id: orderId },
+      include: { payments: true, items: { include: { product: { select: { categoryId: true } } } } },
+    });
     if (!order) throw NotFound('Order not found');
     if (order.storeId !== input.storeId) throw BadRequest('Wrong store');
     if (order.payments.length > 0 || !OPEN_STATUSES.includes(order.status)) {
@@ -369,11 +383,30 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       stampDiscount = new Prisma.Decimal(store.stampRewardValue);
     }
 
-    const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
-    const orderDiscount = new Prisma.Decimal(input.discount ?? Number(order.discount) ?? 0)
-      .plus(pointDiscount)
-      .plus(stampDiscount)
-      .plus(promoDiscount);
+    // โปรโมชั่น: คำนวณใหม่จากรายการจริงในบิล (ไม่เชื่อยอดจาก client)
+    const orderSubtotal = new Prisma.Decimal(order.subtotal);
+    const liveLines = order.items
+      .filter((i) => i.quantity - i.refundedQty > 0)
+      .map((i) => ({
+        productId: i.productId, quantity: i.quantity - i.refundedQty,
+        unitPrice: Number(i.unitPrice), categoryId: i.product.categoryId ?? undefined,
+      }));
+    const resolvedPromo = await resolvePromotion(tx, {
+      storeId: input.storeId, promotionId: input.promotionId, promotionDiscount: input.promotionDiscount,
+      items: liveLines, subtotal: orderSubtotal, customerId,
+    });
+    const claimed = input.redemptionCode
+      ? await claimRedemption(tx, input.storeId, input.redemptionCode)
+      : null;
+
+    const { applied, total: orderDiscount } = allocateDiscounts(orderSubtotal, {
+      manual: new Prisma.Decimal(input.discount ?? Number(order.discount) ?? 0),
+      promo: resolvedPromo?.discount,
+      reward: claimed?.amount,
+      stamp: stampDiscount,
+      points: pointDiscount,
+    });
+    const promoDiscount = applied.promo;
     const { tax, serviceCharge, total } = computeTotals(new Prisma.Decimal(order.subtotal), orderDiscount, store);
 
     const paid = input.payments.reduce((s, p) => s + Number(p.amount), 0);
@@ -389,7 +422,8 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
       data: {
         status: OrderStatus.COMPLETED, completedAt: new Date(), customerId,
         discount: orderDiscount, promotionDiscount: promoDiscount,
-        promotionId: input.promotionId, promotionName: input.promotionName,
+        promotionId: resolvedPromo?.promotionId ?? null, promotionName: resolvedPromo?.promotionName ?? null,
+        ...(claimed ? { notes: joinNotes(order.notes, redemptionNote(claimed, applied.reward)) } : {}),
         tax, serviceCharge, total,
         pointsRedeemed: pointsToRedeem, pointsEarned: earnedPoints,
         stampsEarned: earnedStamps, stampsRedeemed: stampsToRedeem,
@@ -440,9 +474,8 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
         });
       }
     }
-    if (input.promotionId) {
-      await tx.promotion.update({ where: { id: input.promotionId }, data: { usageCount: { increment: 1 } } }).catch(() => {});
-    }
+    if (resolvedPromo) await consumePromotionUse(tx, resolvedPromo.promotionId);
+    if (claimed) await attachRedemptionToOrder(tx, claimed.id, orderId);
     await tx.activityLog.create({
       data: { userId: input.cashierId, action: 'SETTLE_TAB', metadata: { orderId, total: total.toNumber() } },
     });
@@ -451,7 +484,7 @@ export async function settleTab(orderId: string, input: SettleInput, io: Server)
     if (order.tableId) {
       table = await tx.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE', occupiedAt: null } });
     }
-    return { updated, table };
+    return { updated: Object.assign(updated, { appliedReward: appliedRewardView(claimed, applied.reward) }), table };
   });
 
   io.to(`store:${input.storeId}`).emit('order:created', result.updated); // payment sound + toast
@@ -578,5 +611,81 @@ export async function voidItem(orderId: string, input: VoidItemInput, io: Server
 
   io.to(`store:${input.storeId}:kds`).emit('kds:new', result.updated);
   io.to(`store:${input.storeId}`).emit('stock:updated', { productIds: [result.productId] });
+  return result.updated;
+}
+
+/**
+ * Cancel an UNPAID order (open bill / parked draft): returns the stock that
+ * openTab/addRound deducted, frees the table and tells KDS + the diner's page.
+ * A paid order can't be cancelled — it must go through the refund endpoints
+ * (which also reverse points), so money and loyalty stay consistent.
+ */
+export async function cancelOrder(
+  orderId: string, input: { storeId: string; userId: string; reason?: string }, io: Server,
+) {
+  const result = await prisma.$transaction(async (tx) => {
+    const order = await tx.order.findFirst({
+      where: { id: orderId, storeId: input.storeId },
+      include: { items: { include: { product: { include: { inventory: true } } } }, payments: true },
+    });
+    if (!order) throw NotFound('Order not found');
+    if (order.status === 'CANCELLED') throw BadRequest('บิลนี้ถูกยกเลิกไปแล้ว');
+    if (order.payments.length > 0 || order.status === 'COMPLETED' || order.status === 'REFUNDED') {
+      throw BadRequest('บิลที่ชำระแล้วยกเลิกไม่ได้ — ใช้การคืนเงินแทน', 'USE_REFUND');
+    }
+
+    // Parked drafts never deducted stock; open bills did.
+    if (OPEN_STATUSES.includes(order.status)) {
+      for (const item of order.items) {
+        const qty = item.quantity - item.refundedQty;
+        if (qty <= 0) continue;
+        if (item.product.trackStock && item.product.inventory) {
+          await tx.inventory.update({ where: { id: item.product.inventory.id }, data: { quantity: { increment: qty } } });
+          await tx.stockMovement.create({
+            data: {
+              inventoryId: item.product.inventory.id, type: 'RETURN', quantity: qty, orderId: order.id,
+              userId: input.userId, reason: `ยกเลิกบิล${input.reason ? `: ${input.reason}` : ''}`,
+            },
+          });
+        }
+        const recipes = await tx.recipeItem.findMany({
+          where: { productId: item.productId },
+          include: { ingredient: { include: { inventory: true } } },
+        });
+        for (const r of recipes) {
+          if (!r.ingredient.trackStock || !r.ingredient.inventory) continue;
+          const restoreQty = Math.ceil(Number(r.quantity) * qty); // mirrors deductStock's ceil
+          if (restoreQty <= 0) continue;
+          await tx.inventory.update({ where: { id: r.ingredient.inventory.id }, data: { quantity: { increment: restoreQty } } });
+          await tx.stockMovement.create({
+            data: {
+              inventoryId: r.ingredient.inventory.id, type: 'RETURN', quantity: restoreQty, orderId: order.id,
+              userId: input.userId, reason: 'ยกเลิกบิล (วัตถุดิบ)',
+            },
+          });
+        }
+      }
+    }
+
+    const updated = await tx.order.update({
+      where: { id: orderId }, data: { status: OrderStatus.CANCELLED }, include: ORDER_INCLUDE,
+    });
+    let table = null;
+    if (order.tableId) {
+      table = await tx.table.update({ where: { id: order.tableId }, data: { status: 'AVAILABLE', occupiedAt: null } });
+    }
+    await tx.activityLog.create({
+      data: { userId: input.userId, action: 'CANCEL_ORDER', metadata: { orderId, reason: input.reason ?? null } },
+    });
+    return { updated, table, productIds: order.items.map((i) => i.productId) };
+  });
+
+  const { storeId } = input;
+  if (result.table) io.to(`store:${storeId}`).emit('table:updated', result.table);
+  io.to(`store:${storeId}`).emit('stock:updated', { productIds: result.productIds });
+  io.to(`store:${storeId}`).emit('order:status', { id: orderId, status: 'CANCELLED' });
+  io.to(`store:${storeId}:kds`).emit('kds:status', { id: orderId, status: 'CANCELLED' });
+  io.of('/self-order').to(`order:${orderId}`).emit('order:status', { status: 'CANCELLED' });
+  io.of('/display').to(`store:${storeId}:display`).emit('ready-board:update');
   return result.updated;
 }

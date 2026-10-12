@@ -13,7 +13,7 @@ const LABEL: Record<OrderStatus, string> = {
 
 // Compact solid pills with white text.
 const COLOR: Record<OrderStatus, { bg: string; fg: string }> = {
-  DRAFT: { bg: '#A3A3A3', fg: '#FFFFFF' },
+  DRAFT: { bg: '#6B6B6B', fg: '#FFFFFF' },
   PENDING: { bg: '#B45309', fg: '#FFFFFF' },
   PREPARING: { bg: '#1D4ED8', fg: '#FFFFFF' },
   READY: { bg: '#047857', fg: '#FFFFFF' },
@@ -32,6 +32,18 @@ export const SPINE_COLOR: Record<OrderStatus, string> = {
   CANCELLED: '#D4D4D4',
   REFUNDED: '#D4D4D4',
 };
+
+/** Brighter spine colours for dark surfaces (the light ones are < 3:1 on #212121). */
+export const SPINE_COLOR_DARK: Record<OrderStatus, string> = {
+  DRAFT: '#6B6B6B',
+  PENDING: '#FBBF24',
+  PREPARING: '#60A5FA',
+  READY: '#4ADE80',
+  COMPLETED: '#6B6B6B',
+  CANCELLED: '#6B6B6B',
+  REFUNDED: '#6B6B6B',
+};
+export const spineColor = (status: OrderStatus, dark: boolean) => (dark ? SPINE_COLOR_DARK : SPINE_COLOR)[status];
 
 export const OVERDUE_COLOR = '#B91C1C';
 const OVERDUE_AFTER_MIN = 15;

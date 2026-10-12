@@ -8,13 +8,15 @@ import { formatElapsedMinutes } from '@/lib/format';
 import { useCart } from '@/stores/cart.store';
 import { TableActionSheet } from '@/components/TableActionSheet';
 import { useIsTablet } from '@/hooks/useIsTablet';
-import { TABLE_STATUS_LABEL, TABLE_STATUS_DOT, TABLE_TILE } from '@/constants/tableStatus';
+import { TABLE_STATUS_LABEL, tableStatusDot, tableTile } from '@/constants/tableStatus';
+import { useThemeColors } from '@/lib/theme';
 import type { RestaurantTable, TableStatus } from '@/types/pos';
 
 export default function TablesScreen() {
   const router = useRouter();
   const qc = useQueryClient();
   const isTablet = useIsTablet();
+  const t = useThemeColors();
   const [selected, setSelected] = useState<RestaurantTable | null>(null);
   const { setType, setTable, clearItems } = useCart();
 
@@ -28,7 +30,7 @@ export default function TablesScreen() {
       (await api.patch(`/tables/${id}/status`, { status })).data,
     onSuccess: (updated: RestaurantTable) => {
       qc.setQueryData<RestaurantTable[]>(['tables'], (old = []) =>
-        old.map((t) => (t.id === updated.id ? updated : t))
+        old.map((tb) => (tb.id === updated.id ? updated : tb))
       );
       setSelected((s) => (s && s.id === updated.id ? updated : s));
     },
@@ -46,7 +48,7 @@ export default function TablesScreen() {
 
   const legend = (['AVAILABLE', 'OCCUPIED', 'RESERVED', 'BILLING'] as TableStatus[]).map((st) => ({
     status: st,
-    count: tables.filter((t) => t.status === st).length,
+    count: tables.filter((tb) => tb.status === st).length,
   }));
   const columns = isTablet ? 5 : 3;
 
@@ -55,7 +57,7 @@ export default function TablesScreen() {
       <View className="flex-row flex-wrap gap-x-2 gap-y-1.5 bg-card dark:bg-dark-card border-b border-border dark:border-dark-border px-3.5 py-2.5">
         {legend.map(({ status, count }) => (
           <View key={status} className="flex-row items-center gap-1.5 rounded-full border border-border dark:border-dark-border bg-background dark:bg-dark-background px-2.5 py-1">
-            <View style={{ backgroundColor: TABLE_STATUS_DOT[status] }} className="h-2 w-2 rounded-full" />
+            <View style={{ backgroundColor: tableStatusDot(status, t.isDark) }} className="h-2 w-2 rounded-full" />
             <Text className="text-[11px] font-semibold text-foreground dark:text-dark-foreground">
               {TABLE_STATUS_LABEL[status]} {count}
             </Text>
@@ -65,13 +67,13 @@ export default function TablesScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
         <FlatList
           key={columns}
           data={tables}
-          keyExtractor={(t) => t.id}
+          keyExtractor={(tb) => tb.id}
           numColumns={columns}
           contentContainerStyle={{ padding: 14, gap: 14 }}
           columnWrapperStyle={{ gap: 14 }}
@@ -85,7 +87,7 @@ export default function TablesScreen() {
             </View>
           }
           renderItem={({ item }) => {
-            const c = TABLE_TILE[item.status];
+            const c = tableTile(item.status, t.isDark);
             const round = item.size === 'SMALL';
             const cap = Math.max(1, Math.min(item.capacity || 2, 12));
             const topN = Math.ceil(cap / 2);

@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { X, Pencil, Plus, Minus } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { formatCurrency, formatDate } from '@/lib/format';
 import type { CustomerDetail } from '@/types/backoffice';
 
@@ -15,6 +17,8 @@ interface CustomerDetailModalProps {
 }
 
 export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDetailModalProps) {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const [adjustKind, setAdjustKind] = useState<'points' | 'stamps' | null>(null);
 
@@ -52,27 +56,27 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
   }
 
   return (
-    <Modal visible={!!customerId} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={!!customerId} animationType="slide" presentationStyle={isTablet ? 'pageSheet' : 'fullScreen'} onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ข้อมูลลูกค้า</Text>
             <View className="flex-row items-center gap-4">
               <Pressable onPress={onEdit} hitSlop={12}>
-                <Pencil size={19} color="#6B7280" />
+                <Pencil size={19} color={t.mutedForeground} />
               </Pressable>
               <Pressable onPress={onClose} hitSlop={12}>
-                <X size={22} color="#9CA3AF" />
+                <X size={22} color={t.mutedForeground} />
               </Pressable>
             </View>
           </View>
 
           {isLoading || !customer ? (
             <View className="flex-1 items-center justify-center">
-              <ActivityIndicator color="#D25E3B" />
+              <ActivityIndicator color={t.primary} />
             </View>
           ) : (
-            <ScrollView contentContainerClassName="p-4 gap-4">
+            <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
               <View className="rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-4 gap-1.5">
                 <View className="flex-row items-center gap-2">
                   <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">{customer.name}</Text>
@@ -103,8 +107,8 @@ export function CustomerDetailModal({ customerId, onClose, onEdit }: CustomerDet
               </View>
 
               {customer.expiringPoints && customer.expiringDate ? (
-                <View className="rounded-lg border border-[#F3DFA2] bg-[#FEFCE8] px-3 py-2">
-                  <Text className="text-[12px] text-[#B45309]">
+                <View className="rounded-lg border border-[#F3DFA2] bg-[#FEFCE8] px-3 py-2 dark:border-dark-warning/40 dark:bg-dark-warning/10">
+                  <Text className="text-[12px] text-[#B45309] dark:text-dark-warning">
                     {customer.expiringPoints} แต้ม กำลังจะหมดอายุ ภายใน {formatDate(customer.expiringDate)}
                   </Text>
                 </View>
@@ -166,9 +170,10 @@ function Stat({ label, value, small }: { label: string; value: string; small?: b
 }
 
 function IconBtn({ icon: Icon, onPress }: { icon: typeof Plus; onPress: () => void }) {
+  const t = useThemeColors();
   return (
-    <Pressable onPress={onPress} className="flex-1 items-center justify-center h-8 rounded-md bg-muted dark:bg-dark-muted">
-      <Icon size={15} color="#6B7280" />
+    <Pressable onPress={onPress} className="flex-1 items-center justify-center h-10 rounded-md bg-muted dark:bg-dark-muted">
+      <Icon size={16} color={t.mutedForeground} />
     </Pressable>
   );
 }

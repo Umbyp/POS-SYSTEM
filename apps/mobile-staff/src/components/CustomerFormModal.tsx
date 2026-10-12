@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { X } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { TextField } from '@/components/TextField';
 import { Button } from '@/components/Button';
 import type { Customer } from '@/types/backoffice';
@@ -17,6 +19,8 @@ interface CustomerFormModalProps {
 }
 
 export function CustomerFormModal({ visible, customer, onClose, onSaved }: CustomerFormModalProps) {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const isEdit = !!customer;
 
@@ -52,7 +56,7 @@ export function CustomerFormModal({ visible, customer, onClose, onSaved }: Custo
   });
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle={isTablet ? 'pageSheet' : 'fullScreen'} onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
@@ -60,11 +64,11 @@ export function CustomerFormModal({ visible, customer, onClose, onSaved }: Custo
               {isEdit ? 'แก้ไขลูกค้า' : 'เพิ่มลูกค้า'}
             </Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
 
-          <ScrollView contentContainerClassName="p-4 gap-4">
+          <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
             <TextField label="ชื่อ *" value={name} onChangeText={setName} />
             <TextField label="เบอร์โทร" value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
             <TextField label="อีเมล" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />

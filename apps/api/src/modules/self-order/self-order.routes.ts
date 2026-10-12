@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { authMiddleware } from '../../middleware/auth.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import * as service from './self-order.service';
+import { hitCounter } from '../../middleware/rate-limit-store';
 
 // These endpoints are unauthenticated (a diner's phone hits them straight from
 // the QR link), so throttle per IP to keep the QR from being a spam/abuse
@@ -22,15 +23,25 @@ const writeLimiter = rateLimit({
   legacyHeaders: false,
 }) as unknown as RequestHandler;
 
+// Same shape the staff POS sends ({name, priceDelta}); optionId/groupId are
+// optional disambiguators. priceDelta is only cross-checked, never trusted.
+const variantSchema = z.object({
+  name: z.string().min(1).max(100),
+  priceDelta: z.number().optional(),
+  optionId: z.string().optional(),
+  groupId: z.string().optional(),
+});
+
 const itemSchema = z.object({
   productId: z.string(),
-  quantity: z.number().int().positive(),
-  notes: z.string().optional(),
+  quantity: z.number().int().positive().max(99),
+  notes: z.string().max(200).optional(),
+  variants: z.array(variantSchema).max(30).optional(),
 });
 
 const submitSchema = z.object({
-  items: z.array(itemSchema).min(1),
-  note: z.string().optional(),
+  items: z.array(itemSchema).min(1).max(50),
+  note: z.string().max(500).optional(),
   customerId: z.string().optional(),
 });
 
@@ -125,12 +136,48 @@ publicRouter.get('/store/:storeId/rewards', readLimiter, async (req, res, next) 
   } catch (e) { next(e); }
 });
 
-const redeemSchema = z.object({ phone: z.string().min(1) });
-publicRouter.post('/store/:storeId/rewards/:rewardId/redeem', writeLimiter, validate(redeemSchema), async (req, res, next) => {
+const redeemSchema = z.object({ phone: z.string().min(1).max(30) });
+
+// Redeeming spends a member's points and the only credential is their phone
+// number, so guess-and-spend is the abuse case. Every attempt is counted —
+// BEFORE the member lookup, whether or not the phone exists — per phone and
+// per IP in the DB-backed counter table (shared across instances, survives
+// restarts). The 429 is identical for known and unknown phones.
+const REDEEM_WINDOW_MS = 15 * 60_000;
+const REDEEM_MAX_PER_PHONE = 8;
+const REDEEM_MAX_PER_IP = 40; // generous: a whole restaurant can share one NAT IP
+
+const redeemGuard: RequestHandler = async (req, res, next) => {
   try {
-    res.json(await service.redeemMemberReward(req.params.storeId, req.body.phone, req.params.rewardId));
+    const storeId = req.params.storeId;
+    const phone = String(req.body?.phone ?? '').replace(/\D/g, '') || 'none';
+    const [byPhone, byIp] = await Promise.all([
+      hitCounter(`redeem:phone:${storeId}:${phone}`, REDEEM_WINDOW_MS),
+      hitCounter(`redeem:ip:${req.ip}`, REDEEM_WINDOW_MS),
+    ]);
+    const over = byPhone.count > REDEEM_MAX_PER_PHONE ? byPhone : byIp.count > REDEEM_MAX_PER_IP ? byIp : null;
+    if (over) {
+      const retryAfter = Math.max(1, Math.ceil((over.resetAt.getTime() - Date.now()) / 1000));
+      res.setHeader('Retry-After', String(retryAfter));
+      return res.status(429).json({
+        error: 'ลองแลกรางวัลหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่',
+        code: 'TOO_MANY_ATTEMPTS',
+        retryAfter,
+      });
+    }
+    next();
   } catch (e) { next(e); }
-});
+};
+
+publicRouter.post(
+  '/store/:storeId/rewards/:rewardId/redeem',
+  writeLimiter, validate(redeemSchema), redeemGuard,
+  async (req, res, next) => {
+    try {
+      res.json(await service.redeemMemberReward(req.params.storeId, req.body.phone, req.params.rewardId));
+    } catch (e) { next(e); }
+  },
+);
 
 publicRouter.post('/store/:storeId/customer/register', writeLimiter, validate(registerSchema), async (req, res, next) => {
   try {

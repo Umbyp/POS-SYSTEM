@@ -25,6 +25,11 @@ module.exports = {
         'dark-border': '#3A3A3A',
         'dark-input': '#212121',
         'dark-foreground': '#F5F5F5',
+        // Status text colours tuned for >= 4.5:1 on dark-card / dark-background.
+        'dark-success': '#4ADE80',
+        'dark-warning': '#FBBF24',
+        'dark-danger': '#F87171',
+        'dark-info': '#60A5FA',
 
         primary: {
           DEFAULT: '#D25E3B',

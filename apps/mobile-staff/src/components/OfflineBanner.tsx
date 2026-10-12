@@ -1,9 +1,9 @@
 import { View, Text } from 'react-native';
 import { WifiOff } from 'lucide-react-native';
-import { useOfflineQueue } from '@/stores/offlineQueue.store';
+import { useOfflineQueue, selectQueueCount } from '@/stores/offlineQueue.store';
 
 export function OfflineBanner() {
-  const count = useOfflineQueue((s) => s.orders.length + s.settles.length);
+  const count = useOfflineQueue(selectQueueCount);
   if (count === 0) return null;
 
   return (

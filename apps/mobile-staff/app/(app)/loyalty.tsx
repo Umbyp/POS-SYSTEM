@@ -4,6 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { SectionCard } from '@/components/SectionCard';
 import { SelectField } from '@/components/SelectField';
 import { TextField } from '@/components/TextField';
@@ -19,6 +22,8 @@ const MODE_OPTIONS: { value: LoyaltyMode; label: string }[] = [
 ];
 
 export default function LoyaltyScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const { data: store, isLoading } = useQuery({
     queryKey: ['store-me'],
@@ -71,7 +76,7 @@ export default function LoyaltyScreen() {
   if (isLoading || !store) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#D25E3B" />
+        <ActivityIndicator color={t.primary} />
       </View>
     );
   }
@@ -81,7 +86,7 @@ export default function LoyaltyScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <ScrollView contentContainerClassName="p-4 gap-4">
+      <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
         <SectionCard title="โหมดสะสมแต้ม">
           <SelectField label="รูปแบบ" value={loyaltyMode} options={MODE_OPTIONS} onChange={(v) => setLoyaltyMode(v as LoyaltyMode)} />
         </SectionCard>
@@ -167,7 +172,7 @@ function RedeemCodeCard() {
 
   const Row = ({ r }: { r: RewardRedemption }) => (
     <View className="rounded-lg border border-border dark:border-dark-border p-3 gap-1">
-      <Text className="text-[15px] font-bold tracking-widest text-primary">{r.code}</Text>
+      <Text className="text-[15px] font-bold tracking-widest text-primary dark:text-primary-400">{r.code}</Text>
       <Text className="text-[13px] font-medium text-foreground dark:text-dark-foreground">{r.reward.name}</Text>
       <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
         {r.customer.name}
@@ -176,7 +181,7 @@ function RedeemCodeCard() {
       {r.status === 'ACTIVE' ? (
         <Button label="ใช้สิทธิ์ (ทำเครื่องหมายว่าใช้แล้ว)" variant="secondary" onPress={() => use.mutate(r.id)} loading={use.isPending} />
       ) : (
-        <Text className="text-[12px] font-semibold text-danger">
+        <Text className="text-[12px] font-semibold text-danger dark:text-dark-danger">
           {r.status === 'USED' ? 'ใช้สิทธิ์ไปแล้ว' : 'ถูกยกเลิก'}
         </Text>
       )}

@@ -1,5 +1,8 @@
 import { Modal, View, Text, Pressable, FlatList } from 'react-native';
 import { X, Check } from 'lucide-react-native';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { sheetClasses } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 
 export interface SelectOption {
   value: string;
@@ -16,14 +19,16 @@ interface SelectModalProps {
 }
 
 export function SelectModal({ visible, title, options, value, onSelect, onClose }: SelectModalProps) {
+  const t = useThemeColors();
+  const sheet = sheetClasses(useIsTablet());
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-3 max-h-[70%]" onPress={(e) => e.stopPropagation()}>
+      <Pressable className={sheet.overlay} onPress={onClose}>
+        <Pressable className={`${sheet.panel} bg-card dark:bg-dark-card p-5 gap-3 max-h-[70%]`} onPress={(e) => e.stopPropagation()}>
           <View className="flex-row items-center justify-between">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">{title}</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
           <FlatList
@@ -35,7 +40,7 @@ export function SelectModal({ visible, title, options, value, onSelect, onClose 
                 className="flex-row items-center justify-between py-3 border-b border-border dark:border-dark-border"
               >
                 <Text className="text-[14px] text-foreground dark:text-dark-foreground">{item.label}</Text>
-                {item.value === value ? <Check size={18} color="#D25E3B" /> : null}
+                {item.value === value ? <Check size={18} color={t.primary} /> : null}
               </Pressable>
             )}
           />

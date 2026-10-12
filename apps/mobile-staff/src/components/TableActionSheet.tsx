@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, ActivityIndicator, Linking } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { X, ArrowRight, QrCode, ArrowLeft } from 'lucide-react-native';
-import { TABLE_STATUS_LABEL, TABLE_STATUS_ORDER, TABLE_STATUS_COLOR } from '@/constants/tableStatus';
+import { TABLE_STATUS_LABEL, TABLE_STATUS_ORDER, tableStatusColor } from '@/constants/tableStatus';
 import { WEB_URL } from '@/constants/config';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { sheetClasses } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import type { RestaurantTable, TableStatus } from '@/types/pos';
 
 interface TableActionSheetProps {
@@ -16,6 +19,8 @@ interface TableActionSheetProps {
 }
 
 export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, updating }: TableActionSheetProps) {
+  const t = useThemeColors();
+  const sheet = sheetClasses(useIsTablet());
   const [showQr, setShowQr] = useState(false);
 
   // Reset back to the main sheet each time it's reopened for a (possibly
@@ -26,8 +31,8 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 
   return (
     <Modal visible={!!table} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable className="rounded-t-[14px] bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
+      <Pressable className={sheet.overlay} onPress={onClose}>
+        <Pressable className={`${sheet.panel} bg-card dark:bg-dark-card p-5 gap-4`} onPress={(e) => e.stopPropagation()}>
           {table && showQr ? (
             <TableQrView table={table} onBack={() => setShowQr(false)} onClose={onClose} />
           ) : table ? (
@@ -35,7 +40,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
               <View className="flex-row items-center justify-between">
                 <Text className="text-[17px] font-bold text-foreground dark:text-dark-foreground">โต๊ะ {table.number}</Text>
                 <Pressable onPress={onClose} hitSlop={12}>
-                  <X size={22} color="#9CA3AF" />
+                  <X size={22} color={t.mutedForeground} />
                 </Pressable>
               </View>
 
@@ -51,8 +56,8 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
                 onPress={() => setShowQr(true)}
                 className="h-12 flex-row items-center justify-center gap-2 rounded-[10px] border border-primary bg-card dark:bg-dark-card"
               >
-                <QrCode size={18} color="#D25E3B" />
-                <Text className="text-[15px] font-semibold text-primary">ดู QR โต๊ะ</Text>
+                <QrCode size={18} color={t.primary} />
+                <Text className="text-[15px] font-semibold text-primary dark:text-primary-400">ดู QR โต๊ะ</Text>
               </Pressable>
 
               <View className="gap-2">
@@ -60,7 +65,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
                 <View className="flex-row flex-wrap gap-2">
                   {TABLE_STATUS_ORDER.map((status) => {
                     const active = table.status === status;
-                    const c = TABLE_STATUS_COLOR[status];
+                    const c = tableStatusColor(status, t.isDark);
                     return (
                       <Pressable
                         key={status}
@@ -69,7 +74,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
                         style={{ backgroundColor: active ? c.fg : c.bg, borderColor: c.border }}
                         className="rounded-full border px-3.5 py-2"
                       >
-                        <Text style={{ color: active ? '#FFFFFF' : c.fg }} className="text-[12px] font-semibold">
+                        <Text style={{ color: active ? (t.isDark ? '#161616' : '#FFFFFF') : c.fg }} className="text-[12px] font-semibold">
                           {TABLE_STATUS_LABEL[status]}
                         </Text>
                       </Pressable>
@@ -86,6 +91,7 @@ export function TableActionSheet({ table, onClose, onChangeStatus, onOpenBill, u
 }
 
 function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBack: () => void; onClose: () => void }) {
+  const t = useThemeColors();
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [error, setError] = useState(false);
 
@@ -112,11 +118,11 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
     <>
       <View className="flex-row items-center justify-between">
         <Pressable onPress={onBack} hitSlop={12} className="flex-row items-center gap-1.5">
-          <ArrowLeft size={18} color="#707070" />
+          <ArrowLeft size={18} color={t.mutedForeground} />
           <Text className="text-[13px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ย้อนกลับ</Text>
         </Pressable>
         <Pressable onPress={onClose} hitSlop={12}>
-          <X size={22} color="#9CA3AF" />
+          <X size={22} color={t.mutedForeground} />
         </Pressable>
       </View>
 
@@ -125,10 +131,10 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
         <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">สแกนเพื่อสั่งอาหาร</Text>
 
         {error ? (
-          <Text className="text-[13px] text-danger py-8">โหลด QR ไม่สำเร็จ ลองใหม่อีกครั้ง</Text>
+          <Text className="text-[13px] text-danger dark:text-dark-danger py-8">โหลด QR ไม่สำเร็จ ลองใหม่อีกครั้ง</Text>
         ) : !link ? (
           <View className="py-8">
-            <ActivityIndicator color="#D25E3B" />
+            <ActivityIndicator color={t.primary} />
           </View>
         ) : (
           <>
@@ -136,7 +142,7 @@ function TableQrView({ table, onBack, onClose }: { table: RestaurantTable; onBac
               <QRCode value={link} size={200} />
             </View>
             <Pressable onPress={() => Linking.openURL(link)} className="mt-1">
-              <Text className="text-[12px] text-primary font-semibold">เปิดในเบราว์เซอร์เพื่อพิมพ์</Text>
+              <Text className="text-[12px] text-primary dark:text-primary-400 font-semibold">เปิดในเบราว์เซอร์เพื่อพิมพ์</Text>
             </Pressable>
           </>
         )}

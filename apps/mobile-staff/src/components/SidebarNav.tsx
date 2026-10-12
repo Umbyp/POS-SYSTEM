@@ -4,6 +4,7 @@ import { usePathname, useRouter } from 'expo-router';
 import { LogOut } from 'lucide-react-native';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { useThemeColors } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { avatarInitial } from '@/lib/format';
 import { NAV_ITEMS, visibleNavItems } from '@/constants/nav';
@@ -29,6 +30,7 @@ const TH_LABEL: Record<string, string> = {
 const LAST_TAB_KEY = [...NAV_ITEMS].reverse().find((item) => item.tab)?.key;
 
 export function SidebarNav() {
+  const t = useThemeColors();
   const router = useRouter();
   const pathname = usePathname();
   const { data: store } = useQuery({
@@ -69,7 +71,7 @@ export function SidebarNav() {
                   className={`border-l-[3px] px-4 py-[11px] ${active ? 'border-l-primary bg-primary-50 dark:bg-dark-muted' : 'border-l-transparent'}`}
                 >
                   <Text
-                    className={`text-[13px] ${active ? 'font-semibold text-primary' : 'font-medium text-muted-foreground dark:text-dark-muted-foreground'}`}
+                    className={`text-[13px] ${active ? 'font-semibold text-primary dark:text-primary-400' : 'font-medium text-muted-foreground dark:text-dark-muted-foreground'}`}
                     numberOfLines={1}
                   >
                     {TH_LABEL[item.key] ?? item.label}
@@ -98,9 +100,9 @@ export function SidebarNav() {
               logout();
               router.replace('/login');
             }}
-            hitSlop={8}
+            hitSlop={12}
           >
-            <LogOut size={16} color="#707070" />
+            <LogOut size={16} color={t.mutedForeground} />
           </Pressable>
         </View>
       </View>

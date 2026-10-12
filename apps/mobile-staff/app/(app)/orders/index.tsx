@@ -12,6 +12,7 @@ import { printReceipt, PrinterError } from '@/lib/printer';
 import { StatusBadge, SPINE_COLOR, OVERDUE_COLOR, overdueMinutes } from '@/components/StatusBadge';
 import type { Order } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
+import { useThemeColors } from '@/lib/theme';
 
 const PERIODS = [
   { key: 'today', label: 'วันนี้' },
@@ -29,6 +30,7 @@ function periodRange(period: (typeof PERIODS)[number]['key']) {
 }
 
 export default function OrdersScreen() {
+  const theme = useThemeColors();
   const router = useRouter();
   const isTablet = useIsTablet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -116,7 +118,7 @@ export default function OrdersScreen() {
           onRefresh={refetch}
           ListEmptyComponent={
             <View className="items-center py-16 gap-2">
-              <Receipt size={28} color="#9CA3AF" />
+              <Receipt size={28} color={theme.faint} />
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ไม่มีออเดอร์ในช่วงนี้</Text>
             </View>
           }

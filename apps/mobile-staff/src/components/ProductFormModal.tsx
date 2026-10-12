@@ -6,6 +6,9 @@ import { isAxiosError } from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { X, Camera } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { resolveImageUrl } from '@/lib/imageUrl';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { TextField } from '@/components/TextField';
 import { SelectField } from '@/components/SelectField';
 import { SwitchRow } from '@/components/SwitchRow';
@@ -21,6 +24,8 @@ interface ProductFormModalProps {
 }
 
 export function ProductFormModal({ visible, product, categories, onClose, onSaved }: ProductFormModalProps) {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const isEdit = !!product;
 
@@ -142,7 +147,7 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
   const canSave = !!name && !!sku && !!categoryId && !!sellingPrice;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle={isTablet ? 'pageSheet' : 'fullScreen'} onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
@@ -150,19 +155,19 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
               {isEdit ? 'แก้ไขสินค้า' : 'เพิ่มสินค้า'}
             </Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
 
-          <ScrollView contentContainerClassName="p-4 gap-4">
+          <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
             <Pressable onPress={pickImage} className="self-center">
               <View className="h-24 w-24 items-center justify-center rounded-lg bg-muted dark:bg-dark-muted overflow-hidden">
                 {uploading ? (
-                  <ActivityIndicator color="#D25E3B" />
+                  <ActivityIndicator color={t.primary} />
                 ) : image ? (
-                  <Image source={{ uri: image }} style={{ width: 96, height: 96 }} resizeMode="cover" />
+                  <Image source={{ uri: resolveImageUrl(image) }} style={{ width: 96, height: 96 }} resizeMode="cover" />
                 ) : (
-                  <Camera size={26} color="#9CA3AF" />
+                  <Camera size={26} color={t.mutedForeground} />
                 )}
               </View>
             </Pressable>
@@ -213,7 +218,7 @@ export function ProductFormModal({ visible, product, categories, onClose, onSave
             <Button label="บันทึก" onPress={() => save.mutate()} disabled={!canSave} loading={save.isPending} />
             {isEdit ? (
               <Pressable onPress={confirmDelete} disabled={remove.isPending} className="h-11 items-center justify-center">
-                <Text className="text-[14px] font-medium text-danger">ปิดการขายสินค้านี้</Text>
+                <Text className="text-[14px] font-medium text-danger dark:text-dark-danger">ปิดการขายสินค้านี้</Text>
               </Pressable>
             ) : null}
           </View>

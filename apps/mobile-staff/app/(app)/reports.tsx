@@ -6,6 +6,9 @@ import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { SectionCard } from '@/components/SectionCard';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import type { ReportSummary } from '@/types/backoffice';
 
 const RANGES = [
@@ -31,6 +34,8 @@ function rangeToDates(days: number) {
 }
 
 export default function ReportsScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const [range, setRange] = useState<(typeof RANGES)[number]['key']>('today');
 
   const { data, isLoading } = useQuery({
@@ -44,26 +49,28 @@ export default function ReportsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
+      <View className="border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
+      <View style={centered(isTablet)} className="flex-row">
         {RANGES.map((r) => (
           <Pressable
             key={r.key}
             onPress={() => setRange(r.key)}
             className={`flex-1 items-center py-3 border-b-2 ${range === r.key ? 'border-primary' : 'border-transparent'}`}
           >
-            <Text className={`text-[13px] font-semibold ${range === r.key ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
+            <Text className={`text-[13px] font-semibold ${range === r.key ? 'text-primary dark:text-primary-400' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
               {r.label}
             </Text>
           </Pressable>
         ))}
       </View>
+      </View>
 
       {isLoading || !data ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
-        <ScrollView contentContainerClassName="p-4 gap-4">
+        <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
           <SectionCard>
             <Text className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground dark:text-dark-muted-foreground">ยอดขาย</Text>
             <View className="flex-row items-center gap-2">
@@ -123,12 +130,13 @@ function MiniStat({ label, value }: { label: string; value: string }) {
 }
 
 function GrowthBadge({ value }: { value: number }) {
+  const t = useThemeColors();
   const positive = value >= 0;
   const Icon = positive ? TrendingUp : TrendingDown;
   return (
     <View className={`flex-row items-center gap-1 rounded px-1.5 py-0.5 ${positive ? 'bg-success/10' : 'bg-danger/10'}`}>
-      <Icon size={12} color={positive ? '#047857' : '#B91C1C'} />
-      <Text className={`text-[11px] font-semibold ${positive ? 'text-success' : 'text-danger'}`}>{Math.abs(value).toFixed(1)}%</Text>
+      <Icon size={12} color={positive ? t.success : t.danger} />
+      <Text className={`text-[11px] font-semibold ${positive ? 'text-success dark:text-dark-success' : 'text-danger dark:text-dark-danger'}`}>{Math.abs(value).toFixed(1)}%</Text>
     </View>
   );
 }

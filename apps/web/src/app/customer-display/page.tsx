@@ -127,9 +127,9 @@ export default function CustomerDisplayPage() {
                 {phase.storeName}
               </div>
             )}
-            <div className="bg-card border border-border rounded-2xl sm:rounded-3xl shadow-card p-5 sm:p-8 lg:p-10 xl:p-12">
+            <div className="bg-card border border-border rounded-2xl shadow-card p-5 sm:p-8 lg:p-10 xl:p-12">
               <div className="flex items-baseline justify-between mb-3 sm:mb-5">
-                <span className="text-xs sm:text-sm xl:text-base font-semibold text-muted-foreground uppercase tracking-wide">
+                <span className="text-xs sm:text-sm xl:text-base font-semibold text-muted-foreground uppercase tracking-wider">
                   {t('display.yourOrder')}
                 </span>
                 <span className="text-xs sm:text-sm xl:text-base text-muted-foreground tabular-nums">
@@ -159,37 +159,37 @@ export default function CustomerDisplayPage() {
                   ))}
                 </AnimatePresence>
               </div>
-              <div className="mt-4 sm:mt-6 rounded-xl sm:rounded-2xl bg-[#2B1F17] text-[#FBF6F0] p-4 sm:p-6 space-y-1 sm:space-y-1.5">
-                <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
+              <div className="mt-4 sm:mt-6 rounded-xl bg-[#1F1F1F] text-white p-4 sm:p-6 space-y-1 sm:space-y-1.5">
+                <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
                   <span>{t('cart.subtotal')}</span>
                   <span className="tabular-nums">{formatCurrency(phase.subtotal)}</span>
                 </div>
                 {!!phase.discount && phase.discount > 0 && (
-                  <div className="flex justify-between items-center text-primary text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#F28B66] text-sm sm:text-base xl:text-lg">
                     <span>{t('cart.discount')}</span>
                     <span className="tabular-nums">-{formatCurrency(phase.discount)}</span>
                   </div>
                 )}
                 {!!phase.serviceCharge && phase.serviceCharge > 0 && (
-                  <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
                     <span>{t('cart.serviceCharge')}</span>
                     <span className="tabular-nums">{formatCurrency(phase.serviceCharge)}</span>
                   </div>
                 )}
                 {!!phase.tax && phase.tax > 0 && (
-                  <div className="flex justify-between items-center text-[#B9A392] text-sm sm:text-base xl:text-lg">
+                  <div className="flex justify-between items-center text-[#BDBDBD] text-sm sm:text-base xl:text-lg">
                     <span>{t('cart.vat')}</span>
                     <span className="tabular-nums">{formatCurrency(phase.tax)}</span>
                   </div>
                 )}
                 <div className="flex justify-between items-center pt-2 sm:pt-3">
                   <span className="text-lg sm:text-2xl xl:text-3xl font-semibold">{t('display.total')}</span>
-                  <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-primary tabular-nums">
+                  <span className="text-2xl sm:text-4xl xl:text-5xl font-bold text-[#F28B66] tabular-nums">
                     {formatCurrency(phase.total)}
                   </span>
                 </div>
                 {(phase.cashierName || phase.billNumber) && (
-                  <div className="pt-2 sm:pt-3 mt-1 border-t border-white/10 text-[11px] sm:text-sm text-[#B9A392] flex items-center gap-1.5">
+                  <div className="pt-2 sm:pt-3 mt-1 border-t border-white/10 text-[11px] sm:text-sm text-[#BDBDBD] flex items-center gap-1.5">
                     {phase.cashierName && <span>{phase.cashierName}</span>}
                     {phase.cashierName && phase.billNumber && <span className="opacity-50">·</span>}
                     {phase.billNumber && <span className="tabular-nums">{phase.billNumber}</span>}
@@ -215,7 +215,7 @@ export default function CustomerDisplayPage() {
                 <p className="text-muted-foreground text-base sm:text-xl mb-4 sm:mb-6 tabular-nums">
                   {formatCurrency(phase.amount)}
                 </p>
-                <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 inline-block">
+                <div className="bg-white rounded-2xl p-4 sm:p-6 inline-block">
                   <img
                     src={phase.qrImageUrl}
                     alt="PromptPay QR"
