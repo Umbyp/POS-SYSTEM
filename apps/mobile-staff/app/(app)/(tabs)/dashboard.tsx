@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, Pressable, ScrollView, ActivityIndicator, RefreshControl, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, TrendingDown, Bell } from 'lucide-react-native';
 import { api } from '@/lib/api';
@@ -9,7 +10,9 @@ import { useAuthStore } from '@/stores/auth.store';
 import { SectionCard } from '@/components/SectionCard';
 import { SectionLabel } from '@/components/SectionLabel';
 import { UnderlineTabs } from '@/components/UnderlineTabs';
-import { StatusBadge, SPINE_COLOR } from '@/components/StatusBadge';
+import { StatusBadge, spineColor } from '@/components/StatusBadge';
+import { useKdsOrders } from '@/hooks/useKdsOrders';
+import { useThemeColors } from '@/lib/theme';
 import type { DailySalesRow, DashboardOverview, ReportSummary } from '@/types/backoffice';
 import type { OrderStatus } from '@/types/pos';
 
@@ -20,6 +23,13 @@ const INSIGHT_SPINE: Record<string, string> = {
   neutral: '#1D4ED8',
   warning: '#B45309',
   critical: '#B91C1C',
+};
+// Brighter variants so the 6px status bar stays visible on dark cards.
+const INSIGHT_SPINE_DARK: Record<string, string> = {
+  positive: '#4ADE80',
+  neutral: '#60A5FA',
+  warning: '#FBBF24',
+  critical: '#F87171',
 };
 
 const PERIODS = [
@@ -41,7 +51,11 @@ function periodRange(period: Exclude<PeriodKey, 'today'>) {
 export default function DashboardScreen() {
   const { width } = useWindowDimensions();
   const wide = width >= 768;
+  const t = useThemeColors();
+  const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  // Orders waiting in the kitchen — same cache entry the KDS uses (kept fresh by sockets).
+  const { data: kds } = useKdsOrders({ refetchInterval: 15000 });
   const [period, setPeriod] = useState<PeriodKey>('today');
   const isToday = period === 'today';
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -73,7 +87,7 @@ export default function DashboardScreen() {
   if (isLoading || !data) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#D25E3B" />
+        <ActivityIndicator color={t.primary} />
       </View>
     );
   }
@@ -92,6 +106,9 @@ export default function DashboardScreen() {
   const maxQty = Math.max(1, ...data.topItems.map((t) => t.qty));
   const lowStock = data.alerts.lowStock;
   const pendingKitchen = data.restaurant.pendingKitchen;
+  const pendingOrders = kds ? kds.data.filter((o) => o.status === 'PENDING').length : pendingKitchen;
+  const canOpenKds = user?.role === 'OWNER' || user?.role === 'ADMIN' || user?.role === 'KITCHEN';
+  const bell = <NotificationBell count={pendingOrders} onPress={canOpenKds ? () => router.push('/kds' as never) : undefined} />;
   const hasActions = data.insights.length > 0 || lowStock.length > 0 || pendingKitchen > 0;
 
   const stats = [
@@ -108,10 +125,10 @@ export default function DashboardScreen() {
         <Text className="text-metric-lg text-foreground dark:text-dark-foreground">{formatCurrency(heroRevenue)}</Text>
         {vsYesterday != null ? (
           <View
-            className={`flex-row items-center gap-1 rounded-full px-2 py-[3px] ${vsYesterday >= 0 ? 'bg-[#ECFDF5]' : 'bg-[#FEE2E2]'}`}
+            className={`flex-row items-center gap-1 rounded-full px-2 py-[3px] ${vsYesterday >= 0 ? 'bg-[#ECFDF5] dark:bg-dark-success/15' : 'bg-[#FEE2E2] dark:bg-dark-danger/15'}`}
           >
-            {vsYesterday >= 0 ? <TrendingUp size={12} color="#047857" /> : <TrendingDown size={12} color="#B91C1C" />}
-            <Text className={`text-[12px] font-bold ${vsYesterday >= 0 ? 'text-success' : 'text-danger'}`}>
+            {vsYesterday >= 0 ? <TrendingUp size={12} color={t.success} /> : <TrendingDown size={12} color={t.danger} />}
+            <Text className={`text-[12px] font-bold ${vsYesterday >= 0 ? 'text-success dark:text-dark-success' : 'text-danger dark:text-dark-danger'}`}>
               {Math.abs(vsYesterday).toFixed(1)}%{compareLabel}
             </Text>
           </View>
@@ -186,7 +203,7 @@ export default function DashboardScreen() {
       <View className="flex-row items-center justify-between border-t border-border px-3.5 py-2.5 dark:border-dark-border">
         <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">วันนี้ {formatCurrency(data.today.revenue)}</Text>
         {data.today.vsYesterdayPct != null ? (
-          <Text className={`text-[11px] font-bold ${data.today.vsYesterdayPct >= 0 ? 'text-success' : 'text-danger'}`}>
+          <Text className={`text-[11px] font-bold ${data.today.vsYesterdayPct >= 0 ? 'text-success dark:text-dark-success' : 'text-danger dark:text-dark-danger'}`}>
             {data.today.vsYesterdayPct >= 0 ? '▲' : '▼'} {Math.abs(data.today.vsYesterdayPct).toFixed(1)}% เทียบเมื่อวาน
           </Text>
         ) : null}
@@ -209,7 +226,7 @@ export default function DashboardScreen() {
           {phoneStats.slice(r, r + 2).map((st, c) => (
             <View key={st.label} className={`flex-1 px-3.5 py-3 ${c === 1 ? 'border-l border-border dark:border-dark-border' : ''}`}>
               <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{st.label}</Text>
-              <Text numberOfLines={1} adjustsFontSizeToFit className={`mt-1 text-[24px] font-bold ${st.amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
+              <Text numberOfLines={1} adjustsFontSizeToFit className={`mt-1 text-[24px] font-bold ${st.amber ? 'text-warning dark:text-dark-warning' : 'text-foreground dark:text-dark-foreground'}`}>
                 {st.value}
                 {st.sub ? <Text className="text-[13px] font-medium text-muted-foreground dark:text-dark-muted-foreground">{st.sub}</Text> : null}
               </Text>
@@ -224,14 +241,14 @@ export default function DashboardScreen() {
     <View className="overflow-hidden rounded-[10px] border border-border bg-card dark:border-dark-border dark:bg-dark-card">
       <SectionLabel className="px-3.5 pb-2 pt-3">ต้องจัดการก่อน</SectionLabel>
       {pendingKitchen > 0 ? (
-        <ActionRow color="#B45309" title={`รอครัว ${pendingKitchen} รายการ`} />
+        <ActionRow color={t.warning} title={`รอครัว ${pendingKitchen} รายการ`} />
       ) : null}
       {data.insights.map((ins, i) => (
-        <ActionRow key={i} color={INSIGHT_SPINE[ins.type] ?? INSIGHT_SPINE.neutral} title={ins.text} />
+        <ActionRow key={i} color={(t.isDark ? INSIGHT_SPINE_DARK : INSIGHT_SPINE)[ins.type] ?? (t.isDark ? INSIGHT_SPINE_DARK : INSIGHT_SPINE).neutral} title={ins.text} />
       ))}
       {lowStock.length > 0 ? (
         <ActionRow
-          color="#B45309"
+          color={t.warning}
           title={`สต็อกใกล้หมด ${lowStock.length} รายการ`}
           sub={lowStock.map((it) => `${it.name} ${it.quantity}/${it.lowStockAt}`).join(' · ')}
         />
@@ -271,7 +288,7 @@ export default function DashboardScreen() {
       ) : (
         data.recentOrders.map((o) => (
           <View key={o.id} className="flex-row items-center gap-2.5">
-            <View className="h-9 w-1.5 rounded-[3px]" style={{ backgroundColor: SPINE_COLOR[o.status as OrderStatus] ?? '#D4D4D4' }} />
+            <View className="h-9 w-1.5 rounded-[3px]" style={{ backgroundColor: spineColor(o.status as OrderStatus, t.isDark) ?? '#D4D4D4' }} />
             <View className="flex-1">
               <Text numberOfLines={1} className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">#{o.orderNumber.split('-').pop()}</Text>
               <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">
@@ -300,29 +317,27 @@ export default function DashboardScreen() {
               {data.storeName}
             </Text>
           </View>
-          <Pressable
-            hitSlop={6}
-            className="h-9 w-9 items-center justify-center rounded-[8px] border border-border bg-card active:bg-muted dark:border-dark-border dark:bg-dark-card"
-          >
-            <Bell size={18} color="#707070" />
-          </Pressable>
+          {bell}
         </View>
       ) : null}
       {wide ? (
         <View className="flex-row items-center justify-between border-b border-border bg-card px-[22px] py-1 dark:border-dark-border dark:bg-dark-card">
           <Text className="text-[18px] font-bold text-foreground dark:text-dark-foreground">ภาพรวม</Text>
-          <UnderlineTabs
-            fill={false}
-            tabs={PERIODS.map((p) => ({ key: p.key, label: p.label }))}
-            value={period}
-            onChange={setPeriod}
-            className="border-b-0"
-          />
+          <View className="flex-row items-center gap-3">
+            <UnderlineTabs
+              fill={false}
+              tabs={PERIODS.map((p) => ({ key: p.key, label: p.label }))}
+              value={period}
+              onChange={setPeriod}
+              className="border-b-0"
+            />
+            {bell}
+          </View>
         </View>
       ) : null}
       <ScrollView
         contentContainerClassName={wide ? 'p-5 gap-4' : 'p-3.5 gap-3'}
-        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor="#D25E3B" />}
+        refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={t.primary} />}
       >
         {wide ? (
           <View className="flex-row gap-4">
@@ -334,7 +349,7 @@ export default function DashboardScreen() {
                   className="basis-[47%] grow justify-center rounded-[10px] border border-border bg-card p-3.5 dark:border-dark-border dark:bg-dark-card"
                 >
                   <Text className="text-[10px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">{st.label}</Text>
-                  <Text numberOfLines={1} adjustsFontSizeToFit className={`text-[26px] font-bold ${st.amber ? 'text-warning' : 'text-foreground dark:text-dark-foreground'}`}>
+                  <Text numberOfLines={1} adjustsFontSizeToFit className={`text-[26px] font-bold ${st.amber ? 'text-warning dark:text-dark-warning' : 'text-foreground dark:text-dark-foreground'}`}>
                     {st.value}
                   </Text>
                 </View>
@@ -376,6 +391,28 @@ function hourBars(hourly: { hour: number; revenue: number }[]) {
   return hourly
     .filter((h) => h.hour >= first && h.hour <= last)
     .map((h) => ({ label: String(h.hour).padStart(2, '0'), value: h.revenue }));
+}
+
+/** Bell with an "orders waiting" badge; taps through to the KDS when the role may open it. */
+function NotificationBell({ count, onPress }: { count: number; onPress?: () => void }) {
+  const t = useThemeColors();
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={count > 0 ? `ออเดอร์รอทำ ${count} รายการ` : 'ไม่มีออเดอร์รอทำ'}
+      className="h-11 w-11 items-center justify-center rounded-[8px] border border-border bg-card active:bg-muted dark:border-dark-border dark:bg-dark-card dark:active:bg-dark-muted"
+    >
+      <Bell size={20} color={count > 0 ? t.primary : t.mutedForeground} />
+      {count > 0 ? (
+        <View className="absolute -right-1.5 -top-1.5 h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 dark:bg-dark-danger">
+          <Text className="text-[10px] font-bold text-white dark:text-dark-background">{count > 99 ? '99+' : count}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
 }
 
 function ActionRow({ color, title, sub }: { color: string; title: string; sub?: string }) {

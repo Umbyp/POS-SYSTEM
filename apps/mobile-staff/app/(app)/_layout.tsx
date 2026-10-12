@@ -5,12 +5,14 @@ import { useOrderRealtime } from '@/hooks/useOrderRealtime';
 import { useOfflineSync } from '@/hooks/useOfflineSync';
 import { usePrintQueue } from '@/hooks/usePrintQueue';
 import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { SidebarNav } from '@/components/SidebarNav';
 
 export default function AppLayout() {
   const { user, isLoading } = useRequireAuth();
   const isTablet = useIsTablet();
+  const t = useThemeColors();
   useOrderRealtime();
   useOfflineSync();
   usePrintQueue();
@@ -18,7 +20,7 @@ export default function AppLayout() {
   if (isLoading || !user) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color="#D25E3B" />
+        <ActivityIndicator color={t.primary} />
       </View>
     );
   }
@@ -27,9 +29,10 @@ export default function AppLayout() {
     <Stack screenOptions={{
         headerShown: true,
         headerShadowVisible: false,
-        headerStyle: { backgroundColor: '#FFFFFF' },
-        headerTitleStyle: { fontSize: 16, fontWeight: '700', color: '#1F1F1F' },
-        headerTintColor: '#D25E3B',
+        headerStyle: { backgroundColor: t.card },
+        contentStyle: { backgroundColor: t.background },
+        headerTitleStyle: { fontSize: 16, fontWeight: '700', color: t.foreground },
+        headerTintColor: t.primary,
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="orders" options={{ headerShown: false }} />

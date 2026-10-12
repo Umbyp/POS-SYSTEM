@@ -8,6 +8,11 @@ import {
   pointsEnabled, stampsEnabled,
 } from './points.service';
 import { dispatchKitchenPrint, dispatchReceiptPrint } from '../printers/printers.service';
+import {
+  allocateDiscounts, capLineDiscount, resolvePromotion, consumePromotionUse, claimRedemption,
+  attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView,
+} from './checkout-discounts';
+import { recordIdempotencyKey } from './idempotency';
 
 interface CreateOrderInput {
   storeId: string;
@@ -28,6 +33,10 @@ interface CreateOrderInput {
   promotionId?: string;
   promotionDiscount?: number;
   promotionName?: string;
+  /** Code of an ACTIVE loyalty RewardRedemption to apply to this bill. */
+  redemptionCode?: string;
+  /** Idempotency-Key / clientRequestId — see orders/idempotency.ts. */
+  idempotencyKey?: string;
   payments: {
     method: PaymentMethod;
     amount: number;
@@ -96,6 +105,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     // 2. คำนวณ + เช็คสต็อก (ของสินค้าเอง + วัตถุดิบจาก recipe)
     let subtotal = new Prisma.Decimal(0);
     const itemsData: any[] = [];
+    const pricedLines: { productId: string; quantity: number; unitPrice: number; categoryId?: string }[] = [];
 
     // ดึง recipes ของทุก product ในออเดอร์ (สำหรับเช็คสต็อกวัตถุดิบ)
     const allRecipes = await tx.recipeItem.findMany({
@@ -135,9 +145,10 @@ export async function create(input: CreateOrderInput, io: Server) {
         (s, v) => s + Number(v.priceDelta), 0
       );
       const unitPrice = new Prisma.Decimal(p.sellingPrice).plus(variantDelta);
-      const itemDiscount = new Prisma.Decimal(it.discount || 0);
+      const itemDiscount = capLineDiscount(unitPrice.mul(it.quantity), it.discount);
       const lineTotal = unitPrice.mul(it.quantity).minus(itemDiscount);
       subtotal = subtotal.plus(lineTotal);
+      pricedLines.push({ productId: p.id, quantity: it.quantity, unitPrice: unitPrice.toNumber(), categoryId: p.categoryId ?? undefined });
 
       itemsData.push({
         productId: p.id,
@@ -196,11 +207,24 @@ export async function create(input: CreateOrderInput, io: Server) {
       stampDiscount = new Prisma.Decimal(store.stampRewardValue);
     }
 
-    const promoDiscount = new Prisma.Decimal(input.promotionDiscount || 0);
-    const orderDiscount = new Prisma.Decimal(input.discount || 0)
-      .plus(pointDiscount)
-      .plus(stampDiscount)
-      .plus(promoDiscount);
+    // โปรโมชั่น: คำนวณใหม่ฝั่งเซิร์ฟเวอร์ ไม่เชื่อยอดที่ client ส่งมา
+    const resolvedPromo = await resolvePromotion(tx, {
+      storeId: input.storeId, promotionId: input.promotionId, promotionDiscount: input.promotionDiscount,
+      items: pricedLines, subtotal, customerId: input.customerId,
+    });
+    // โค้ดรางวัล (RewardRedemption): claim แบบ atomic ใน transaction เดียวกับบิล
+    const claimed = input.redemptionCode
+      ? await claimRedemption(tx, input.storeId, input.redemptionCode)
+      : null;
+
+    const { applied, total: orderDiscount } = allocateDiscounts(subtotal, {
+      manual: new Prisma.Decimal(input.discount || 0),
+      promo: resolvedPromo?.discount,
+      reward: claimed?.amount,
+      stamp: stampDiscount,
+      points: pointDiscount,
+    });
+    const promoDiscount = applied.promo;
     const afterDiscount = Prisma.Decimal.max(0, subtotal.minus(orderDiscount));
     const rate = new Prisma.Decimal(store.taxRate);
     const serviceCharge = afterDiscount.mul(store.serviceCharge).div(100);
@@ -238,8 +262,8 @@ export async function create(input: CreateOrderInput, io: Server) {
         subtotal,
         discount: orderDiscount,
         promotionDiscount: promoDiscount,
-        promotionId: input.promotionId,
-        promotionName: input.promotionName,
+        promotionId: resolvedPromo?.promotionId,
+        promotionName: resolvedPromo?.promotionName,
         tax,
         serviceCharge,
         total,
@@ -247,7 +271,7 @@ export async function create(input: CreateOrderInput, io: Server) {
         pointsEarned: earnedPoints,
         stampsEarned: earnedStamps,
         stampsRedeemed: stampsToRedeem,
-        notes: input.notes,
+        notes: joinNotes(input.notes, claimed ? redemptionNote(claimed, applied.reward) : undefined),
         guestCount: input.guestCount,
         customerName: input.customerName,
         customerTaxId: input.customerTaxId,
@@ -273,6 +297,9 @@ export async function create(input: CreateOrderInput, io: Server) {
         table: true,
       },
     });
+
+    if (claimed) await attachRedemptionToOrder(tx, claimed.id, order.id);
+    if (input.idempotencyKey) await recordIdempotencyKey(tx, input.storeId, 'orders:create', input.idempotencyKey, order.id);
 
     // 6. ตัดสต็อก + log movement
     // 6a. ตัดสต็อกของสินค้าเอง + วัตถุดิบจาก recipe (รวมเป็น batch)
@@ -419,12 +446,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     }
 
     // 8c. Increment promotion usage
-    if (input.promotionId) {
-      await tx.promotion.update({
-        where: { id: input.promotionId },
-        data: { usageCount: { increment: 1 } },
-      }).catch(() => {});
-    }
+    if (resolvedPromo) await consumePromotionUse(tx, resolvedPromo.promotionId);
 
     // 9. Emit realtime
     io.to(`store:${input.storeId}`).emit('order:created', order);
@@ -434,7 +456,7 @@ export async function create(input: CreateOrderInput, io: Server) {
       io.to(`store:${input.storeId}`).emit('table:updated', updatedTable);
     }
 
-    return order;
+    return Object.assign(order, { appliedReward: appliedRewardView(claimed, applied.reward) });
   });
 
   dispatchKitchenPrint(order, {
@@ -495,9 +517,9 @@ export async function list(storeId: string, query: any) {
   return { data, total, limit: take, offset: skip };
 }
 
-export async function getById(id: string) {
-  const order = await prisma.order.findUnique({
-    where: { id },
+export async function getById(id: string, storeId?: string) {
+  const order = await prisma.order.findFirst({
+    where: { id, ...(storeId ? { storeId } : {}) },
     include: {
       items: { include: { product: true } },
       payments: true,
@@ -511,7 +533,11 @@ export async function getById(id: string) {
   return order;
 }
 
-export async function updateStatus(id: string, status: OrderStatus, io: Server) {
+export async function updateStatus(id: string, status: OrderStatus, io: Server, storeId?: string) {
+  if (storeId) {
+    const own = await prisma.order.findFirst({ where: { id, storeId }, select: { id: true } });
+    if (!own) throw NotFound('Order not found');
+  }
   const order = await prisma.order.update({
     where: { id },
     data: { status, ...(status === 'COMPLETED' ? { completedAt: new Date() } : {}) },
@@ -541,10 +567,10 @@ export async function updateStatus(id: string, status: OrderStatus, io: Server) 
   return order;
 }
 
-export async function refund(id: string, userId: string, io: Server) {
+export async function refund(id: string, userId: string, io: Server, storeId?: string) {
   return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id },
+    const order = await tx.order.findFirst({
+      where: { id, ...(storeId ? { storeId } : {}) },
       include: { items: { include: { product: { include: { inventory: true } } } } },
     });
     if (!order) throw NotFound('Order not found');
@@ -608,13 +634,14 @@ export async function refundItems(
   orderId: string,
   userId: string,
   input: { items: Array<{ orderItemId: string; qty: number; reason?: string }> },
-  io: Server
+  io: Server,
+  storeId?: string,
 ) {
   if (!input.items?.length) throw BadRequest('No items to refund');
 
   return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
+    const order = await tx.order.findFirst({
+      where: { id: orderId, ...(storeId ? { storeId } : {}) },
       include: { items: { include: { product: { include: { inventory: true } } } } },
     });
     if (!order) throw NotFound('Order not found');
@@ -802,9 +829,9 @@ export async function listParked(storeId: string) {
 }
 
 /** Delete a parked order (cancel without checkout) */
-export async function deleteParked(id: string, userId: string, io: Server) {
+export async function deleteParked(id: string, userId: string, io: Server, storeId?: string) {
   return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({ where: { id } });
+    const order = await tx.order.findFirst({ where: { id, ...(storeId ? { storeId } : {}) } });
     if (!order) throw NotFound('Order not found');
     if (order.status !== 'DRAFT') throw BadRequest('Only DRAFT orders can be deleted');
 
@@ -826,10 +853,19 @@ export async function deleteParked(id: string, userId: string, io: Server) {
 
 export async function generateOrderNumber(tx: any, storeId: string): Promise<string> {
   const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const count = await tx.order.count({
-    where: { storeId, createdAt: { gte: startOfDay } },
+  const prefix = `ORD-${today}-`;
+  // Two bills created at the same moment (a busy lunch, or a mobile retry) used
+  // to read the same count and collide on the (storeId, orderNumber) unique
+  // index → 500. Serialise numbering per store for the rest of this transaction
+  // with a transaction-scoped advisory lock, and derive the next number from the
+  // highest one already issued today (a count would reuse a number after a
+  // parked order is deleted).
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'ordnum:' + storeId}))`;
+  const last = await tx.order.findFirst({
+    where: { storeId, orderNumber: { startsWith: prefix } },
+    orderBy: { orderNumber: 'desc' },
+    select: { orderNumber: true },
   });
-  return `ORD-${today}-${String(count + 1).padStart(4, '0')}`;
+  const lastSeq = last ? parseInt(last.orderNumber.slice(prefix.length), 10) : 0;
+  return `${prefix}${String((Number.isFinite(lastSeq) ? lastSeq : 0) + 1).padStart(4, '0')}`;
 }

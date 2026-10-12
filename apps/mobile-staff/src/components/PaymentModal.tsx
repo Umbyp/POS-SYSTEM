@@ -7,7 +7,9 @@ import NetInfo from '@react-native-community/netinfo';
 import { X, Banknote, QrCode, ScanLine, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
-import { computeTotals } from '@/lib/pricing';
+import { useCartPricing } from '@/hooks/useCartPricing';
+import { useCart } from '@/stores/cart.store';
+import { uuid } from '@/lib/uuid';
 import QRCode from 'react-native-qrcode-svg';
 import { Button } from '@/components/Button';
 import { generatePromptPayPayload } from '@/lib/promptpay';
@@ -26,6 +28,14 @@ interface SlipVerifyResult {
   raw?: string;
 }
 
+/** Server's echo of a redeemed reward code (see api checkout-discounts.ts appliedRewardView). */
+export interface AppliedReward {
+  code: string;
+  name: string;
+  kind: 'DISCOUNT' | 'FREE_ITEM';
+  discountApplied: number;
+}
+
 export type PaymentMode =
   | { kind: 'settle'; orderId: string }
   | { kind: 'new'; type: OrderType; tableId?: string; guestCount?: number; items: CartItem[] };
@@ -34,7 +44,7 @@ interface PaymentModalProps {
   visible: boolean;
   mode: PaymentMode | null;
   onClose: () => void;
-  onSuccess: (order: { id: string; orderNumber: string; total: string }) => void;
+  onSuccess: (order: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null }) => void;
   /** Payment couldn't reach the server and was queued for later — no order
    * data to show yet, so the caller should skip the receipt/success screen. */
   onQueuedOffline: () => void;
@@ -93,18 +103,17 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
     enabled: visible,
   });
 
+  // One shared pricing path with the cart panel (discount / promotion / points / reward code), so the
+  // amount quoted here equals what the server computes and enforces ("เงินไม่พอ" otherwise).
+  const pricing = useCartPricing(isSettle ? order : null);
+  const { discounts, adjustmentFields } = pricing;
+  const redemption = useCart((s) => s.redemption);
+  const manualDiscount = useCart((s) => s.manualDiscount);
   const amountDue = useMemo(() => {
-    if (mode?.kind === 'settle') return order ? Number(order.total) : null;
-    if (mode?.kind === 'new') {
-      // Fall back to the last-known tax config when offline from launch (no
-      // live /stores/me response yet) — see storeConfig.store.
-      const taxConfig = store ?? cachedStoreConfig;
-      if (!taxConfig) return null;
-      const subtotal = mode.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-      return computeTotals(subtotal, taxConfig).total;
-    }
-    return null;
-  }, [mode, order, store, cachedStoreConfig]);
+    if (mode?.kind === 'settle' && !order) return null;
+    if (!mode) return null;
+    return pricing.totals ? pricing.totals.total : null;
+  }, [mode, order, pricing.totals]);
 
   // PromptPay has two modes (same split as the web POS): Stripe-generated QR that confirms itself,
   // or — when the store has no Stripe but has a PromptPay ID — a direct-to-account QR that the
@@ -215,20 +224,23 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
   ) {
     if (!mode) return;
     setSubmitting(true);
+    const idempotencyKey = uuid();
     const payload =
       mode.kind === 'settle'
-        ? { payments }
+        ? { payments, ...adjustmentFields }
         : {
             type: mode.type,
             tableId: mode.tableId,
             ...(mode.guestCount ? { guestCount: mode.guestCount } : {}),
             items: mode.items.map(toOrderItem),
             payments,
+            ...adjustmentFields,
+            ...(manualDiscount?.reason ? { notes: `ส่วนลด: ${manualDiscount.reason}` } : {}),
           };
 
     function queueOffline() {
       if (mode!.kind === 'settle') useOfflineQueue.getState().enqueueSettle(mode!.orderId, payload);
-      else useOfflineQueue.getState().enqueueOrder(payload);
+      else useOfflineQueue.getState().enqueueOrder(payload, idempotencyKey);
       onQueuedOffline();
     }
 
@@ -241,11 +253,11 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
         return;
       }
 
-      let result: { id: string; orderNumber: string; total: string };
+      let result: { id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null };
       if (mode.kind === 'settle') {
         result = (await api.post(`/orders/${mode.orderId}/settle`, payload)).data;
       } else {
-        result = (await api.post('/orders', payload)).data;
+        result = (await api.post('/orders', payload, { headers: { 'Idempotency-Key': idempotencyKey } })).data;
       }
       qc.invalidateQueries({ queryKey: ['orders'] });
       qc.invalidateQueries({ queryKey: ['kds-orders'] });
@@ -282,6 +294,15 @@ export function PaymentModal({ visible, mode, onClose, onSuccess, onQueuedOfflin
           <Text className="text-metric-lg text-foreground dark:text-dark-foreground">
             {amountDue != null ? formatCurrency(amountDue) : '—'}
           </Text>
+          {discounts.total > 0 ? (
+            <Text className="mt-1 text-[12px] font-medium text-primary dark:text-primary-400">
+              รวมส่วนลด −{formatCurrency(discounts.total)}
+              {discounts.points > 0 ? ` (ใช้ ${discounts.points.toLocaleString()} แต้ม)` : ''}
+            </Text>
+          ) : null}
+          {redemption?.kind === 'FREE_ITEM' ? (
+            <Text className="mt-1 text-[12px] font-medium text-primary dark:text-primary-400">มอบของรางวัล: {redemption.rewardName}</Text>
+          ) : null}
         </View>
 
         <View className="flex-row gap-2 px-4">

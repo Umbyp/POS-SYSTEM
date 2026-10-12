@@ -46,3 +46,24 @@ export class PrismaRateLimitStore implements Store {
     await prisma.rateLimitCounter.deleteMany({ where: { key } });
   }
 }
+
+/**
+ * Atomic attempt counter on the same RateLimitCounter table, for limits that
+ * are keyed on something other than the client IP (e.g. a phone number).
+ * One INSERT … ON CONFLICT statement, so concurrent attempts can't slip past
+ * the limit through a read-then-write race (unlike PrismaRateLimitStore).
+ */
+export async function hitCounter(
+  key: string,
+  windowMs: number,
+): Promise<{ count: number; resetAt: Date }> {
+  const resetAt = new Date(Date.now() + windowMs);
+  const rows = await prisma.$queryRaw<{ count: number; resetAt: Date }[]>`
+    INSERT INTO "RateLimitCounter" ("key", "count", "resetAt")
+    VALUES (${key}, 1, ${resetAt})
+    ON CONFLICT ("key") DO UPDATE SET
+      "count"   = CASE WHEN "RateLimitCounter"."resetAt" <= NOW() THEN 1 ELSE "RateLimitCounter"."count" + 1 END,
+      "resetAt" = CASE WHEN "RateLimitCounter"."resetAt" <= NOW() THEN ${resetAt} ELSE "RateLimitCounter"."resetAt" END
+    RETURNING "count", "resetAt"`;
+  return { count: Number(rows[0].count), resetAt: rows[0].resetAt };
+}

@@ -90,7 +90,7 @@ export default function TableQrPrintPage() {
       <div className="flex items-center justify-center p-6 sm:p-10 print:p-0 print:min-h-0">
         {/* The card. print-color-adjust:exact lets the tint accents print too. */}
         <div
-          className="w-full max-w-sm bg-card border border-border rounded-[28px] overflow-hidden shadow-card print:shadow-none"
+          className="w-full max-w-sm bg-card border border-border rounded-2xl overflow-hidden print:shadow-none"
           style={{ WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' } as React.CSSProperties}
         >
           {/* Accent top rule (border prints reliably) */}
@@ -115,7 +115,7 @@ export default function TableQrPrintPage() {
             </div>
 
             {/* Table number — outlined so it survives black & white printing */}
-            <div className="mt-5 inline-flex items-baseline gap-2 rounded-2xl border-2 border-primary px-5 py-2">
+            <div className="mt-5 inline-flex items-baseline gap-2 rounded-xl border-2 border-primary px-5 py-2">
               <span className="text-sm font-medium text-primary/80 uppercase tracking-wide">
                 {both('tableQr.tableLabel').th} / {both('tableQr.tableLabel').en}
               </span>

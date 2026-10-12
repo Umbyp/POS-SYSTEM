@@ -4,6 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered, GRID_MAX } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { formatDate } from '@/lib/format';
 import type { ActivityLogEntry } from '@/types/backoffice';
 
@@ -32,6 +35,8 @@ const ACTION_LABEL: Record<string, string> = {
 };
 
 export default function ActivityScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const [action, setAction] = useState<string | undefined>(undefined);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
@@ -47,13 +52,13 @@ export default function ActivityScreen() {
         data={ACTIONS}
         keyExtractor={(a) => a.key ?? 'all'}
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-        style={{ flexGrow: 0, marginVertical: 10 }}
+        style={{ flexGrow: 0, marginVertical: 10, ...centered(isTablet) }}
         renderItem={({ item }) => (
           <Pressable
             onPress={() => setAction(item.key)}
-            className={`rounded-full border px-3.5 py-1.5 ${action === item.key ? 'border-primary/40 bg-primary-50' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
+            className={`min-h-[36px] justify-center rounded-full border px-3.5 py-1.5 ${action === item.key ? 'border-primary/40 bg-primary-50 dark:bg-dark-muted' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
           >
-            <Text className={`text-[13px] font-medium ${action === item.key ? 'text-primary' : 'text-foreground dark:text-dark-foreground'}`}>
+            <Text className={`text-[13px] font-medium ${action === item.key ? 'text-primary dark:text-primary-400' : 'text-foreground dark:text-dark-foreground'}`}>
               {item.label}
             </Text>
           </Pressable>
@@ -62,18 +67,18 @@ export default function ActivityScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
         <FlatList
           data={data?.data ?? []}
           keyExtractor={(l) => l.id}
-          contentContainerStyle={{ padding: 16, gap: 8 }}
+          contentContainerStyle={{ padding: 16, gap: 8, ...centered(isTablet) }}
           refreshing={isRefetching}
           onRefresh={refetch}
           ListEmptyComponent={
             <View className="items-center py-16 gap-2">
-              <History size={28} color="#9CA3AF" />
+              <History size={28} color={t.faint} />
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ไม่มีประวัติ</Text>
             </View>
           }

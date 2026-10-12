@@ -42,9 +42,9 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
   return (
     <Pressable
       onPress={onPress}
-      className={`rounded-full border px-3 py-1.5 ${on ? 'border-primary bg-primary-50' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
+      className={`rounded-full border px-3 py-1.5 ${on ? 'border-primary bg-primary-50 dark:bg-dark-muted' : 'border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
     >
-      <Text className={`text-[12px] font-medium ${on ? 'text-primary' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{label}</Text>
+      <Text className={`text-[12px] font-medium ${on ? 'text-primary dark:text-primary-400' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -56,7 +56,7 @@ function SmallButton({ label, onPress, primary, disabled }: { label: string; onP
       disabled={disabled}
       className={`rounded-lg px-3 py-2 ${primary ? 'bg-primary' : 'border border-primary bg-card dark:bg-dark-card'} ${disabled ? 'opacity-50' : ''}`}
     >
-      <Text className={`text-[12px] font-semibold ${primary ? 'text-white' : 'text-primary'}`}>{label}</Text>
+      <Text className={`text-[12px] font-semibold ${primary ? 'text-white' : 'text-primary dark:text-primary-400'}`}>{label}</Text>
     </Pressable>
   );
 }
@@ -183,12 +183,12 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
             <View key={p.id}>{formView}</View>
           ) : (
             <View key={p.id} className="flex-row items-center gap-3 rounded-lg border border-border dark:border-dark-border p-3">
-              <View className={`h-2.5 w-2.5 rounded-full ${!p.isActive ? 'bg-[#BDBDBD]' : p.status === 'ok' ? 'bg-[#047857]' : 'bg-[#B91C1C]'}`} />
+              <View className={`h-2.5 w-2.5 rounded-full ${!p.isActive ? 'bg-[#BDBDBD] dark:bg-[#6B6B6B]' : p.status === 'ok' ? 'bg-success dark:bg-dark-success' : 'bg-danger dark:bg-dark-danger'}`} />
               <View className="flex-1">
                 <Text className="text-[14px] font-semibold text-foreground dark:text-dark-foreground">
                   {p.name}{p.role === 'RECEIPT' ? ' (ใบเสร็จ)' : ''}{!p.isActive ? ' · ปิดใช้งาน' : ''}
                 </Text>
-                <Text className={`text-[11px] ${p.status === 'error' ? 'text-[#B91C1C]' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
+                <Text className={`text-[11px] ${p.status === 'error' ? 'text-danger dark:text-dark-danger' : 'text-muted-foreground dark:text-dark-muted-foreground'}`}>
                   {p.ip}:{p.port}
                   {p.status === 'error'
                     ? ` · ค้าง ${p.stuckJobs} งาน`
@@ -235,7 +235,7 @@ export function PrintersSection({ canEdit }: { canEdit: boolean }) {
         <SectionCard title={`คิวงานพิมพ์ — ค้าง ${stuck.length} งาน`}>
           {stuck.map((j) => (
             <View key={j.id} className="flex-row items-center gap-3">
-              <View className="h-8 w-1 rounded bg-[#B91C1C]" />
+              <View className="h-8 w-1 rounded bg-danger dark:bg-dark-danger" />
               <View className="flex-1">
                 <Text className="text-[13px] font-semibold text-foreground dark:text-dark-foreground">
                   {j.kind === 'RECEIPT' ? 'ใบเสร็จ' : 'ใบครัว'} #{j.orderNumber?.split('-').pop() ?? '—'} → {j.printer.name}

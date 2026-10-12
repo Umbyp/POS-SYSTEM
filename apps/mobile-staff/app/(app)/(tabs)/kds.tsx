@@ -1,11 +1,15 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Platform, View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Platform, View, Text, FlatList, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChefHat, Printer } from 'lucide-react-native';
+import { BellRing, ChefHat, Printer, Volume2, VolumeX } from 'lucide-react-native';
 import { api } from '@/lib/api';
 import { formatTime } from '@/lib/format';
 import { SpineGauge } from '@/components/Spine';
+import { useKdsOrders } from '@/hooks/useKdsOrders';
+import { useNewOrderAlert } from '@/hooks/useNewOrderAlert';
+import { useKdsAlert } from '@/stores/kdsAlert.store';
+import { useSocketStatus } from '@/lib/socket';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { printKitchenTicket, PrinterError } from '@/lib/printer';
 import type { Order, OrderStatus } from '@/types/pos';
@@ -40,14 +44,34 @@ export default function KdsScreen() {
   const [tab, setTab] = useState<OrderStatus>('PENDING');
   const [printingId, setPrintingId] = useState<string | null>(null);
 
-  const { data, isLoading, refetch, isRefetching, isError } = useQuery({
-    queryKey: ['kds-orders'],
-    queryFn: async () => {
-      const res = await api.get('/orders', { params: { status: 'PENDING,PREPARING,READY', limit: 150 } });
-      return res.data as { data: Order[] };
-    },
-    refetchInterval: 10000,
-  });
+  const { data, isLoading, refetch, isRefetching, isError } = useKdsOrders();
+  const socketStatus = useSocketStatus();
+  const muted = useKdsAlert((s) => s.muted);
+  const setMuted = useKdsAlert((s) => s.setMuted);
+  const { newCount, dismiss } = useNewOrderAlert(data?.data);
+
+  // Pulse the "new order" banner while it's visible.
+  const pulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (newCount === 0) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 0.55, duration: 450, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 450, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+      pulse.setValue(1);
+    };
+  }, [newCount > 0, pulse]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Real connection state: socket down OR the HTTP poll failing => not live.
+  const live: 'ok' | 'connecting' | 'down' =
+    isError || socketStatus === 'disconnected' ? 'down' : socketStatus === 'connecting' ? 'connecting' : 'ok';
+  const dotColor = live === 'ok' ? '#4ADE80' : live === 'connecting' ? '#FBBF24' : '#F87171';
+  const liveLabel = live === 'ok' ? 'เชื่อมต่อแล้ว' : live === 'connecting' ? 'กำลังเชื่อมต่อ…' : 'ขาดการเชื่อมต่อ';
 
   const { data: store } = useQuery({
     queryKey: ['store-me'],
@@ -103,18 +127,53 @@ export default function KdsScreen() {
             );
           })}
         </View>
-        {isTablet ? (
-          <View className="flex-row items-center gap-3.5">
-            <View className="flex-row items-center gap-1.5">
-              <View style={{ backgroundColor: isError ? '#F87171' : '#4ADE80' }} className="h-2 w-2 rounded-full" />
-              <Text style={{ color: K.muted }} className="text-[13px] font-semibold">{isError ? 'ขาดการเชื่อมต่อ' : 'เชื่อมต่อแล้ว'}</Text>
-            </View>
-            <Text style={{ color: K.muted }} className="text-[13px] font-semibold">{formatTime(new Date(now).toISOString())}</Text>
-          </View>
-        ) : (
-          <View style={{ backgroundColor: isError ? '#F87171' : '#4ADE80' }} className="h-2 w-2 rounded-full" />
-        )}
+        <View className="flex-row items-center gap-3.5">
+          <Pressable
+            onPress={() => setMuted(!muted)}
+            hitSlop={10}
+            accessibilityLabel={muted ? 'เปิดการสั่นเตือนออเดอร์ใหม่' : 'ปิดการสั่นเตือนออเดอร์ใหม่'}
+            className="h-9 w-9 items-center justify-center"
+          >
+            {muted ? <VolumeX size={20} color={K.muted} /> : <Volume2 size={20} color={K.accent} />}
+          </Pressable>
+          {isTablet ? (
+            <>
+              <View className="flex-row items-center gap-1.5">
+                <View style={{ backgroundColor: dotColor }} className="h-2 w-2 rounded-full" />
+                <Text style={{ color: K.muted }} className="text-[13px] font-semibold">{liveLabel}</Text>
+              </View>
+              <Text style={{ color: K.muted }} className="text-[13px] font-semibold">{formatTime(new Date(now).toISOString())}</Text>
+            </>
+          ) : (
+            <View style={{ backgroundColor: dotColor }} className="h-2.5 w-2.5 rounded-full" accessibilityLabel={liveLabel} />
+          )}
+        </View>
       </View>
+
+      {newCount > 0 ? (
+        <Pressable
+          onPress={() => {
+            setTab('PENDING');
+            dismiss();
+          }}
+        >
+          <Animated.View
+            style={{ opacity: pulse }}
+            className="flex-row items-center justify-center gap-2 bg-primary px-4 py-2.5"
+          >
+            <BellRing size={18} color="#FFFFFF" />
+            <Text className="text-[15px] font-bold text-white">ออเดอร์ใหม่ {newCount} รายการ</Text>
+          </Animated.View>
+        </Pressable>
+      ) : null}
+
+      {live === 'down' ? (
+        <View style={{ backgroundColor: '#3B1D1D' }} className="px-4 py-1.5">
+          <Text style={{ color: '#F87171' }} className="text-center text-[12px] font-semibold">
+            ขาดการเชื่อมต่อ — ออเดอร์อาจไม่อัปเดตจนกว่าจะเชื่อมต่อใหม่
+          </Text>
+        </View>
+      ) : null}
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">

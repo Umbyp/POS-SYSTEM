@@ -9,6 +9,9 @@ import { api } from '@/lib/api';
 import { useAuthStore, type Role } from '@/stores/auth.store';
 import { DEFAULT_ROUTE } from '@/constants/nav';
 import { Button } from '@/components/Button';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 
 interface PinStaff {
   id: string;
@@ -32,6 +35,8 @@ function initials(name: string) {
 }
 
 export default function PinScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const router = useRouter();
   const deviceToken = useAuthStore((s) => s.deviceToken);
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -94,10 +99,10 @@ export default function PinScreen() {
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
       <ScrollView contentContainerClassName="px-[26px] pb-6 pt-5 self-center w-full max-w-[420px]">
         <Text className="text-[22px] font-bold text-foreground dark:text-dark-foreground">เข้ากะ</Text>
-        <Text className="mt-1.5 text-[12px] text-[#A3A3A3]">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
+        <Text className="mt-1.5 text-[12px] text-muted-foreground dark:text-dark-muted-foreground">เลือกพนักงานแล้วใส่ PIN — ใช้เมื่อพนักงานสลับกันใช้เครื่องเดียวกัน</Text>
 
         <View className="mt-5 gap-[9px]">
-          {staff.isLoading ? <ActivityIndicator /> : null}
+          {staff.isLoading ? <ActivityIndicator color={t.primary} /> : null}
           {staff.data?.length === 0 ? (
             <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ยังไม่มีพนักงานที่ตั้ง PIN ไว้</Text>
           ) : null}
@@ -118,7 +123,7 @@ export default function PinScreen() {
                   <Text className="text-[15px] font-semibold text-foreground dark:text-dark-foreground">{s.name}</Text>
                   <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">{ROLE_LABEL[s.role]}</Text>
                 </View>
-                {on ? <Text className="text-[14px] font-bold text-primary">✓</Text> : null}
+                {on ? <Text className="text-[14px] font-bold text-primary dark:text-primary-400">✓</Text> : null}
               </Pressable>
             );
           })}
@@ -129,7 +134,7 @@ export default function PinScreen() {
             <View key={i} className={`h-[15px] w-[15px] rounded-full ${i < pin.length ? 'bg-primary' : 'bg-border dark:bg-dark-border'}`} />
           ))}
         </View>
-        <Text className="mb-3 h-[18px] text-center text-[12px] font-medium text-[#B91C1C]">{error}</Text>
+        <Text className="mb-3 h-[18px] text-center text-[12px] font-medium text-danger dark:text-dark-danger">{error}</Text>
 
         <View className="flex-row flex-wrap justify-between gap-y-2.5 pb-4">
           {KEYS.map((k) => {
@@ -146,7 +151,7 @@ export default function PinScreen() {
                 {k === 'email' ? (
                   <Text className="text-[12px] font-semibold text-muted-foreground dark:text-dark-muted-foreground">ใช้อีเมล</Text>
                 ) : k === 'del' ? (
-                  <Delete size={22} color="#707070" />
+                  <Delete size={22} color={t.mutedForeground} />
                 ) : (
                   <Text className="text-[22px] font-semibold text-foreground dark:text-dark-foreground">{k}</Text>
                 )}

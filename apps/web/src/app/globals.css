@@ -28,26 +28,42 @@
     --info: 59 130 246;      /* #3B82F6 */
   }
 
-  /* Scoped warm palette for the customer-facing routes only (customer
-   * display, self-order page, table QR ticket) — never applied to the staff
-   * dashboard. These pages don't wire a dark-mode toggle, so this is the
-   * only palette they render, regardless of the visitor's OS theme. */
+  /* Scoped palette for the customer-facing routes only (self-order, member
+   * portal, customer display, ready board, table QR slip) — mirrors the staff
+   * mobile app: neutral grey page, white cards with hairline borders, one
+   * orange accent. Never applied to the staff dashboard. These pages don't
+   * wire a dark-mode toggle, so this is the only palette they render. */
   .customer-theme {
     color-scheme: light;
-    --background: 251 246 240;      /* #FBF6F0 */
+    --background: 245 245 245;      /* #F5F5F5 */
     --card: 255 255 255;
-    --card-hover: 242 233 224;      /* #F2E9E0 */
-    --muted: 242 233 224;           /* #F2E9E0 */
-    --muted-foreground: 122 106 92; /* #7A6A5C */
-    --border: 231 218 206;          /* #E7DACE */
+    --card-hover: 250 250 250;      /* #FAFAFA */
+    --muted: 243 243 243;           /* #F3F3F3 */
+    --muted-foreground: 112 112 112;/* #707070 */
+    --border: 230 230 230;          /* #E6E6E6 */
     --input: 255 255 255;
-    --foreground: 43 31 23;         /* #2B1F17 */
-    --primary: 201 98 46;           /* #C9622E */
+    --foreground: 31 31 31;         /* #1F1F1F */
+    --primary: 210 94 59;           /* #D25E3B */
+    --primary-tint: 243 229 226;    /* #F3E5E2 */
+    --primary-dark: 184 75 43;      /* #B84B2B */
     --success: 4 120 87;            /* #047857 */
     --warning: 180 83 9;            /* #B45309 */
     --danger: 185 28 28;            /* #B91C1C */
     --info: 29 78 216;              /* #1D4ED8 */
   }
+
+  /* Tighter radii + flat cards inside the customer theme (mobile app uses
+   * ~8-10px). Both selectors so portalled roots that carry the class
+   * themselves (e.g. the redeem dialog) are covered too. */
+  .customer-theme.rounded-3xl, .customer-theme .rounded-3xl,
+  .customer-theme.rounded-\[28px\], .customer-theme .rounded-\[28px\] { border-radius: 12px; }
+  .customer-theme.rounded-2xl, .customer-theme .rounded-2xl,
+  .customer-theme.rounded-\[14px\], .customer-theme .rounded-\[14px\] { border-radius: 10px; }
+  .customer-theme.rounded-xl, .customer-theme .rounded-xl,
+  .customer-theme.rounded-lg, .customer-theme .rounded-lg { border-radius: 8px; }
+  .customer-theme .rounded-t-3xl { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+  .customer-theme .shadow-card, .customer-theme.shadow-card { box-shadow: none; }
+  .customer-theme .shadow-pop { box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.18); }
 
   .dark {
     color-scheme: dark;

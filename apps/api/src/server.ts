@@ -4,6 +4,7 @@ import app from './app';
 import { env } from './config/env';
 import { initSocket } from './socket';
 import { logger } from './utils/logger';
+import { prisma } from './config/prisma';
 
 const httpServer = createServer(app);
 
@@ -34,8 +35,34 @@ httpServer.listen(port, () => {
 // Supabase pg_cron job hitting POST /api/internal/expire-points once a day,
 // instead of an in-process setInterval — see internal.routes.ts.
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down...');
-  httpServer.close(() => process.exit(0));
+// Graceful shutdown: stop taking new connections, let in-flight requests and
+// sockets finish, release the DB pool, and force-exit if that stalls (Render
+// sends SIGKILL ~30s after SIGTERM anyway). Guarded so a second signal is a no-op.
+let shuttingDown = false;
+function shutdown(signal: string, code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  logger.info(`${signal} received, shutting down...`);
+  const force = setTimeout(() => {
+    logger.error('Shutdown timed out, forcing exit');
+    process.exit(code || 1);
+  }, 10_000);
+  force.unref();
+  io.close(() => {
+    // io.close() also closes the underlying http server.
+    prisma.$disconnect().catch(() => {}).finally(() => process.exit(code));
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+// A rejected promise nobody awaited would otherwise crash Node (v15+) with no
+// context; log it and keep serving. An uncaught exception leaves the process in
+// an unknown state, so log it and exit non-zero for the supervisor to restart.
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'Unhandled promise rejection');
+});
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'Uncaught exception');
+  shutdown('uncaughtException', 1);
 });

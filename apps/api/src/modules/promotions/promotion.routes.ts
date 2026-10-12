@@ -30,13 +30,20 @@ const promotionSchema = z.object({
   usageLimit: z.number().int().positive().optional().nullable(),
 });
 
-// GET /promotions
+// GET /promotions            → every promotion of the store (admin list)
+// GET /promotions?active=true → only those usable RIGHT NOW (for the POS picker):
+//   isActive, inside startAt/endAt, today's weekday / current hour window,
+//   and usage limit not reached. Same row shape either way.
 router.get('/', async (req, res, next) => {
   try {
     const data = await prisma.promotion.findMany({
       where: { storeId: req.user!.storeId },
       orderBy: { createdAt: 'desc' },
     });
+    if (req.query.active === 'true' || req.query.active === '1') {
+      res.json(data.filter((p) => service.isUsableNow(p)));
+      return;
+    }
     res.json(data);
   } catch (e) { next(e); }
 });

@@ -15,14 +15,14 @@ export function Button({ label, variant = 'primary', loading, disabled, classNam
       className={`${isPrimary ? 'h-[50px]' : 'h-[46px]'} items-center justify-center rounded-[8px] ${
         isPrimary
           ? 'bg-primary active:bg-primary-600'
-          : 'border border-primary bg-card active:bg-primary-50 dark:bg-dark-card'
+          : 'border border-primary bg-card active:bg-primary-50 dark:bg-dark-card dark:active:bg-dark-muted'
       } ${disabled || loading ? 'opacity-50' : ''} ${className ?? ''}`}
       {...rest}
     >
       {loading ? (
         <ActivityIndicator color={isPrimary ? '#FFFFFF' : '#D25E3B'} />
       ) : (
-        <Text className={isPrimary ? 'text-[15px] font-bold text-white' : 'text-[14px] font-semibold text-primary'}>
+        <Text className={isPrimary ? 'text-[15px] font-bold text-white' : 'text-[14px] font-semibold text-primary dark:text-primary-400'}>
           {label}
         </Text>
       )}

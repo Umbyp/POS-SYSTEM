@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, Pressable, type TextInputProps } from 'react-native';
+import { useThemeColors } from '@/lib/theme';
 
 interface TextFieldProps extends TextInputProps {
   label: string;
@@ -7,6 +8,7 @@ interface TextFieldProps extends TextInputProps {
 }
 
 export function TextField({ label, error, className, secureTextEntry, ...rest }: TextFieldProps) {
+  const t = useThemeColors();
   const [revealed, setRevealed] = useState(false);
   const isSecret = !!secureTextEntry;
 
@@ -16,7 +18,9 @@ export function TextField({ label, error, className, secureTextEntry, ...rest }:
       <View className="justify-center">
         <TextInput
           className={`h-[48px] rounded-[8px] border border-border bg-input dark:border-dark-border dark:bg-dark-input px-3.5 text-[15px] text-foreground dark:text-dark-foreground focus:border-primary ${isSecret ? 'pr-16' : ''} ${className ?? ''}`}
-          placeholderTextColor="#A3A3A3"
+          placeholderTextColor={t.placeholder}
+          keyboardAppearance={t.isDark ? 'dark' : 'light'}
+          selectionColor={t.primary}
           secureTextEntry={isSecret && !revealed}
           {...rest}
         />
@@ -28,7 +32,7 @@ export function TextField({ label, error, className, secureTextEntry, ...rest }:
           </Pressable>
         ) : null}
       </View>
-      {error ? <Text className="text-[12px] text-danger">{error}</Text> : null}
+      {error ? <Text className="text-[12px] text-danger dark:text-dark-danger">{error}</Text> : null}
     </View>
   );
 }

@@ -5,6 +5,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { Plus, Users } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { centered, GRID_MAX } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { useAuthStore } from '@/stores/auth.store';
 import { EmployeeFormModal } from '@/components/EmployeeFormModal';
 import type { Employee } from '@/types/backoffice';
@@ -17,6 +20,8 @@ const ROLE_LABEL: Record<string, string> = {
 };
 
 export default function EmployeesScreen() {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const me = useAuthStore((s) => s.user);
   const [showForm, setShowForm] = useState(false);
@@ -37,9 +42,9 @@ export default function EmployeesScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['bottom', 'left', 'right']}>
-      <View className="flex-row items-center justify-between px-4 pt-3 pb-2">
+      <View style={centered(isTablet)} className="flex-row items-center justify-between px-4 pt-3 pb-2">
         <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">{employees.length} คน</Text>
-        <Pressable onPress={() => setShowForm(true)} className="h-10 flex-row items-center gap-1.5 rounded-lg bg-primary px-3.5">
+        <Pressable onPress={() => setShowForm(true)} className="h-11 flex-row items-center gap-1.5 rounded-lg bg-primary px-3.5">
           <Plus size={16} color="#FFFFFF" />
           <Text className="text-[13px] font-semibold text-white">เพิ่มพนักงาน</Text>
         </Pressable>
@@ -47,18 +52,18 @@ export default function EmployeesScreen() {
 
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color="#D25E3B" />
+          <ActivityIndicator color={t.primary} />
         </View>
       ) : (
         <FlatList
           data={employees}
           keyExtractor={(e) => e.id}
-          contentContainerStyle={{ padding: 16, gap: 8 }}
+          contentContainerStyle={{ padding: 16, gap: 8, ...centered(isTablet) }}
           refreshing={isRefetching}
           onRefresh={refetch}
           ListEmptyComponent={
             <View className="items-center py-16 gap-2">
-              <Users size={28} color="#9CA3AF" />
+              <Users size={28} color={t.faint} />
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">ยังไม่มีพนักงาน</Text>
             </View>
           }
@@ -67,7 +72,7 @@ export default function EmployeesScreen() {
             return (
               <View className="flex-row items-center justify-between rounded-lg border border-border bg-card dark:border-dark-border dark:bg-dark-card p-3.5">
                 <View className="flex-1">
-                  <Text className="text-[14px] font-medium text-foreground dark:text-dark-foreground">{item.name}</Text>
+                  <Text numberOfLines={1} className="text-[14px] font-medium text-foreground dark:text-dark-foreground">{item.name}</Text>
                   <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
                     {item.email} · {ROLE_LABEL[item.role] ?? item.role}
                   </Text>
@@ -76,7 +81,7 @@ export default function EmployeesScreen() {
                   <Switch
                     value={item.isActive}
                     onValueChange={(v) => toggleActive.mutate({ id: item.id, isActive: v })}
-                    trackColor={{ true: '#D25E3B' }}
+                    trackColor={{ true: t.primary, false: t.isDark ? '#3A3A3A' : undefined }}
                   />
                 ) : (
                   <Text className="text-[11px] text-muted-foreground dark:text-dark-muted-foreground">

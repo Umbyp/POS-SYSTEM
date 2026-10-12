@@ -34,9 +34,9 @@ const FILTERS: { key: RewardFilter; label: string }[] = [
   { key: 'SPECIAL', label: 'พิเศษเฉพาะคุณ' },
 ];
 const BADGE: Record<string, { label: string; cls: string }> = {
-  POINTS: { label: 'แลกคะแนน', cls: 'bg-[#F6E6DC] text-[#A64B1F]' },
-  FREE: { label: 'รับฟรี', cls: 'bg-[#FEE2E2] text-[#B91C1C]' },
-  SPECIAL: { label: 'พิเศษ', cls: 'bg-[#F2E9E0] text-[#7A6A5C]' },
+  POINTS: { label: 'แลกคะแนน', cls: 'bg-[#F3E5E2] text-[#B84B2B]' },
+  FREE: { label: 'รับฟรี', cls: 'bg-danger/10 text-danger' },
+  SPECIAL: { label: 'พิเศษ', cls: 'bg-muted text-muted-foreground' },
 };
 
 const thDate = (d: string | Date) =>
@@ -92,7 +92,7 @@ function MemberPortalContent() {
     let live = true;
     import('qrcode').then((QRCode) =>
       QRCode.default
-        .toDataURL(memberPhone, { width: 160, margin: 1, color: { dark: '#2B1F17', light: '#FFFFFF' } })
+        .toDataURL(memberPhone, { width: 160, margin: 1, color: { dark: '#1F1F1F', light: '#FFFFFF' } })
         .then((u) => live && setQrDataUrl(u))
         .catch(() => live && setQrDataUrl(''))
     );
@@ -314,10 +314,6 @@ function MemberPortalContent() {
   return (
     <div
       className="customer-theme min-h-screen bg-background flex flex-col items-center p-4 py-8 relative overflow-hidden"
-      style={{
-        backgroundImage: 'radial-gradient(circle at 12px 12px, #F2E4D6 2px, transparent 2px)',
-        backgroundSize: '26px 26px',
-      }}
     >
 
       <div className="w-full max-w-md space-y-4 relative">
@@ -341,7 +337,7 @@ function MemberPortalContent() {
             </div>
           </div>
           <div className="text-right">
-            <p className="text-xs font-bold tracking-[0.2em] uppercase text-[#8C6A4F] max-w-[140px] truncate">{store.name}</p>
+            <p className="text-xs font-bold tracking-[0.2em] uppercase text-primary max-w-[140px] truncate">{store.name}</p>
           </div>
         </div>
 
@@ -376,7 +372,7 @@ function MemberPortalContent() {
         {/* State 1: Enter Phone Number */}
         {!member && !showRegisterForm && (
           <Card className="overflow-hidden rounded-2xl animate-slide-up">
-            <div className="bg-[#8C6A4F] px-5 py-4 flex items-center justify-between text-[#FBF6F0]">
+            <div className="bg-primary px-5 py-4 flex items-center justify-between text-primary-foreground">
               <div>
                 <p className="text-sm font-semibold">สแกนแล้วสะสมแต้มได้เลย</p>
                 <p className="text-xs opacity-80 mt-0.5">ระบบสมาชิก {store.name}</p>
@@ -429,23 +425,23 @@ function MemberPortalContent() {
           <div className="space-y-4 animate-slide-up">
             {/* Member card — tier bar, big point number + staff-scan QR, expiry notice */}
             <div className="rounded-2xl overflow-hidden border border-border bg-card">
-              <div className="bg-[#8C6A4F] px-4 py-3 text-[#FBF6F0]">
+              <div className="bg-primary px-4 py-3 text-primary-foreground">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold">ระดับสมาชิกของคุณ</span>
                   {member.tier ? (
-                    <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tracking-wide uppercase">
+                    <span className="px-3.5 py-1 rounded-full bg-white text-foreground text-xs font-bold tracking-wide uppercase">
                       {member.tier.name}
                     </span>
                   ) : (
-                    <span className="px-3.5 py-1 rounded-full bg-[#FBF6F0] text-foreground text-xs font-bold tabular-nums font-mono">
+                    <span className="px-3.5 py-1 rounded-full bg-white text-foreground text-xs font-bold tabular-nums font-mono">
                       {member.phone}
                     </span>
                   )}
                 </div>
                 {member.tierProgress && member.nextTier && (
                   <div className="mt-2.5">
-                    <div className="h-1.5 rounded-full bg-[#FBF6F0]/25 overflow-hidden">
-                      <div className="h-full rounded-full bg-[#FBF6F0]" style={{ width: `${member.tierProgress.pct}%` }} />
+                    <div className="h-1.5 rounded-full bg-white/25 overflow-hidden">
+                      <div className="h-full rounded-full bg-white" style={{ width: `${member.tierProgress.pct}%` }} />
                     </div>
                     <div className="text-[11px] opacity-85 mt-1.5">
                       ใช้จ่ายอีก {formatCurrency(member.tierProgress.remaining)} เพื่อเลื่อนเป็น {member.nextTier.name}
@@ -482,7 +478,7 @@ function MemberPortalContent() {
                 </div>
               </div>
               {showPoints && (member.expiringPoints ?? 0) > 0 && member.expiringDate && (
-                <div className="border-t border-[#F3DFA2] bg-[#FEFCE8] px-4 py-2.5 text-center text-[11px] font-medium text-[#B45309]">
+                <div className="border-t border-warning/20 bg-warning/10 px-4 py-2.5 text-center text-[11px] font-medium text-warning">
                   {member.expiringPoints.toLocaleString()} แต้ม กำลังจะหมดอายุ ภายใน {thDate(member.expiringDate)}
                 </div>
               )}
@@ -558,16 +554,16 @@ function MemberPortalContent() {
             {/* Coupons / special privileges */}
             {rewards.length > 0 && (
               <div className="pt-2">
-                <h3 className="text-lg font-bold mb-3">สิทธิพิเศษเฉพาะคุณ</h3>
+                <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2.5 px-0.5">สิทธิพิเศษเฉพาะคุณ</h3>
                 <div className="flex gap-2 flex-wrap mb-3">
                   {FILTERS.map((f) => (
                     <button
                       key={f.key}
                       onClick={() => setRewardFilter(f.key)}
-                      className={`px-4 py-2 rounded-full text-[12.5px] transition-colors ${
+                      className={`px-3.5 py-1.5 rounded-full text-[12.5px] transition-colors ${
                         rewardFilter === f.key
-                          ? 'bg-[#8C6A4F] text-white font-semibold'
-                          : 'bg-card border border-border text-foreground font-medium'
+                          ? 'bg-primary/15 text-primary border border-primary/30 font-semibold'
+                          : 'bg-card border border-border text-muted-foreground font-medium'
                       }`}
                     >
                       {f.label}
@@ -591,7 +587,7 @@ function MemberPortalContent() {
                       const badge = BADGE[r.category] ?? BADGE.POINTS;
                       return (
                         <div key={r.id} className="flex bg-card border border-border rounded-[14px] overflow-hidden">
-                          <div className="w-[116px] shrink-0 bg-[#F6E6DC] border-r border-border flex flex-col items-center justify-center gap-1.5 p-2.5">
+                          <div className="w-[116px] shrink-0 bg-[#F3E5E2] border-r border-border flex flex-col items-center justify-center gap-1.5 p-2.5">
                             <span className={`px-2.5 py-[3px] rounded-full text-[10px] font-bold ${badge.cls}`}>{badge.label}</span>
                             {r.imageUrl ? (
                               <img
@@ -600,7 +596,7 @@ function MemberPortalContent() {
                                 className="w-[52px] h-[52px] rounded-[10px] object-cover"
                               />
                             ) : (
-                              <div className="w-[52px] h-[52px] rounded-[10px] border border-dashed border-[#D8C7B8] flex items-center justify-center text-[#8C6A4F]">
+                              <div className="w-[52px] h-[52px] rounded-[10px] border border-dashed border-primary/40 flex items-center justify-center text-primary">
                                 <Gift className="w-6 h-6" />
                               </div>
                             )}
@@ -622,7 +618,7 @@ function MemberPortalContent() {
                               disabled={!r.canRedeem || redeem.isPending}
                               onClick={() => { setRedeemError(''); redeem.mutate(r.id); }}
                               className={`h-9 rounded-[9px] mt-1 text-[12.5px] font-semibold flex items-center justify-center ${
-                                r.canRedeem ? 'bg-primary text-primary-foreground' : 'bg-[#F2E9E0] text-[#7A6A5C]'
+                                r.canRedeem ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
                               }`}
                             >
                               {redeem.isPending && redeem.variables === r.id ? (

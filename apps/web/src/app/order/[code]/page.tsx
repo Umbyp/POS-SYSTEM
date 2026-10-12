@@ -20,6 +20,13 @@ import { api } from '@/lib/api';
 import { formatCurrency } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { useT } from '@/lib/i18n';
+import {
+  ItemOptionSheet,
+  getOptionGroups,
+  variantsKey,
+  variantLabel,
+  type OrderVariant,
+} from '@/components/order/ItemOptionSheet';
 
 interface Product {
   id: string;
@@ -27,6 +34,41 @@ interface Product {
   image: string | null;
   sellingPrice: number;
   categoryId: string;
+  // Present only when the API returns option groups for the public menu;
+  // missing/empty means the product has no options.
+  optionGroups?: any[];
+}
+
+/** One cart row: same product with different options/note = separate lines. */
+interface CartLine {
+  key: string;
+  product: Product;
+  qty: number;
+  variants: OrderVariant[];
+  notes?: string;
+}
+
+const lineUnitPrice = (l: { product: Product; variants: OrderVariant[] }) =>
+  Number(l.product.sellingPrice) + l.variants.reduce((s, v) => s + v.priceDelta, 0);
+
+/** Grey option chips under a cart line (same look as the staff app). */
+function OptionChips({ variants, notes }: { variants: OrderVariant[]; notes?: string }) {
+  if (variants.length === 0 && !notes) return null;
+  return (
+    <div className="flex flex-wrap gap-1 mt-1">
+      {variants.map((v) => (
+        <span key={v.name} className="px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground text-[11px] leading-tight">
+          {variantLabel(v)}
+          {v.priceDelta !== 0 && ` ${v.priceDelta > 0 ? '+' : ''}${formatCurrency(v.priceDelta)}`}
+        </span>
+      ))}
+      {notes && (
+        <span className="px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground text-[11px] leading-tight italic">
+          {notes}
+        </span>
+      )}
+    </div>
+  );
 }
 
 interface Category {
@@ -65,7 +107,8 @@ export default function SelfOrderPage() {
     retry: false,
   });
 
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [phase, setPhase] = useState<Phase>('menu');
@@ -85,7 +128,7 @@ export default function SelfOrderPage() {
   // Cumulative line items across all rounds submitted this visit, so the
   // status screen can show what was actually ordered (with photos) instead
   // of just the aggregate count/total.
-  const [orderedItems, setOrderedItems] = useState<{ product: Product; qty: number }[]>([]);
+  const [orderedItems, setOrderedItems] = useState<CartLine[]>([]);
 
   // Customer Loyalty member points states
   interface MemberInfo {
@@ -113,26 +156,43 @@ export default function SelfOrderPage() {
     return true;
   });
 
-  const cartLines = useMemo(
-    () =>
-      Object.entries(cart)
-        .filter(([, qty]) => qty > 0)
-        .map(([productId, qty]) => ({ product: products.find((p) => p.id === productId)!, qty }))
-        .filter((l) => l.product),
-    [cart, products]
-  );
+  const cartLines = cart;
   const cartCount = cartLines.reduce((s, l) => s + l.qty, 0);
-  const cartTotal = cartLines.reduce((s, l) => s + Number(l.product.sellingPrice) * l.qty, 0);
+  const cartTotal = cartLines.reduce((s, l) => s + lineUnitPrice(l) * l.qty, 0);
+  const qtyByProduct = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const l of cart) m[l.product.id] = (m[l.product.id] || 0) + l.qty;
+    return m;
+  }, [cart]);
 
-  const addOne = (productId: string) => setCart((c) => ({ ...c, [productId]: (c[productId] || 0) + 1 }));
-  const removeOne = (productId: string) =>
-    setCart((c) => ({ ...c, [productId]: Math.max(0, (c[productId] || 0) - 1) }));
+  const addLine = (product: Product, qty: number, variants: OrderVariant[] = [], notes?: string) => {
+    const key = `${product.id}::${variantsKey(variants, notes)}`;
+    setCart((c) => {
+      const i = c.findIndex((l) => l.key === key);
+      if (i >= 0) return c.map((l, n) => (n === i ? { ...l, qty: l.qty + qty } : l));
+      return [...c, { key, product, qty, variants, notes }];
+    });
+  };
+  const changeQty = (key: string, delta: number) =>
+    setCart((c) => c.map((l) => (l.key === key ? { ...l, qty: l.qty + delta } : l)).filter((l) => l.qty > 0));
+
+  // Products with option groups open the picker; plain ones add straight away.
+  const tapAdd = (p: Product) => {
+    if (getOptionGroups(p).length > 0) setPickerProduct(p);
+    else addLine(p, 1);
+  };
+  const removeSimple = (p: Product) => changeQty(`${p.id}::${variantsKey([], undefined)}`, -1);
 
   const submit = async () => {
     setSubmitting(true);
     setSubmitError('');
     try {
-      const items = cartLines.map((l) => ({ productId: l.product.id, quantity: l.qty }));
+      const items = cartLines.map((l) => ({
+        productId: l.product.id,
+        quantity: l.qty,
+        ...(l.variants.length > 0 ? { variants: l.variants } : {}),
+        ...(l.notes ? { notes: l.notes } : {}),
+      }));
       const { data } = await api.post(`/self-order/${code}/submit`, {
         items,
         note: note.trim() || undefined,
@@ -144,11 +204,11 @@ export default function SelfOrderPage() {
       setOrderedCount((n) => n + cartCount);
       setOrderedTotal((n) => n + cartTotal);
       setOrderedItems((prev) => {
-        const next = [...prev];
+        const next = prev.map((n) => ({ ...n }));
         for (const l of cartLines) {
-          const existing = next.find((n) => n.product.id === l.product.id);
+          const existing = next.find((n) => n.key === l.key);
           if (existing) existing.qty += l.qty;
-          else next.push({ product: l.product, qty: l.qty });
+          else next.push({ ...l });
         }
         return next;
       });
@@ -209,7 +269,7 @@ export default function SelfOrderPage() {
   // socket/poll alive and the persistent status strip (rendered on the menu
   // phase) keeps reflecting the round(s) already sent to the kitchen.
   const startOver = () => {
-    setCart({});
+    setCart([]);
     setNote('');
     setPhase('menu');
   };
@@ -218,7 +278,7 @@ export default function SelfOrderPage() {
     return (
       <div className="customer-theme min-h-[100dvh] flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
             <UtensilsCrossed className="w-5 h-5 text-primary animate-pulse" />
           </div>
           <p className="text-sm text-muted-foreground">{t('selfOrder.loading')}</p>
@@ -277,7 +337,7 @@ export default function SelfOrderPage() {
             {orderedItems.length > 0 && (
               <div className="w-full max-w-xs text-left bg-card border border-border rounded-2xl shadow-card p-3 mb-5 space-y-2.5 max-h-[35dvh] overflow-y-auto scrollbar-thin">
                 {orderedItems.map((l) => (
-                  <div key={l.product.id} className="flex items-center gap-2.5">
+                  <div key={l.key} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-lg bg-muted overflow-hidden shrink-0">
                       {l.product.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -294,6 +354,7 @@ export default function SelfOrderPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{l.product.name}</div>
+                      <OptionChips variants={l.variants} notes={l.notes} />
                     </div>
                     <span className="text-sm font-semibold tabular-nums shrink-0">×{l.qty}</span>
                   </div>
@@ -327,7 +388,7 @@ export default function SelfOrderPage() {
                     <div className="font-bold truncate leading-tight">{menu.store.name}</div>
                     <div className="text-xs text-muted-foreground">{t('selfOrder.yourTable')}</div>
                   </div>
-                  <span className="shrink-0 px-2.5 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold tabular-nums">
+                  <span className="shrink-0 px-2 py-0.5 rounded-md bg-primary text-primary-foreground text-xs font-bold tabular-nums">
                     {menu.table.number}
                   </span>
                   <button
@@ -362,7 +423,7 @@ export default function SelfOrderPage() {
                       value={search}
                       onChange={(e) => setSearch(e.target.value)}
                       placeholder={t('pos.searchPlaceholder')}
-                      className="w-full h-10 pl-9 pr-3 rounded-xl bg-muted text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      className="w-full h-10 pl-9 pr-3 rounded-lg bg-card border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                     />
                   </div>
                 </div>
@@ -372,8 +433,8 @@ export default function SelfOrderPage() {
                     onClick={() => setCategoryFilter(null)}
                     className={`px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-colors ${
                       !categoryFilter
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-primary/15 text-primary border border-primary/30'
+                        : 'bg-card text-muted-foreground border border-border'
                     }`}
                   >
                     {t('pos.all')}
@@ -384,8 +445,8 @@ export default function SelfOrderPage() {
                       onClick={() => setCategoryFilter(c.id)}
                       className={`px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-colors ${
                         categoryFilter === c.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-primary/15 text-primary border border-primary/30'
+                          : 'bg-card text-muted-foreground border border-border'
                       }`}
                     >
                       {c.icon} {c.name}
@@ -403,7 +464,8 @@ export default function SelfOrderPage() {
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-4 pb-32">
                   {visibleProducts.map((p, i) => {
-                    const qty = cart[p.id] || 0;
+                    const qty = qtyByProduct[p.id] || 0;
+                    const hasOptions = getOptionGroups(p).length > 0;
                     return (
                       <motion.div
                         key={p.id}
@@ -429,24 +491,27 @@ export default function SelfOrderPage() {
                           )}
                           {qty === 0 ? (
                             <button
-                              onClick={() => addOne(p.id)}
+                              onClick={() => tapAdd(p)}
                               aria-label={t('common.add')}
-                              className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-primary text-primary-foreground shadow-pop flex items-center justify-center active:scale-90 transition-transform"
+                              className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-card border border-primary text-primary flex items-center justify-center active:scale-90 transition-transform"
                             >
                               <Plus className="w-4.5 h-4.5" />
                             </button>
                           ) : (
-                            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-card/95 backdrop-blur-sm rounded-full shadow-pop px-1 py-1">
+                            <div className="absolute bottom-2 right-2 flex items-center gap-1.5 bg-card border border-border rounded-full px-1 py-1">
+                              {/* Option products are reduced from the cart sheet (lines differ by options) */}
+                              {!hasOptions && (
+                                <button
+                                  onClick={() => removeSimple(p)}
+                                  aria-label={t('cart.aria.decreaseQty')}
+                                  className="w-7 h-7 rounded-full flex items-center justify-center text-foreground active:scale-90 transition-transform"
+                                >
+                                  <Minus className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                              <span className={`text-xs font-bold tabular-nums text-center ${hasOptions ? 'pl-2 min-w-[1.25rem]' : 'w-3'}`}>{qty}</span>
                               <button
-                                onClick={() => removeOne(p.id)}
-                                aria-label={t('cart.aria.decreaseQty')}
-                                className="w-7 h-7 rounded-full flex items-center justify-center text-foreground active:scale-90 transition-transform"
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="text-xs font-bold tabular-nums w-3 text-center">{qty}</span>
-                              <button
-                                onClick={() => addOne(p.id)}
+                                onClick={() => tapAdd(p)}
                                 aria-label={t('cart.aria.increaseQty')}
                                 className="w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center active:scale-90 transition-transform"
                               >
@@ -459,8 +524,13 @@ export default function SelfOrderPage() {
                           <div className="text-sm font-medium leading-snug line-clamp-2 min-h-[2.5em]">
                             {p.name}
                           </div>
-                          <div className="text-sm text-primary font-bold tabular-nums mt-1">
-                            {formatCurrency(p.sellingPrice)}
+                          <div className="flex items-center justify-between gap-1 mt-1">
+                            <span className="text-sm text-primary font-bold tabular-nums">
+                              {formatCurrency(p.sellingPrice)}
+                            </span>
+                            {hasOptions && (
+                              <span className="text-[10px] text-muted-foreground shrink-0">{'ตัวเลือก'}</span>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -559,7 +629,7 @@ export default function SelfOrderPage() {
                 <p className="text-sm text-muted-foreground text-center py-10">{t('selfOrder.cartEmpty')}</p>
               ) : (
                 cartLines.map((l) => (
-                  <div key={l.product.id} className="flex items-center gap-3">
+                  <div key={l.key} className="flex items-start gap-3">
                     <div className="w-12 h-12 rounded-lg bg-muted overflow-hidden shrink-0">
                       {l.product.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -576,13 +646,14 @@ export default function SelfOrderPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium truncate">{l.product.name}</div>
-                      <div className="text-xs text-muted-foreground tabular-nums">
-                        {formatCurrency(l.product.sellingPrice)}
+                      <OptionChips variants={l.variants} notes={l.notes} />
+                      <div className="text-xs text-muted-foreground tabular-nums mt-0.5">
+                        {formatCurrency(lineUnitPrice(l))}
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 bg-muted rounded-full">
                       <button
-                        onClick={() => removeOne(l.product.id)}
+                        onClick={() => changeQty(l.key, -1)}
                         aria-label={t('cart.aria.decreaseQty')}
                         className="w-8 h-8 flex items-center justify-center active:scale-90 transition-transform"
                       >
@@ -590,7 +661,7 @@ export default function SelfOrderPage() {
                       </button>
                       <span className="text-sm font-semibold tabular-nums w-4 text-center">{l.qty}</span>
                       <button
-                        onClick={() => addOne(l.product.id)}
+                        onClick={() => changeQty(l.key, 1)}
                         aria-label={t('cart.aria.increaseQty')}
                         className="w-8 h-8 flex items-center justify-center active:scale-90 transition-transform"
                       >
@@ -629,7 +700,7 @@ export default function SelfOrderPage() {
                               <span>• คะแนนสะสม: <strong className="text-success">{member.points ?? 0} แต้ม</strong></span>
                             )}
                             {(menu?.store?.loyaltyMode === 'STAMPS' || menu?.store?.loyaltyMode === 'BOTH') && (
-                              <span>• ดวงสะสม: <strong className="text-indigo-600 dark:text-indigo-400">{member.stamps ?? 0} ดวง</strong></span>
+                              <span>• ดวงสะสม: <strong className="text-primary">{member.stamps ?? 0} ดวง</strong></span>
                             )}
                           </div>
                         </div>
@@ -647,7 +718,7 @@ export default function SelfOrderPage() {
                         <div className="pt-2.5 border-t border-success/10">
                           <div className="text-[10px] text-muted-foreground mb-1.5 flex items-center justify-between">
                             <span>บัตรสะสมดวง (ครบ {menu.store.stampsPerReward || 10} ดวง รับรางวัล)</span>
-                            <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                            <span className="font-semibold text-primary">
                               {(member.stamps ?? 0) % (menu.store.stampsPerReward || 10)} / {menu.store.stampsPerReward || 10} ดวง
                             </span>
                           </div>
@@ -659,7 +730,7 @@ export default function SelfOrderPage() {
                                   key={idx}
                                   className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold border transition-all ${
                                     isStamped
-                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm scale-105 animate-pulse'
+                                      ? 'bg-primary border-primary text-primary-foreground'
                                       : 'bg-muted/40 border-dashed border-muted-foreground/30 text-muted-foreground/40'
                                   }`}
                                 >
@@ -720,6 +791,14 @@ export default function SelfOrderPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ItemOptionSheet
+        product={pickerProduct}
+        onClose={() => setPickerProduct(null)}
+        onConfirm={({ quantity, variants, notes }) =>
+          pickerProduct && addLine(pickerProduct, quantity, variants, notes)
+        }
+      />
 
       {showMemberModal && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">

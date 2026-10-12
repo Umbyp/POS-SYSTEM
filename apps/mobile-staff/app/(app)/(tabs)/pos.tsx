@@ -12,14 +12,16 @@ import { hasOptions } from '@/lib/options';
 import { resolveImageUrl } from '@/lib/imageUrl';
 import { CartSheet } from '@/components/CartSheet';
 import { CartPanel } from '@/components/CartPanel';
-import { PaymentModal, type PaymentMode } from '@/components/PaymentModal';
+import { PaymentModal, type PaymentMode, type AppliedReward } from '@/components/PaymentModal';
 import { useIsTablet } from '@/hooks/useIsTablet';
 import { TABLE_STATUS_DOT } from '@/constants/tableStatus';
 import { printReceipt, PrinterError } from '@/lib/printer';
 import type { Category, Product, OrderType, Order, RestaurantTable } from '@/types/pos';
 import type { StoreSettings } from '@/types/backoffice';
+import { useThemeColors } from '@/lib/theme';
 
 export default function PosScreen() {
+  const theme = useThemeColors();
   const cart = useCart();
   const isTablet = useIsTablet();
   const [search, setSearch] = useState('');
@@ -27,7 +29,7 @@ export default function PosScreen() {
   const [picking, setPicking] = useState<Product | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [paymentMode, setPaymentMode] = useState<PaymentMode | null>(null);
-  const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string } | null>(null);
+  const [success, setSuccess] = useState<{ id: string; orderNumber: string; total: string; discount?: string; pointsEarned?: number | null; pointsRedeemed?: number | null; appliedReward?: AppliedReward | null } | null>(null);
 
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
@@ -139,12 +141,12 @@ export default function PosScreen() {
           )}
         </View>
         <View className="mt-3 mb-1 h-10 flex-row items-center gap-2 rounded-lg border border-border dark:border-dark-border bg-background dark:bg-dark-input px-3">
-          <Search size={14} color="#A3A3A3" />
+          <Search size={14} color={theme.faint} />
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="ค้นหาเมนู"
-            placeholderTextColor="#A3A3A3"
+            placeholderTextColor={theme.placeholder}
             className="flex-1 text-[13px] text-foreground dark:text-dark-foreground"
           />
         </View>
@@ -162,7 +164,7 @@ export default function PosScreen() {
           return (
             <Pressable
               onPress={() => setCategoryId(item.id)}
-              className={`h-9 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary-50 border-primary' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
+              className={`h-9 items-center justify-center rounded-full px-3.5 border ${active ? 'bg-primary-50 border-primary dark:bg-dark-muted' : 'bg-card border-border dark:bg-dark-card dark:border-dark-border'}`}
             >
               <Text className={`text-[13px] ${active ? 'font-semibold text-primary' : 'font-medium text-foreground dark:text-dark-foreground'}`}>
                 {item.name}
@@ -205,7 +207,7 @@ export default function PosScreen() {
                   {item.image ? (
                     <Image source={{ uri: resolveImageUrl(item.image) }} className="h-full w-full" resizeMode="cover" />
                   ) : (
-                    <ImageIcon size={22} color="#A3A3A3" />
+                    <ImageIcon size={22} color={theme.faint} />
                   )}
                   {selected ? (
                     <View className="absolute right-1.5 top-1.5 min-w-[20px] h-5 items-center justify-center rounded-full bg-primary px-1.5">
@@ -328,6 +330,30 @@ export default function PosScreen() {
             <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground">
               #{success.orderNumber} · {formatCurrency(success.total)}
             </Text>
+            {Number(success.discount) > 0 ? (
+              <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                ส่วนลดรวม −{formatCurrency(success.discount ?? 0)}
+              </Text>
+            ) : null}
+            {(success.pointsRedeemed ?? 0) > 0 ? (
+              <Text className="text-[12px] text-muted-foreground dark:text-dark-muted-foreground">
+                ใช้แต้ม {success.pointsRedeemed!.toLocaleString()}
+              </Text>
+            ) : null}
+            {success.appliedReward ? (
+              <Text className="text-center text-[12px] font-semibold text-primary dark:text-primary-400">
+                {success.appliedReward.kind === 'FREE_ITEM'
+                  ? `มอบของรางวัล: ${success.appliedReward.name}`
+                  : `รางวัล ${success.appliedReward.name} −${formatCurrency(success.appliedReward.discountApplied)}`}
+              </Text>
+            ) : null}
+            {(success.pointsEarned ?? 0) > 0 ? (
+              <View className="rounded-full bg-primary-50 px-3 py-1 dark:bg-dark-muted">
+                <Text className="text-[13px] font-bold text-primary dark:text-primary-400">
+                  ได้รับ {success.pointsEarned!.toLocaleString()} แต้ม
+                </Text>
+              </View>
+            ) : null}
             <Pressable
               onPress={() => onPrintReceipt(success.id)}
               className="h-11 w-full items-center justify-center rounded-lg bg-primary mt-2"

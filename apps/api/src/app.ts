@@ -136,6 +136,20 @@ app.get('/health/db', async (_req, res) => {
   }
 });
 
+// Same two probes under /api for clients/proxies that only route /api/*.
+// No auth, no body, never throws. /api/ready answers 503 when the DB ping fails.
+app.get('/api/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/api/ready', async (_req, res) => {
+  const started = Date.now();
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true, db: 'up', ms: Date.now() - started });
+  } catch (err) {
+    logger.error({ err }, 'Readiness check: database unreachable');
+    res.status(503).json({ ok: false, db: 'unreachable', ms: Date.now() - started });
+  }
+});
+
 // Serve uploaded images statically at /uploads/* (long browser cache; filenames are content-hashed)
 app.use(
   '/uploads',

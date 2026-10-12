@@ -17,7 +17,9 @@ export function initSocket(io: Server) {
 
   io.on('connection', (socket: Socket) => {
     const user = (socket as any).user;
-    if (!user) return socket.disconnect();
+    // Rooms are keyed by the store in the verified JWT — a client can never
+    // pick which store's room it joins. No store in the token → no rooms.
+    if (!user?.storeId) return socket.disconnect();
 
     socket.join(`store:${user.storeId}`);
     if (user.role === 'KITCHEN' || user.role === 'OWNER' || user.role === 'ADMIN') {

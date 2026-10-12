@@ -5,6 +5,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { X, Minus, Plus } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { sheetClasses } from '@/lib/layout';
+import { useThemeColors } from '@/lib/theme';
 import { TextField } from '@/components/TextField';
 import { Button } from '@/components/Button';
 import type { Inventory } from '@/types/backoffice';
@@ -16,6 +19,8 @@ interface StockAdjustModalProps {
 
 export function StockAdjustModal({ item, onClose }: StockAdjustModalProps) {
   const qc = useQueryClient();
+  const t = useThemeColors();
+  const sheet = sheetClasses(useIsTablet());
   const [direction, setDirection] = useState<1 | -1>(1);
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
@@ -49,13 +54,13 @@ export function StockAdjustModal({ item, onClose }: StockAdjustModalProps) {
   return (
     <Modal visible={!!item} transparent animationType="fade" onRequestClose={onClose}>
       <SafeAreaProvider>
-        <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-          <Pressable className="rounded-t-xl bg-card dark:bg-dark-card p-5 gap-4" onPress={(e) => e.stopPropagation()}>
+        <Pressable className={sheet.overlay} onPress={onClose}>
+          <Pressable className={`${sheet.panel} bg-card dark:bg-dark-card p-5 gap-4`} onPress={(e) => e.stopPropagation()}>
             <SafeAreaView edges={['bottom']}>
               <View className="flex-row items-center justify-between mb-2">
                 <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">ปรับสต็อก</Text>
                 <Pressable onPress={onClose} hitSlop={12}>
-                  <X size={22} color="#9CA3AF" />
+                  <X size={22} color={t.mutedForeground} />
                 </Pressable>
               </View>
               <Text className="text-[13px] text-muted-foreground dark:text-dark-muted-foreground mb-3">
@@ -67,14 +72,14 @@ export function StockAdjustModal({ item, onClose }: StockAdjustModalProps) {
                   onPress={() => setDirection(1)}
                   className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === 1 ? 'bg-success' : 'border border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
                 >
-                  <Plus size={16} color={direction === 1 ? '#FFFFFF' : '#6B7280'} />
+                  <Plus size={16} color={direction === 1 ? '#FFFFFF' : t.mutedForeground} />
                   <Text className={`text-[13px] font-semibold ${direction === 1 ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>รับเข้า</Text>
                 </Pressable>
                 <Pressable
                   onPress={() => setDirection(-1)}
                   className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-lg py-2.5 ${direction === -1 ? 'bg-danger' : 'border border-border dark:border-dark-border bg-card dark:bg-dark-card'}`}
                 >
-                  <Minus size={16} color={direction === -1 ? '#FFFFFF' : '#6B7280'} />
+                  <Minus size={16} color={direction === -1 ? '#FFFFFF' : t.mutedForeground} />
                   <Text className={`text-[13px] font-semibold ${direction === -1 ? 'text-white' : 'text-foreground dark:text-dark-foreground'}`}>ตัดออก</Text>
                 </Pressable>
               </View>

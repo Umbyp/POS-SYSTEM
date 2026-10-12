@@ -5,6 +5,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { isAxiosError } from 'axios';
 import { X } from 'lucide-react-native';
 import { api } from '@/lib/api';
+import { useIsTablet } from '@/hooks/useIsTablet';
+import { useThemeColors } from '@/lib/theme';
 import { TextField } from '@/components/TextField';
 import { SelectField } from '@/components/SelectField';
 import { Button } from '@/components/Button';
@@ -23,6 +25,8 @@ interface EmployeeFormModalProps {
 }
 
 export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormModalProps) {
+  const t = useThemeColors();
+  const isTablet = useIsTablet();
   const qc = useQueryClient();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -55,17 +59,17 @@ export function EmployeeFormModal({ visible, onClose, onSaved }: EmployeeFormMod
   const canSave = !!name && !!email && password.length >= 6 && pinValid;
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle={isTablet ? 'pageSheet' : 'fullScreen'} onRequestClose={onClose}>
       <SafeAreaProvider>
         <SafeAreaView className="flex-1 bg-background dark:bg-dark-background">
           <View className="flex-row items-center justify-between px-4 py-3 border-b border-border dark:border-dark-border bg-card dark:bg-dark-card">
             <Text className="text-[16px] font-bold text-foreground dark:text-dark-foreground">เพิ่มพนักงาน</Text>
             <Pressable onPress={onClose} hitSlop={12}>
-              <X size={22} color="#9CA3AF" />
+              <X size={22} color={t.mutedForeground} />
             </Pressable>
           </View>
 
-          <ScrollView contentContainerClassName="p-4 gap-4">
+          <ScrollView contentContainerClassName={`p-4 gap-4 ${isTablet ? 'w-full max-w-[720px] self-center' : ''}`}>
             <TextField label="ชื่อ *" value={name} onChangeText={setName} />
             <TextField label="อีเมล *" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" />
             <TextField
