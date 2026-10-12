@@ -76,7 +76,7 @@ describe('shift close & summary (integration)', () => {
     // a settle on a tab: 60 bill paid with 200 cash
     const tab = await tabService.openTab({ storeId, cashierId, type: 'TAKEAWAY', items: [{ productId, quantity: 1 }] }, fakeIo);
     await tabService.settleTab(tab.id, { storeId, cashierId, payments: [{ method: 'CASH', amount: 200 }] }, fakeIo);
-    // partial refund by the owner of 1 unit of the 4th order (unitPrice 60)
+    // refund by the owner of the only unit of the 4th order: the customer paid 50 after a 10 discount, so 50 goes back (not the 60 shelf price)
     await orderService.refundItems(refunded.id, ownerId, { items: [{ orderItemId: refunded.items[0].id, qty: 1 }] }, fakeIo, storeId);
 
     const r = await call(tCashier, 'GET', `/employees/shifts/${shift.id}/summary`);
@@ -90,9 +90,9 @@ describe('shift close & summary (integration)', () => {
     expect(r.body.transferSales).toBe(0);
     expect(r.body.discountTotal).toBe(10);
     expect(r.body.totalSales).toBe(60 + 120 + 60 + 50 + 60);
-    expect(r.body.refundsTotal).toBe(60);
-    expect(r.body.cashRefunds).toBe(60);                      // 4th order was all cash
-    expect(r.body.expectedCash).toBe(500 + 200 - 60);
+    expect(r.body.refundsTotal).toBe(50);
+    expect(r.body.cashRefunds).toBe(50);                      // 4th order was all cash
+    expect(r.body.expectedCash).toBe(500 + 200 - 50);
     expect(r.body.difference).toBeNull();                     // still open
 
     // another cashier can't see/close it; other store can't find it; owner can
@@ -105,12 +105,12 @@ describe('shift close & summary (integration)', () => {
     expect(closed.status).toBe(200);
     expect(Number(closed.body.cashSales)).toBe(200);
     expect(Number(closed.body.closingCash)).toBe(635.5);
-    expect(closed.body.summary.expectedCash).toBe(640);
-    expect(closed.body.summary.difference).toBe(-4.5);
+    expect(closed.body.summary.expectedCash).toBe(650);
+    expect(closed.body.summary.difference).toBe(-14.5);
     expect((await call(tCashier, 'POST', `/employees/shifts/${shift.id}/close`, { closingCash: 1 })).status).toBe(400); // already closed
 
     // summary of the closed shift is frozen to its window and shows the difference
     const again = await call(tCashier, 'GET', `/employees/shifts/${shift.id}/summary`);
-    expect(again.body.difference).toBe(-4.5);
+    expect(again.body.difference).toBe(-14.5);
   });
 });

@@ -58,6 +58,7 @@ export interface OrderItem {
   quantity: number;
   unitPrice: string;
   notes: string | null;
+  discount?: string;
   refundedQty: number;
   refundReason?: string | null;
   variants?: { name: string; priceDelta: number }[] | null;
@@ -87,6 +88,7 @@ export interface Order {
   serviceCharge: string;
   tax: string;
   total: string;
+  refundedAmount?: string;
   notes: string | null;
   createdAt: string;
   table: { id: string; number: string } | null;

@@ -96,8 +96,8 @@ export async function computeShiftSummary(shift: {
     const o = byId.get(meta?.orderId);
     if (!o) continue;
     if (l.userId !== shift.userId && o.cashierId !== shift.userId) continue;
-    // Full refunds log only the order id → the refunded amount is the bill total.
-    const amount = l.action === 'PARTIAL_REFUND' ? num(meta.refundedAmount) : num(o.total);
+    // Logged amount; legacy full-refund logs carried only the order id → the bill total.
+    const amount = meta.refundedAmount != null ? num(meta.refundedAmount) : num(o.total);
     let share = cashShare.get(o.id);
     if (share === undefined) {
       const paidAll = o.payments.reduce((s, p) => s + num(p.amount), 0);
