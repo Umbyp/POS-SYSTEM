@@ -40,11 +40,19 @@ export function RefundDialog({ open, onClose, order }: Props) {
   );
 
   const totalRefund = useMemo(() => {
-    return refundable.reduce((sum: number, item: any) => {
+    // Mirrors the server: a line's refund is its share of the bill total (after bill discount, tax, service charge).
+    const total = Number(order?.total) || 0;
+    const subtotal = Number(order?.subtotal) || 0;
+    const left = Math.max(0, total - Number(order?.refundedAmount || 0));
+    if (subtotal <= 0) return 0;
+    const net = refundable.reduce((sum: number, item: any) => {
       const qty = qtyMap[item.id] || 0;
-      return sum + qty * Number(item.unitPrice);
+      const q = item.quantity || 1;
+      const gross = Number(item.unitPrice) * q - Number(item.discount || 0);
+      return sum + (Math.max(0, gross) * qty) / q;
     }, 0);
-  }, [qtyMap, refundable]);
+    return Math.min(left, Math.round(((total * net) / subtotal) * 100) / 100);
+  }, [qtyMap, refundable, order]);
 
   const selectedCount = Object.values(qtyMap).filter((q) => q > 0).length;
 

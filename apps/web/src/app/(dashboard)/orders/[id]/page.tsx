@@ -56,10 +56,7 @@ export default function OrderDetailPage() {
     order.status !== 'CANCELLED' &&
     order.items.some((i: any) => (i.refundedQty || 0) < i.quantity);
 
-  const totalRefunded = order.items.reduce(
-    (s: number, i: any) => s + (i.refundedQty || 0) * Number(i.unitPrice),
-    0
-  );
+  const totalRefunded = Number(order.refundedAmount || 0);
 
   return (
     <div className="p-4 sm:p-6 h-full overflow-y-auto scrollbar-thin">

@@ -56,7 +56,7 @@ export function OrderDetailView({ id, onReceipt, receiptBusy }: OrderDetailViewP
   const canRefund =
     (role === 'OWNER' || role === 'ADMIN') && paid && order.status !== 'REFUNDED' && order.status !== 'CANCELLED' &&
     order.items.some((i) => i.quantity - (i.refundedQty || 0) > 0);
-  const refundedTotal = order.items.reduce((s, i) => s + (i.refundedQty || 0) * Number(i.unitPrice), 0);
+  const refundedTotal = Number(order.refundedAmount || 0);
 
   const late = overdueMinutes(order.status, order.createdAt);
   const typeLabel = order.table ? `โต๊ะ ${order.table.number}` : order.type === 'TAKEAWAY' ? 'กลับบ้าน' : 'เดลิเวอรี่';

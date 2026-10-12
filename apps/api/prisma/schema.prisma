@@ -337,6 +337,8 @@ model Order {
   customerAddress  String?
   createdAt        DateTime    @default(now())
   completedAt      DateTime?
+  refundedAmount   Decimal     @default(0) @db.Decimal(10, 2) // ยอดที่คืนเงินแล้วสะสม (คืนบางรายการ + คืนเต็ม)
+  refundedAt       DateTime?   // เวลาที่คืนเงินล่าสุด
   cashier          User        @relation(fields: [cashierId], references: [id])
   customer      Customer?   @relation(fields: [customerId], references: [id])
   store         Store       @relation(fields: [storeId], references: [id])

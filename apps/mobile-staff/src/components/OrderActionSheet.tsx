@@ -56,7 +56,20 @@ export function OrderActionSheet({ order, action, onClose }: OrderActionSheetPro
   const refundLines = refundable
     .map((i) => ({ item: i, qty: fullRefund ? remainingOf(i) : Math.min(remainingOf(i), refundQty[i.id] ?? 0) }))
     .filter((l) => l.qty > 0);
-  const refundTotal = refundLines.reduce((s, l) => s + Number(l.item.unitPrice) * l.qty, 0);
+  // Mirrors the server: a line's refund is its share of the bill total (after bill discount, tax, service charge).
+  const refundTotal = (() => {
+    const total = Number(order.total) || 0;
+    const left = Math.max(0, total - Number(order.refundedAmount || 0));
+    if (fullRefund) return left;
+    const subtotal = Number(order.subtotal) || 0;
+    if (subtotal <= 0) return 0;
+    const net = refundLines.reduce((s, l) => {
+      const q = l.item.quantity || 1;
+      const gross = Number(l.item.unitPrice) * q - Number(l.item.discount || 0);
+      return s + (Math.max(0, gross) * l.qty) / q;
+    }, 0);
+    return Math.min(left, Math.round(((total * net) / subtotal) * 100) / 100);
+  })();
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['orders'] });

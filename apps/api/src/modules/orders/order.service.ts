@@ -13,6 +13,7 @@ import {
   attachRedemptionToOrder, redemptionNote, joinNotes, appliedRewardView, releaseRedemptionForOrder,
 } from './checkout-discounts';
 import { recordIdempotencyKey } from './idempotency';
+import { partialRefundAmount, earnedShare } from './refund-math';
 
 interface CreateOrderInput {
   storeId: string;
@@ -576,6 +577,49 @@ function assertRefundable(order: { status: string; payments: unknown[] }) {
   }
 }
 
+
+/**
+ * Give back a refunded amount to the customer's lifetime totals (tier is derived from totalSpent).
+ * Never goes below zero; visitCount only drops when the whole bill is refunded.
+ */
+async function reverseCustomerTotals(
+  tx: Prisma.TransactionClient,
+  customerId: string | null,
+  amount: Prisma.Decimal,
+  fullBill: boolean,
+) {
+  if (!customerId || amount.lte(0)) return;
+  const c = await tx.customer.findUnique({ where: { id: customerId }, select: { totalSpent: true, visitCount: true } });
+  if (!c) return;
+  await tx.customer.update({
+    where: { id: customerId },
+    data: {
+      totalSpent: Prisma.Decimal.max(0, new Prisma.Decimal(c.totalSpent).minus(amount)),
+      ...(fullBill ? { visitCount: Math.max(0, c.visitCount - 1) } : {}),
+    },
+  });
+}
+
+/** Claw back the points that belong to a partially refunded share (never below the balance). */
+async function clawbackPointsShare(
+  tx: Prisma.TransactionClient,
+  order: { id: string; storeId: string; customerId: string | null; pointsEarned: number; total: Prisma.Decimal.Value },
+  oldRefunded: Prisma.Decimal.Value,
+  newRefunded: Prisma.Decimal.Value,
+) {
+  if (!order.customerId || order.pointsEarned <= 0) return;
+  const delta = earnedShare(order.pointsEarned, order.total, newRefunded) - earnedShare(order.pointsEarned, order.total, oldRefunded);
+  if (delta <= 0) return;
+  const c = await tx.customer.findUniqueOrThrow({ where: { id: order.customerId }, select: { points: true } });
+  const take = Math.min(delta, c.points);
+  if (take > 0) {
+    await recordPoints(tx, {
+      storeId: order.storeId, customerId: order.customerId, type: PointTxType.REFUND_REVERSAL,
+      points: -take, orderId: order.id, note: 'ดึงแต้มกลับตามสัดส่วน (คืนเงินบางรายการ)',
+    });
+  }
+}
+
 /** A refund must not free a table that a newer, still-open bill is sitting at. */
 export async function tableHasOtherOpenBill(tx: Pick<Prisma.TransactionClient, 'order'>, tableId: string, exceptOrderId: string) {
   const n = await tx.order.count({
@@ -615,14 +659,20 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
       }
     }
 
+    // ยอดที่ยังไม่เคยคืน (กรณีเคยคืนบางรายการมาก่อน) และแต้มที่ดึงกลับไปแล้วตามสัดส่วน
+    const amount = Prisma.Decimal.max(0, new Prisma.Decimal(order.total).minus(order.refundedAmount));
+    const alreadyClawed = earnedShare(order.pointsEarned, order.total, order.refundedAmount);
+
     // คืน/ดึงแต้มกลับ (idempotent เพราะกัน REFUNDED ซ้ำด้านบนแล้ว)
-    await reverseOrderPoints(tx, order);
+    await reverseOrderPoints(tx, { ...order, pointsEarned: Math.max(0, order.pointsEarned - alreadyClawed) });
     // คืนสิทธิ์โค้ดรางวัลที่บิลนี้เคยใช้
     await releaseRedemptionForOrder(tx, id, order.storeId, userId, 'REFUND');
+    // ยอดสะสม/จำนวนครั้งของลูกค้า
+    await reverseCustomerTotals(tx, order.customerId, amount, true);
 
     const updated = await tx.order.update({
       where: { id },
-      data: { status: 'REFUNDED' },
+      data: { status: 'REFUNDED', refundedAmount: order.total, refundedAt: new Date() },
     });
 
     // ปลดโต๊ะเมื่อ refund (ถ้าโต๊ะนั้นไม่ได้มีบิลใหม่นั่งอยู่)
@@ -635,7 +685,7 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
     }
 
     await tx.activityLog.create({
-      data: { userId, action: 'REFUND', metadata: { orderId: id } },
+      data: { userId, action: 'REFUND', metadata: { orderId: id, refundedAmount: amount.toNumber() } },
     });
 
     if (freedTable) {
@@ -669,7 +719,7 @@ export async function refundItems(
     if (order.status === 'REFUNDED') throw BadRequest('Order already fully refunded');
     assertRefundable(order);
 
-    let totalRefunded = new Prisma.Decimal(0);
+    const refundLines: Array<{ unitPrice: Prisma.Decimal.Value; quantity: number; discount: Prisma.Decimal.Value; qty: number }> = [];
 
     for (const refundInput of input.items) {
       const item = order.items.find((i) => i.id === refundInput.orderItemId);
@@ -710,24 +760,38 @@ export async function refundItems(
         },
       });
 
-      const lineRefund = new Prisma.Decimal(item.unitPrice).mul(refundInput.qty);
-      totalRefunded = totalRefunded.plus(lineRefund);
+      refundLines.push({ unitPrice: item.unitPrice, quantity: item.quantity, discount: item.discount, qty: refundInput.qty });
     }
 
     // เช็คว่า refund ครบทั้งบิลหรือไม่ → ถ้าครบ status = REFUNDED
     const remainingItems = await tx.orderItem.findMany({ where: { orderId } });
     const allRefunded = remainingItems.every((i) => i.refundedQty >= i.quantity);
 
-    // แต้มกลับเฉพาะตอนคืนครบทั้งบิล (การคืนบางรายการยังไม่แตะแต้ม — เฟส 1)
+    // ยอดคืน = สัดส่วนของรายการที่คืนบนยอดสุทธิ (รวมส่วนลดบิล ภาษี ค่าบริการ)
+    // ครบทั้งบิล → ปิดส่วนที่เหลือพอดี ไม่ให้เศษสตางค์ค้าง
+    const oldRefunded = new Prisma.Decimal(order.refundedAmount);
+    const totalRefunded = allRefunded
+      ? Prisma.Decimal.max(0, new Prisma.Decimal(order.total).minus(oldRefunded))
+      : Prisma.Decimal.min(
+          partialRefundAmount(order, refundLines),
+          Prisma.Decimal.max(0, new Prisma.Decimal(order.total).minus(oldRefunded)),
+        );
+    const newRefunded = oldRefunded.plus(totalRefunded);
+
+    // คืนครบ → ดึงแต้ม/ดวง/โค้ดทั้งหมด (หักส่วนที่ดึงตามสัดส่วนไปแล้ว); คืนบางส่วน → ดึงแต้มตามสัดส่วน
     // กันซ้ำได้เพราะ status='REFUNDED' แล้วจะ throw ที่ต้นฟังก์ชัน
     if (allRefunded) {
-      await reverseOrderPoints(tx, order);
+      const alreadyClawed = earnedShare(order.pointsEarned, order.total, oldRefunded);
+      await reverseOrderPoints(tx, { ...order, pointsEarned: Math.max(0, order.pointsEarned - alreadyClawed) });
       await releaseRedemptionForOrder(tx, orderId, order.storeId, userId, 'REFUND');
+    } else {
+      await clawbackPointsShare(tx, order, oldRefunded, newRefunded);
     }
+    await reverseCustomerTotals(tx, order.customerId, totalRefunded, allRefunded);
 
     const updated = await tx.order.update({
       where: { id: orderId },
-      data: allRefunded ? { status: 'REFUNDED' } : {},
+      data: { refundedAmount: newRefunded, refundedAt: new Date(), ...(allRefunded ? { status: 'REFUNDED' } : {}) },
       include: { items: { include: { product: true } }, payments: true },
     });
 
