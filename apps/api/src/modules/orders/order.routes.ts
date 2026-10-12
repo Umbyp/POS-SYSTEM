@@ -6,8 +6,9 @@ import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
 import * as service from './order.service';
 import * as tabService from './order-tab.service';
+import * as billOps from './order-bill-ops.service';
 import { BadRequest } from '../../utils/errors';
-import { readIdempotencyKey, runIdempotent, addRoundScope, settleScope } from './idempotency';
+import { readIdempotencyKey, runIdempotent, addRoundScope, settleScope, moveScope, mergeScope, splitScope } from './idempotency';
 import { buildReceiptESCPOS, sendToPrinter, isKitchenPrinterConfigured } from './escpos';
 
 const router = Router();
@@ -188,6 +189,13 @@ router.get('/open/by-table/:tableId', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Every open bill at a table (several exist after a split), oldest first
+router.get('/open/by-table/:tableId/all', async (req, res, next) => {
+  try {
+    res.json(await tabService.listOpenByTable(req.user!.storeId, req.params.tableId));
+  } catch (e) { next(e); }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     res.json(await service.list(req.user!.storeId, req.query));
@@ -270,6 +278,55 @@ router.post(
     } catch (e) { next(e); }
   }
 );
+
+// ===== Table bill operations on open bills =====
+const moveSchema = z.object({ tableId: z.string().min(1), clientRequestId });
+const mergeSchema = z.object({
+  sourceOrderId: z.string().min(1).optional(),
+  sourceOrderIds: z.array(z.string().min(1)).min(1).max(20).optional(),
+  clientRequestId,
+}).refine((b) => b.sourceOrderId || b.sourceOrderIds?.length, { message: 'ต้องระบุ sourceOrderId หรือ sourceOrderIds' });
+const splitSchema = z.object({
+  items: z.array(z.object({ orderItemId: z.string().min(1), qty: z.number().int().positive() })).min(1),
+  tableId: z.string().min(1).optional(),
+  clientRequestId,
+});
+
+router.post('/:id/move-table', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(moveSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const { order, replay } = await runIdempotent(req.user!.storeId, moveScope(req.params.id), readIdempotencyKey(req), (k) =>
+      billOps.moveTable(req.params.id, { storeId: req.user!.storeId, userId: req.user!.id, tableId: req.body.tableId, idempotencyKey: k }, io));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
+    res.json(order);
+  } catch (e) { next(e); }
+});
+
+router.post('/:id/merge', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(mergeSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const sourceOrderIds: string[] = req.body.sourceOrderIds ?? [req.body.sourceOrderId];
+    const { order, replay } = await runIdempotent(req.user!.storeId, mergeScope(req.params.id), readIdempotencyKey(req), (k) =>
+      billOps.mergeOrders(req.params.id, { storeId: req.user!.storeId, userId: req.user!.id, sourceOrderIds, idempotencyKey: k }, io));
+    if (replay) res.setHeader('Idempotent-Replay', 'true');
+    res.json(order);
+  } catch (e) { next(e); }
+});
+
+router.post('/:id/split', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(splitSchema), async (req, res, next) => {
+  try {
+    const io = req.app.get('io');
+    const { order: created, replay } = await runIdempotent(req.user!.storeId, splitScope(req.params.id), readIdempotencyKey(req), (k) =>
+      billOps.splitOrder(req.params.id, {
+        storeId: req.user!.storeId, userId: req.user!.id, items: req.body.items, tableId: req.body.tableId, idempotencyKey: k,
+      }, io));
+    if (!replay) return res.status(201).json(created);
+    // Replay: the key row points at the new bill; return both bills as they are now.
+    res.setHeader('Idempotent-Replay', 'true');
+    const newOrder = created as any;
+    res.status(201).json({ order: await service.getById(req.params.id, req.user!.storeId), newOrder });
+  } catch (e) { next(e); }
+});
 
 // Take payment on an open bill → complete + free table
 router.post('/:id/settle', rbac('OWNER', 'ADMIN', 'CASHIER'), validate(settleSchema), async (req, res, next) => {
