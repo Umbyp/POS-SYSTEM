@@ -5,6 +5,7 @@ import { rbac } from '../../middleware/rbac.middleware';
 import { validate } from '../../middleware/validate.middleware';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
+import { emitStockUpdated } from './stock-alerts';
 
 const router = Router();
 router.use(authMiddleware);
@@ -81,7 +82,7 @@ router.post(
       });
 
       const io = req.app.get('io');
-      io.to(`store:${req.user!.storeId}`).emit('stock:updated', { productIds: [req.params.productId] });
+      emitStockUpdated(io, req.user!.storeId, [req.params.productId]);
 
       // log activity
       prisma.activityLog.create({
@@ -137,7 +138,7 @@ router.post(
       });
 
       const io = req.app.get('io');
-      io.to(`store:${req.user!.storeId}`).emit('stock:updated', { productIds: [req.params.productId] });
+      emitStockUpdated(io, req.user!.storeId, [req.params.productId]);
 
       res.json(result);
     } catch (e) { next(e); }

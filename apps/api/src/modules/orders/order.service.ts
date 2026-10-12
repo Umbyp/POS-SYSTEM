@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { emitStockUpdated } from '../inventory/stock-alerts';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
 import { OrderStatus, OrderType, PaymentMethod, PointTxType, Prisma } from '@prisma/client';
@@ -452,7 +453,7 @@ export async function create(input: CreateOrderInput, io: Server) {
     // 9. Emit realtime
     io.to(`store:${input.storeId}`).emit('order:created', order);
     io.to(`store:${input.storeId}:kds`).emit('kds:new', order);
-    io.to(`store:${input.storeId}`).emit('stock:updated', { productIds });
+    emitStockUpdated(io, input.storeId, productIds);
     if (updatedTable) {
       io.to(`store:${input.storeId}`).emit('table:updated', updatedTable);
     }
@@ -620,6 +621,44 @@ async function clawbackPointsShare(
   }
 }
 
+/**
+ * Put recipe ingredients back when sold items are refunded. A sale deducts ceil(total usage) per
+ * ingredient, so restore the same way on the cumulative refunded quantity (target − already restored):
+ * repeated partial refunds then never over-restock, and refunding everything returns exactly what was taken.
+ */
+async function restoreRecipeIngredients(
+  tx: Prisma.TransactionClient,
+  orderId: string,
+  userId: string,
+  lines: Array<{ productId: string; oldRefunded: number; newRefunded: number }>,
+  reason: string,
+) {
+  const active = lines.filter((l) => l.newRefunded > l.oldRefunded);
+  if (!active.length) return;
+  const recipes = await tx.recipeItem.findMany({
+    where: { productId: { in: [...new Set(active.map((l) => l.productId))] } },
+    include: { ingredient: { include: { inventory: true } } },
+  });
+  const usage = new Map<string, { before: number; after: number }>();
+  for (const l of active) {
+    for (const r of recipes.filter((x) => x.productId === l.productId)) {
+      if (!r.ingredient.trackStock || !r.ingredient.inventory) continue;
+      const u = usage.get(r.ingredient.inventory.id) ?? { before: 0, after: 0 };
+      u.before += Number(r.quantity) * l.oldRefunded;
+      u.after += Number(r.quantity) * l.newRefunded;
+      usage.set(r.ingredient.inventory.id, u);
+    }
+  }
+  for (const [inventoryId, u] of usage) {
+    const qty = Math.ceil(u.after - 1e-9) - Math.ceil(u.before - 1e-9);
+    if (qty <= 0) continue;
+    await tx.inventory.update({ where: { id: inventoryId }, data: { quantity: { increment: qty } } });
+    await tx.stockMovement.create({
+      data: { inventoryId, type: 'RETURN', quantity: qty, orderId, userId, reason: `${reason} (วัตถุดิบ)` },
+    });
+  }
+}
+
 /** A refund must not free a table that a newer, still-open bill is sitting at. */
 export async function tableHasOtherOpenBill(tx: Pick<Prisma.TransactionClient, 'order'>, tableId: string, exceptOrderId: string) {
   const n = await tx.order.count({
@@ -629,7 +668,7 @@ export async function tableHasOtherOpenBill(tx: Pick<Prisma.TransactionClient, '
 }
 
 export async function refund(id: string, userId: string, io: Server, storeId?: string) {
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id, ...(storeId ? { storeId } : {}) },
       include: { items: { include: { product: { include: { inventory: true } } } }, payments: true },
@@ -658,6 +697,12 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
         });
       }
     }
+
+    await restoreRecipeIngredients(
+      tx, order.id, userId,
+      order.items.map((i) => ({ productId: i.productId, oldRefunded: i.refundedQty, newRefunded: i.quantity })),
+      'Refund',
+    );
 
     // ยอดที่ยังไม่เคยคืน (กรณีเคยคืนบางรายการมาก่อน) และแต้มที่ดึงกลับไปแล้วตามสัดส่วน
     const amount = Prisma.Decimal.max(0, new Prisma.Decimal(order.total).minus(order.refundedAmount));
@@ -695,6 +740,8 @@ export async function refund(id: string, userId: string, io: Server, storeId?: s
     io.to(`store:${order.storeId}`).emit('order:refunded', { id });
     return updated;
   });
+  emitStockUpdated(io, result.storeId, []);
+  return result;
 }
 
 /**
@@ -710,7 +757,7 @@ export async function refundItems(
 ) {
   if (!input.items?.length) throw BadRequest('No items to refund');
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const order = await tx.order.findFirst({
       where: { id: orderId, ...(storeId ? { storeId } : {}) },
       include: { items: { include: { product: { include: { inventory: true } } } }, payments: true },
@@ -719,6 +766,7 @@ export async function refundItems(
     if (order.status === 'REFUNDED') throw BadRequest('Order already fully refunded');
     assertRefundable(order);
 
+    const ingredientLines: Array<{ productId: string; oldRefunded: number; newRefunded: number }> = [];
     const refundLines: Array<{ unitPrice: Prisma.Decimal.Value; quantity: number; discount: Prisma.Decimal.Value; qty: number }> = [];
 
     for (const refundInput of input.items) {
@@ -760,8 +808,11 @@ export async function refundItems(
         },
       });
 
+      ingredientLines.push({ productId: item.productId, oldRefunded: item.refundedQty, newRefunded: item.refundedQty + refundInput.qty });
       refundLines.push({ unitPrice: item.unitPrice, quantity: item.quantity, discount: item.discount, qty: refundInput.qty });
     }
+
+    await restoreRecipeIngredients(tx, order.id, userId, ingredientLines, 'Partial refund');
 
     // เช็คว่า refund ครบทั้งบิลหรือไม่ → ถ้าครบ status = REFUNDED
     const remainingItems = await tx.orderItem.findMany({ where: { orderId } });
@@ -825,6 +876,8 @@ export async function refundItems(
       fullyRefunded: allRefunded,
     };
   });
+  emitStockUpdated(io, result.order.storeId, []);
+  return result;
 }
 
 /**

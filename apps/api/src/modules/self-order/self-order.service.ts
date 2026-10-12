@@ -6,6 +6,7 @@
  * recipe logic stays in one place without adding a wait for the customer.
  */
 import { Server } from 'socket.io';
+import { soldOutProductIds } from '../inventory/stock-alerts';
 import { PointTxType } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { BadRequest, NotFound } from '../../utils/errors';
@@ -76,6 +77,8 @@ export async function getMenu(qrCode: string) {
     }),
   ]);
 
+  const soldOut = await soldOutProductIds(table.storeId, products.map((p) => p.id));
+
   return {
     store: {
       id: table.store.id,
@@ -96,6 +99,7 @@ export async function getMenu(qrCode: string) {
       sellingPrice: p.sellingPrice,
       categoryId: p.categoryId,
       variants: p.variants,
+      soldOut: soldOut.has(p.id),
       // Pickers for the page: min/max are enforced again on submit.
       optionGroups: toGroupDefs({ optionGroups: p.optionGroups, variants: [] }),
     })),
@@ -120,6 +124,11 @@ export async function submitRequest(qrCode: string, input: SubmitInput, io: Serv
   });
   if (products.length !== new Set(productIds).size) {
     throw BadRequest('Some items are no longer available');
+  }
+  const soldOut = await soldOutProductIds(table.storeId, productIds);
+  const gone = products.filter((p) => soldOut.has(p.id));
+  if (gone.length) {
+    throw BadRequest(`ขออภัย ${gone.map((p) => p.name).join(', ')} หมดชั่วคราว`, 'SOLD_OUT');
   }
   for (const it of input.items) {
     if (!Number.isInteger(it.quantity) || it.quantity <= 0) {

@@ -264,6 +264,7 @@ model Inventory {
   productId  String          @unique
   quantity   Int             @default(0)
   lowStockAt Int             @default(10)
+  lowAlertLevel Int          @default(0) // 0 ปกติ, 1 ใกล้หมดแล้วแจ้งไปแล้ว, 2 หมดแล้วแจ้งไปแล้ว (กันแจ้งซ้ำ)
   expiryDate DateTime?
   updatedAt  DateTime        @updatedAt
   product    Product         @relation(fields: [productId], references: [id])

@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { soldOutProductIds } from '../inventory/stock-alerts';
 import { NotFound } from '../../utils/errors';
 import { Prisma } from '@prisma/client';
 
@@ -33,12 +34,15 @@ export async function list(storeId: string, query: { q?: string; categoryId?: st
       : {}),
   };
   const limit = Math.min(query.limit ?? 200, 500);
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where,
     include: PRODUCT_INCLUDE,
     orderBy: { name: 'asc' },
     take: limit,
   });
+  // soldOut also covers a recipe ingredient that can't cover one serving (not just the product's own stock)
+  const soldOut = await soldOutProductIds(storeId, products.map((p) => p.id));
+  return products.map((p) => ({ ...p, soldOut: soldOut.has(p.id) }));
 }
 
 /**
