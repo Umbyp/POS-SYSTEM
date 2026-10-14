@@ -1,7 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber/native';
 import { CanvasTexture, SRGBColorSpace, type Group } from 'three';
-import { C } from '../palette';
+import { C, LOOK } from '../palette';
 import type { MenuItem } from '../../types';
 import type { Rect, WorldPlan } from '../layout';
 import { Ball, Blob, Cyl, Glow, Rbox, type V3 } from './parts';
@@ -10,12 +10,6 @@ import { Lounge, PhotoCorner } from './Buildings';
 
 const STEEL = '#C9CFD6';
 const STEEL_DARK = '#7B848E';
-const WALL = '#F7E6CF';
-const WAINSCOT = '#C28A5A';
-const FLOOR_A = '#DDAA6E';
-const FLOOR_B = '#D19B5E';
-const TILE_A = '#F1EBDD';
-const TILE_B = '#DCD3BF';
 
 const mid = (a: number, b: number) => (a + b) / 2;
 
@@ -28,7 +22,7 @@ function Floor({ plan }: { plan: WorldPlan }) {
   const strips = useMemo(() => {
     const out: { z: number; depth: number; color: string }[] = [];
     let i = 0;
-    for (let z = kitchenZ1; z < r.z1; z += 1.6, i++) out.push({ z: z + 0.8, depth: Math.min(1.6, r.z1 - z), color: i % 2 ? FLOOR_B : FLOOR_A });
+    for (let z = kitchenZ1; z < r.z1; z += 1.6, i++) out.push({ z: z + 0.8, depth: Math.min(1.6, r.z1 - z), color: i % 2 ? LOOK.floorB : LOOK.floorA });
     return out;
   }, [kitchenZ1, r.z1]);
   const tiles = useMemo(() => {
@@ -36,7 +30,7 @@ function Floor({ plan }: { plan: WorldPlan }) {
     let i = 0;
     for (let z = r.z0; z < kitchenZ1; z += 1.8, i++) {
       const d = Math.min(1.8, kitchenZ1 - z); // the last row stops exactly where the wood floor begins
-      for (let x = r.x0, j = 0; x < r.x1; x += 1.8, j++) out.push({ x: x + 0.9, z: z + d / 2, d, color: (i + j) % 2 ? TILE_B : TILE_A });
+      for (let x = r.x0, j = 0; x < r.x1; x += 1.8, j++) out.push({ x: x + 0.9, z: z + d / 2, d, color: (i + j) % 2 ? LOOK.tileB : LOOK.tileA });
     }
     return out;
   }, [r, kitchenZ1]);
@@ -52,7 +46,7 @@ function Floor({ plan }: { plan: WorldPlan }) {
         <Rbox key={`t${i}`} pos={[t.x, 0.12, t.z]} size={[1.76, 0.06, Math.max(0.1, t.d - 0.04)]} r={0.02} color={t.color} />
       ))}
       {/* a rug under the dining hall */}
-      <Rbox pos={[mid(plaza.x0, plaza.x1), 0.16, mid(plaza.z0, plaza.z1)]} size={[plaza.x1 - plaza.x0 - 2, 0.03, plaza.z1 - plaza.z0 - 2]} r={0.3} color="#EAD3B0" />
+      <Rbox pos={[mid(plaza.x0, plaza.x1), 0.16, mid(plaza.z0, plaza.z1)]} size={[plaza.x1 - plaza.x0 - 2, 0.03, plaza.z1 - plaza.z0 - 2]} r={0.3} color={LOOK.rug} />
       {/* door mat */}
       <Rbox pos={[0, 0.16, r.z1 - 1.2]} size={[3.4, 0.04, 1.6]} r={0.1} color={C.roof} />
     </group>
@@ -65,8 +59,8 @@ const H = 5;
 function WallPanel({ x, z, w, d }: { x: number; z: number; w: number; d: number }) {
   return (
     <group>
-      <Rbox pos={[x, H / 2, z]} size={[w, H, d]} r={0.08} color={WALL} />
-      <Rbox pos={[x, 0.75, z]} size={[w + (w > d ? 0 : 0.06), 1.5, d + (w > d ? 0.06 : 0)]} r={0.06} color={WAINSCOT} />
+      <Rbox pos={[x, H / 2, z]} size={[w, H, d]} r={0.08} color={LOOK.wall} />
+      <Rbox pos={[x, 0.75, z]} size={[w + (w > d ? 0 : 0.06), 1.5, d + (w > d ? 0.06 : 0)]} r={0.06} color={LOOK.wainscot} />
       <Rbox pos={[x, 1.55, z]} size={[w + (w > d ? 0 : 0.14), 0.12, d + (w > d ? 0.14 : 0)]} r={0.04} color={C.woodDark} />
       <Rbox pos={[x, 0.12, z]} size={[w + (w > d ? 0 : 0.14), 0.24, d + (w > d ? 0.14 : 0)]} r={0.04} color={C.woodDark} />
     </group>
@@ -178,7 +172,7 @@ function Walls({ plan, glow }: { plan: WorldPlan; glow: number }) {
         [2, r.x1],
       ].map(([a, b], i) => (
         <group key={i}>
-          <Rbox pos={[mid(a, b), 0.45, r.z1 + 0.2]} size={[b - a, 0.9, 0.5]} r={0.1} color={WAINSCOT} />
+          <Rbox pos={[mid(a, b), 0.45, r.z1 + 0.2]} size={[b - a, 0.9, 0.5]} r={0.1} color={LOOK.wainscot} />
           <Rbox pos={[mid(a, b), 2.2, r.z1 + 0.2]} size={[b - a, 2.6, 0.08]} r={0.02} color="#DCEFE9" />
           {xs(a, b, 6).map((x) => (
             <Rbox key={x} pos={[x, 1.8, r.z1 + 0.2]} size={[0.22, 3.6, 0.3]} r={0.06} color={C.woodDark} />

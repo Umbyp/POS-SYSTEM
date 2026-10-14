@@ -90,6 +90,7 @@ model Store {
   // แต้มหมดอายุ (เดือนนับจากวันที่ได้) — 0 = ไม่หมดอายุ
   pointsExpiryMonths Int @default(0)
   members         StoreMember[]
+  worldConfig   WorldConfig?
   categories    Category[]
   customers     Customer[]
   orders        Order[]
@@ -764,4 +765,13 @@ enum RedemptionStatus {
   ACTIVE
   USED
   CANCELLED
+}
+
+/// Store World (3D shop view): how the owner dressed the characters and decorated the shop. Cosmetic only.
+model WorldConfig {
+  id        String   @id @default(cuid())
+  storeId   String   @unique
+  data      Json
+  updatedAt DateTime @updatedAt
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 }

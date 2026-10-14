@@ -9,6 +9,12 @@ import { clearToken, getToken, login } from './api';
 import { useWorldData, type DataMode } from './useWorldData';
 import type { FeedItem } from './world/sim/Director';
 import { Sheet } from './Sheet';
+import { Dresser } from './Dresser';
+import { BuildPanel } from './BuildPanel';
+import type { BuildState } from './world/scene/BuildLayer';
+import { useWorldConfig } from './useWorldConfig';
+import { applyLook } from './world/palette';
+import { MAX_ITEMS, type PersonCfg } from './config';
 import { FESTIVALS, type Festival } from './world/scene/Festival';
 import { Pacer } from './Pacer';
 import { registry } from './world/sim/agent';
@@ -33,6 +39,8 @@ export function App() {
   const [focus, setFocus] = useState<Focus | null>(null);
   const [following, setFollowing] = useState(false);
   const [festival, setFestival] = useState<Festival>('none');
+  const [dressingId, setDressingId] = useState<string | null>(null);
+  const [build, setBuild] = useState<BuildState | null>(null);
   const [panel, setPanel] = useState(false);
   const [sel, setSel] = useState<Selection | null>(null);
   const closeSheet = useCallback(() => {
@@ -44,9 +52,17 @@ export function App() {
     if (!following || !sel || sel.kind === 'table') return null;
     if (sel.kind === 'pet') return () => registry.pet;
     const id = sel.id;
-    return () => registry.agents.find((a) => a.staff.id === id) ?? null;
-  }, [following, sel]);
+    // while the dressing room is open the character is kept in the upper part of the screen
+    const lift = dressingId ? 3.6 : 0;
+    return () => {
+      const p = registry.agents.find((a) => a.staff.id === id);
+      return p ? { x: p.x, z: p.z + lift } : null;
+    };
+  }, [following, sel, dressingId]);
+  const buildRef = useRef<BuildState | null>(null);
+  buildRef.current = build;
   const onPick = useCallback<PickFn>((s, x, z) => {
+    if (buildRef.current) return; // decorating: taps place things instead
     setSel(s);
     setFollowing(s.kind !== 'table');
     setFocus((f) => ({ x, z: z + 1.5, dist: 11, n: (f?.n ?? 0) + 1 }));
@@ -75,6 +91,9 @@ export function App() {
   const [tierPick, setTierPick] = useState<Tier | 'auto'>('auto');
   const [theme, setTheme] = useState<Theme>('interior');
   const data = useWorldData(mode, () => setMode(null), demoCount);
+  const { config, setConfig, state: saveState, canEdit } = useWorldConfig(mode);
+  // the colours of the shop follow the saved preset and paint; a new look remounts the scene
+  const lookKey = useMemo(() => applyLook(config.preset, config.paint), [config.preset, config.paint]);
   const tables = mode ? data.tables : [];
   // tables that seat six or more (or are marked LARGE) are drawn as long group tables
   const kindsKey = sortTables(tables).map((t) => (t.capacity >= 6 || t.size === 'LARGE' ? 'L' : 'R')).join('');
@@ -100,6 +119,42 @@ export function App() {
   const avgWait = activeOrders.length
     ? `${Math.max(1, Math.round(activeOrders.reduce((t, o) => t + (nowSum - o.createdAt), 0) / activeOrders.length / 60_000))} น.`
     : '–';
+  const onBuildPlace = useCallback(
+    (x: number, z: number) => {
+      const b = buildRef.current;
+      if (!b?.type) return;
+      const type = b.type;
+      if (b.movingId) {
+        const id = b.movingId;
+        setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? { ...i, x, z, rot: b.rot } : i)) }));
+        setBuild((cur) => (cur ? { ...cur, type: null, movingId: null, selectedId: id } : cur));
+      } else {
+        const id = `i${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
+        setConfig((c) => (c.items.length >= MAX_ITEMS ? c : { ...c, items: [...c.items, { id, type, x, z, rot: b.rot }] }));
+      }
+    },
+    [setConfig],
+  );
+  const onBuildSelect = useCallback((id: string | null) => setBuild((b) => (b ? { ...b, selectedId: id } : b)), []);
+  const patchPerson = useCallback(
+    (id: string, patch: Partial<PersonCfg>) =>
+      setConfig((c) => {
+        const next: PersonCfg = { ...(c.people[id] ?? {}), ...patch };
+        (Object.keys(next) as (keyof PersonCfg)[]).forEach((k) => next[k] === undefined && delete next[k]);
+        return { ...c, people: { ...c.people, [id]: next } };
+      }),
+    [setConfig],
+  );
+  const replacePerson = useCallback(
+    (id: string, next: PersonCfg | undefined) =>
+      setConfig((c) => {
+        const people = { ...c.people };
+        if (next) people[id] = next;
+        else delete people[id];
+        return { ...c, people };
+      }),
+    [setConfig],
+  );
   const occupied = tables.filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING').length;
 
   return (
@@ -113,7 +168,15 @@ export function App() {
       >
         <Pacer boostKey={focus?.n ?? resetKey} />
         <Controls plan={plan} resetKey={resetKey} focus={focus} track={track} onUserMove={stopFollow} />
-        <WorldScene tables={tables} isDark={isDark} plan={plan} staff={mode ? data.staff : []} orders={mode ? data.orders : null} menu={mode ? data.menu : []} demo={mode === 'demo'} showNames={showNames} onFeed={onFeed} onPick={onPick} selection={sel} festival={festival} />
+        <WorldScene key={lookKey} tables={tables} isDark={isDark} plan={plan} staff={mode ? data.staff : []} orders={mode ? data.orders : null} menu={mode ? data.menu : []} demo={mode === 'demo'} showNames={showNames} onFeed={onFeed} onPick={onPick}
+          selection={sel}
+          festival={festival}
+          people={config.people}
+          items={config.items}
+          build={build}
+          onBuildPlace={onBuildPlace}
+          onBuildSelect={onBuildSelect}
+        />
       </Canvas>
 
       <div className="vignette" />
@@ -155,9 +218,39 @@ export function App() {
         ) : null}
       </header>
 
-      {mode && sel ? <Sheet sel={sel} tables={tables} orders={mode ? data.orders : []} onClose={closeSheet} /> : null}
+      {mode && sel && !dressingId && !build ? (
+        <Sheet sel={sel} tables={tables} orders={mode ? data.orders : []} onClose={closeSheet} onDress={
+            canEdit
+              ? (id) => {
+                  setDressingId(id);
+                  const p = registry.agents.find((x) => x.staff.id === id);
+                  if (p) setFocus((f) => ({ x: p.x, z: p.z + 3.6, dist: 9, n: (f?.n ?? 0) + 1 }));
+                  setFollowing(true);
+                }
+              : undefined
+          } />
+      ) : null}
+      {mode && dressingId && !build
+        ? (() => {
+            const ag = registry.agents.find((x) => x.staff.id === dressingId);
+            if (!ag) return null;
+            const base = data.staff.find((x) => x.id === dressingId) ?? ag.staff;
+            return (
+              <Dresser
+                staff={base}
+                cfg={config.people[dressingId]}
+                onChange={(patch) => patchPerson(dressingId, patch)}
+                onReplace={(next) => replacePerson(dressingId, next)}
+                onClose={() => setDressingId(null)}
+              />
+            );
+          })()
+        : null}
+      {mode && build ? (
+        <BuildPanel config={config} setConfig={setConfig} build={build} setBuild={(fn) => setBuild((b) => (b ? fn(b) : b))} save={saveState} onExit={() => setBuild(null)} />
+      ) : null}
 
-      {mode && !sel ? (
+      {mode && !sel && !build ? (
         <div className="dock">
           {panel ? (
             <div className="panel">
@@ -218,6 +311,20 @@ export function App() {
                   {label}
                 </button>
               ))}
+              {plan.theme === 'interior' && canEdit ? (
+                <button
+                  className="c7"
+                  onClick={() => {
+                    setPanel(false);
+                    setSel(null);
+                    setFollowing(false);
+                    setDressingId(null);
+                    setBuild({ type: null, movingId: null, rot: 0, selectedId: null });
+                  }}
+                >
+                  🔨 ตกแต่ง
+                </button>
+              ) : null}
               {plan.theme === 'interior' ? (
                 <>
                   <button

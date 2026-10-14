@@ -24,3 +24,18 @@ export async function apiGet<T>(path: string): Promise<T> {
   if (!res.ok) throw new Error(`${path} → ${res.status}`);
   return res.json() as Promise<T>;
 }
+
+/** Save the shop's look (owner/admin only). Never touches orders, tables or staff. */
+export async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
+    body: JSON.stringify(body),
+  });
+  if (res.status === 401) {
+    clearToken();
+    throw new Error('หมดอายุ กรุณาเข้าสู่ระบบใหม่');
+  }
+  if (!res.ok) throw new Error(`${path} → ${res.status}`);
+  return res.json() as Promise<T>;
+}

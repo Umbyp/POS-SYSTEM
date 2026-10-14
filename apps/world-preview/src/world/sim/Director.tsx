@@ -3,9 +3,10 @@ import { useFrame } from '@react-three/fiber/native';
 import type { RestaurantTable, Staff } from '../../types';
 import type { Pt, WorldPlan } from '../layout';
 import { Character } from '../characters/Character';
-import { lookFor, outfitFor, phaseFor, placeStaff, type Placed, type Status } from '../characters/people';
+import { dressed, phaseFor, placeStaff, type Placed, type Status } from '../characters/people';
 import { registry, type Agent } from './agent';
 import type { PickFn } from '../../selection';
+import type { PersonCfg } from '../../config';
 import { AlertMark, Burst, PlateView, Ticket, type BurstEntity, type BurstKind, type PlateEntity, type TicketEntity } from './effects';
 import { isActive, isLate, sortTables, type OrderView } from './orders';
 import { chairSpot, deliveryRoute, entrance, leaveRoute, loopRoute, returnRoute, seatRoute } from './paths';
@@ -20,11 +21,12 @@ export interface FeedItem {
 const SPEED = 2.8;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 
-function makeAgent(p: Placed): Agent {
+function makeAgent(p: Placed, cfg?: PersonCfg): Agent {
+  const d = dressed(p.staff, cfg);
   return {
-    staff: p.staff,
-    look: lookFor(p.staff),
-    outfit: outfitFor(p.staff.role, p.staff),
+    staff: d.name === p.staff.name ? p.staff : { ...p.staff, name: d.name },
+    look: d.look,
+    outfit: d.outfit,
     phase: phaseFor(p.staff),
     home: { x: p.x, z: p.z },
     x: p.x,
@@ -81,6 +83,7 @@ export function Director({
   onFeed,
   onPick,
   selectedId,
+  people,
 }: {
   plan: WorldPlan;
   staff: Staff[];
@@ -90,11 +93,24 @@ export function Director({
   onFeed: (f: Omit<FeedItem, 'id'>) => void;
   onPick: PickFn;
   selectedId: string | null;
+  people: Record<string, PersonCfg>;
 }) {
   const placed = useMemo(() => placeStaff(plan, staff).placed, [plan, staff]);
-  const agents = useMemo(() => placed.map(makeAgent), [placed]);
+  const peopleRef = useRef(people);
+  peopleRef.current = people;
+  const agents = useMemo(() => placed.map((p) => makeAgent(p, peopleRef.current[p.staff.id])), [placed]);
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
+
+  // the dressing room changed someone: update that person in place (position and behaviour stay)
+  useEffect(() => {
+    for (const a of agentsRef.current) {
+      const d = dressed(a.staff, people[a.staff.id]);
+      a.look = d.look;
+      a.outfit = d.outfit;
+      if (d.name !== a.staff.name) a.staff = { ...a.staff, name: d.name };
+    }
+  }, [people]);
 
   const tableIdx = useMemo(() => {
     const m = new Map<string, number>();
@@ -682,7 +698,7 @@ export function Director({
   return (
     <>
       {agents.map((a) => (
-        <Character key={a.staff.id} agent={a} showName={showNames} onPick={onPick} selected={selectedId === a.staff.id} />
+        <Character key={`${a.staff.id}:${JSON.stringify(people[a.staff.id] ?? 0)}`} agent={a} showName={showNames} onPick={onPick} selected={selectedId === a.staff.id} />
       ))}
       {guests.map((a) => (
         <Character key={a.staff.id} agent={a} showName={false} s={0.82} onPick={onPick} selected={selectedId === a.staff.id} />

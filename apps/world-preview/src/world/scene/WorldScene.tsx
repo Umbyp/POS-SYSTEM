@@ -1,3 +1,6 @@
+import type { PersonCfg, PlacedItem } from '../../config';
+import { FurnitureStatic } from './Furniture';
+import { BuildLayer, type BuildState } from './BuildLayer';
 import { Ambient } from './Ambient';
 import { FestivalLive, FestivalStatic, type Festival } from './Festival';
 import { Pet } from '../characters/Pet';
@@ -200,6 +203,11 @@ export function WorldScene({
   onPick,
   selection,
   festival,
+  people,
+  items,
+  build,
+  onBuildPlace,
+  onBuildSelect,
 }: {
   tables: RestaurantTable[];
   isDark: boolean;
@@ -213,6 +221,12 @@ export function WorldScene({
   onPick: PickFn;
   selection: Selection | null;
   festival: Festival;
+  people: Record<string, PersonCfg>;
+  items: PlacedItem[];
+  /** decorate mode (null = normal viewing) */
+  build: BuildState | null;
+  onBuildPlace: (x: number, z: number) => void;
+  onBuildSelect: (id: string | null) => void;
 }) {
   const base = isDark ? NIGHT : DAY;
   // indoors the lamps are on, so the night room stays bright and warm
@@ -234,6 +248,9 @@ export function WorldScene({
       {plan.theme === 'interior' ? <InteriorLive plan={plan} menu={menu} demo={demo} /> : null}
       <Bake deps={[isDark, plan, festival]}>
         <FestivalStatic plan={plan} festival={festival} />
+      </Bake>
+      <Bake deps={[isDark, plan, items, build?.movingId]}>
+        <FurnitureStatic items={build?.movingId ? items.filter((i) => i.id !== build.movingId) : items} glow={mood.glow} />
       </Bake>
       <FestivalLive plan={plan} festival={festival} />
       <Ambient plan={plan} isDark={isDark} festival={festival} />
@@ -285,7 +302,9 @@ export function WorldScene({
         onFeed={onFeed}
         onPick={onPick}
         selectedId={selection?.kind === 'person' ? selection.id : null}
+        people={people}
       />
+      {build ? <BuildLayer plan={plan} items={items} build={build} onPlace={onBuildPlace} onSelect={onBuildSelect} /> : null}
     </>
   );
 }

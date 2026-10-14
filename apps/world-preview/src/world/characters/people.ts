@@ -1,5 +1,6 @@
 import type { Role, Staff } from '../../types';
 import type { Pt, WorldPlan } from '../layout';
+import type { PersonCfg } from '../../config';
 
 export type HairStyle = 'tuft' | 'bun' | 'pigtails' | 'bowl' | 'twinbuns' | 'long' | 'curly' | 'sidepony';
 const STYLES: HairStyle[] = ['tuft', 'bun', 'pigtails', 'bowl', 'twinbuns', 'long', 'curly', 'sidepony'];
@@ -10,6 +11,7 @@ const BOWS = ['#F2A7A0', '#B9DDB0', '#FFD36B', '#FFE9D0', '#E8896B'];
 const SHOES = ['#8B5E4A', '#5E8A5B', '#5A4638', '#C0566F'];
 
 export interface Look {
+  extra?: 'glasses' | 'flower';
   style: HairStyle;
   skin: string;
   hair: string;
@@ -98,6 +100,50 @@ export const outfitFor = (role: Role, s: Staff): Outfit => {
   const h = hash(s.id);
   return { ...OUTFITS[role][(h >>> 7) % 5], pattern: PATTERNS[(h >>> 10) % PATTERNS.length] };
 };
+
+/** The generated look and outfit, with the owner's own choices (if any) laid on top. */
+export function dressed(s: Staff, cfg?: PersonCfg): { look: Look; outfit: Outfit; name: string } {
+  const look = lookFor(s);
+  const base = outfitFor(s.role, s);
+  if (!cfg) return { look, outfit: base, name: s.name };
+  return {
+    look: {
+      ...look,
+      style: cfg.style ?? look.style,
+      skin: cfg.skin ?? look.skin,
+      hair: cfg.hair ?? look.hair,
+      bow: cfg.bow ?? look.bow,
+      extra: cfg.extra,
+      height: cfg.height ?? look.height,
+      girth: cfg.girth ?? look.girth,
+    },
+    outfit: { top: cfg.top ?? base.top, accent: cfg.accent ?? base.accent, pattern: cfg.pattern ?? base.pattern },
+    name: cfg.nick?.trim() ? cfg.nick.trim() : s.name,
+  };
+}
+
+/** Choices offered in the dressing room. */
+export const HAIR_STYLES: { id: HairStyle; name: string }[] = [
+  { id: 'tuft', name: 'ผมจุก' },
+  { id: 'bun', name: 'มวยผม' },
+  { id: 'pigtails', name: 'ผมแกละ' },
+  { id: 'bowl', name: 'ทรงกะลา' },
+  { id: 'twinbuns', name: 'สองมวย' },
+  { id: 'long', name: 'ผมยาว' },
+  { id: 'curly', name: 'ผมหยิก' },
+  { id: 'sidepony', name: 'ม้าข้าง' },
+];
+export const SKIN_CHOICES = ['#FFE0C8', '#F8CDB0', '#EDB894', '#D9A07A', '#B97C58'];
+export const HAIR_CHOICES = ['#2E2E3E', '#4A3328', '#7A4E36', '#9A5B3C', '#C98A3E', '#E8C170', '#8B4A4A', '#D9B8C9', '#B5C9A5'];
+export const TOP_CHOICES = ['#FFFFFF', '#FFF6E5', '#FFE3DC', '#FAD9D2', '#FFD6A5', '#FFE08A', '#E6F2DC', '#DCEFE9', '#F6E1E4', '#D25E3B', '#8DB67A', '#5FA39A'];
+export const ACCENT_CHOICES = ['#D25E3B', '#E58B7C', '#C9677A', '#E8A33A', '#C98A3E', '#8A5A3B', '#8DB67A', '#5E9C4A', '#5FA39A', '#4F8F83'];
+export const BOW_CHOICES = ['#F2A7A0', '#FFD36B', '#B9DDB0', '#FFE9D0', '#E8896B', '#D9B8C9', '#9ED3CC'];
+export const PATTERN_CHOICES: { id: Pattern; name: string }[] = [
+  { id: 'plain', name: 'เรียบ' },
+  { id: 'stripes', name: 'ริ้ว' },
+  { id: 'dots', name: 'จุด' },
+  { id: 'stars', name: 'ดาว' },
+];
 
 export type Status = 'working' | 'waiting' | 'late' | 'idle';
 /** Ring colour under the feet: green working, yellow waiting, red late/error, grey idle. */
