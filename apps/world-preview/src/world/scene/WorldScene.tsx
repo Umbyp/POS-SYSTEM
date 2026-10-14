@@ -216,7 +216,7 @@ export function WorldScene({
 }) {
   const base = isDark ? NIGHT : DAY;
   // indoors the lamps are on, so the night room stays bright and warm
-  const mood = isDark && plan.theme === 'interior' ? { ...base, background: '#4A4170', ambient: '#E6D6F2', ambientIntensity: 1.6, sunIntensity: 1.3 } : base;
+  const mood = isDark && plan.theme === 'interior' ? { ...base, background: '#5C4458', ambient: '#F2DDE0', ambientIntensity: 1.6, sunIntensity: 1.3 } : base;
   const sorted = useMemo(
     () => [...tables].sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true })),
     [tables],

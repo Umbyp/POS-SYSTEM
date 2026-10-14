@@ -97,7 +97,7 @@ function Aircon({ pos, rotY }: { pos: V3; rotY: number }) {
         <Rbox key={y} pos={[0, y + 0.1, 0.355]} size={[2.5, 0.02, 0.02]} r={0.005} color="#D5D9DE" />
       ))}
       <Ball pos={[1.2, 0.22, 0.36]} r={0.05} color="#52E08E" />
-      <Ball pos={[1.05, 0.22, 0.36]} r={0.05} color="#9BD0FF" />
+      <Ball pos={[1.05, 0.22, 0.36]} r={0.05} color="#B9E0DA" />
     </group>
   );
 }
@@ -120,7 +120,7 @@ function ColdAir({ pos, rotY }: { pos: V3; rotY: number }) {
         {Array.from({ length: 7 }).map((_, i) => (
           <mesh key={i} userData={{ noBake: true }}>
             <sphereGeometry args={[0.16, 8, 6]} />
-            <meshBasicMaterial color="#DDF1FF" transparent opacity={0.4} depthWrite={false} />
+            <meshBasicMaterial color="#E4F3EE" transparent opacity={0.4} depthWrite={false} />
           </mesh>
         ))}
       </group>
@@ -179,7 +179,7 @@ function Walls({ plan, glow }: { plan: WorldPlan; glow: number }) {
       ].map(([a, b], i) => (
         <group key={i}>
           <Rbox pos={[mid(a, b), 0.45, r.z1 + 0.2]} size={[b - a, 0.9, 0.5]} r={0.1} color={WAINSCOT} />
-          <Rbox pos={[mid(a, b), 2.2, r.z1 + 0.2]} size={[b - a, 2.6, 0.08]} r={0.02} color="#CFEFFF" />
+          <Rbox pos={[mid(a, b), 2.2, r.z1 + 0.2]} size={[b - a, 2.6, 0.08]} r={0.02} color="#DCEFE9" />
           {xs(a, b, 6).map((x) => (
             <Rbox key={x} pos={[x, 1.8, r.z1 + 0.2]} size={[0.22, 3.6, 0.3]} r={0.06} color={C.woodDark} />
           ))}
@@ -190,9 +190,9 @@ function Walls({ plan, glow }: { plan: WorldPlan; glow: number }) {
       <Rbox pos={[0, 3.7, r.z1 + 0.2]} size={[4.6, 0.4, 0.4]} r={0.1} color={C.woodDark} />
 
       {/* pictures on the back wall */}
-      <Frame pos={[-w / 2 + 3, 3.3, r.z0 + 0.1]} w={1.8} h={1.3} colors={['#CDE7F7', C.pink]} />
+      <Frame pos={[-w / 2 + 3, 3.3, r.z0 + 0.1]} w={1.8} h={1.3} colors={['#DDF0EA', C.pink]} />
       <Frame pos={[0, 3.2, r.z0 + 0.1]} w={2.2} h={1.5} colors={['#FFE6B3', C.leaf]} />
-      <Frame pos={[w / 2 - 3, 3.3, r.z0 + 0.1]} w={1.8} h={1.3} colors={['#E3D8FA', C.yellow]} />
+      <Frame pos={[w / 2 - 3, 3.3, r.z0 + 0.1]} w={1.8} h={1.3} colors={['#F6E1E4', C.yellow]} />
     </group>
   );
 }
@@ -305,7 +305,7 @@ function Bar({ plan, glow }: { plan: WorldPlan; glow: number }) {
   const left = 1.4;
   const right = r.x1 - 2;
   const cx = mid(left, right);
-  const bottles = ['#7FA6E0', '#F58FA6', '#7DB661', '#F2C14E', '#C7A6F0'];
+  const bottles = ['#8DBFB5', '#F2A7A0', '#7DB661', '#F2C14E', '#D9B8C9'];
   return (
     <group>
       {/* back shelves with bottles + a chalk menu */}
@@ -320,7 +320,7 @@ function Bar({ plan, glow }: { plan: WorldPlan; glow: number }) {
       ))}
       <Rbox pos={[bx - 2.6, 1.5, r.z0 + 0.4]} size={[2.6, 1.5, 0.12]} r={0.06} color="#3A3A44" />
       {[0, 1, 2].map((i) => (
-        <Rbox key={i} pos={[bx - 3.3 + i * 0.7, 1.5 + (i % 2) * 0.3, r.z0 + 0.5]} size={[0.5, 0.08, 0.02]} r={0.01} color={['#FFE08A', '#F7A8B8', '#9EE6C4'][i]} />
+        <Rbox key={i} pos={[bx - 3.3 + i * 0.7, 1.5 + (i % 2) * 0.3, r.z0 + 0.5]} size={[0.5, 0.08, 0.02]} r={0.01} color={['#FFE08A', '#F7A8B8', '#B9DDB0'][i]} />
       ))}
       {/* counter + stools */}
       <Rbox pos={[cx, 0.55, passZ - 0.1]} size={[right - left, 1.1, 0.95]} r={0.1} color={C.wood} />
@@ -334,10 +334,10 @@ function Bar({ plan, glow }: { plan: WorldPlan; glow: number }) {
       ))}
       {/* register, espresso machine, cake case, the service bell */}
       <Rbox pos={[bx - 0.6, 1.4, passZ - 0.3]} size={[0.9, 0.45, 0.6]} r={0.08} color={STEEL} />
-      <Rbox pos={[bx - 0.6, 1.72, passZ - 0.38]} size={[0.7, 0.2, 0.3]} r={0.05} color="#8FE3C0" />
+      <Rbox pos={[bx - 0.6, 1.72, passZ - 0.38]} size={[0.7, 0.2, 0.3]} r={0.05} color="#B9DDB0" />
       <Rbox pos={[bx + 2.3, 1.55, passZ - 0.3]} size={[1.3, 0.8, 0.7]} r={0.1} color="#A33B3B" />
       <Rbox pos={[bx + 2.3, 1.2, passZ + 0.1]} size={[0.5, 0.1, 0.3]} r={0.03} color={STEEL_DARK} />
-      <Rbox pos={[bx + 4.4, 1.6, passZ - 0.2]} size={[1.6, 0.9, 0.7]} r={0.08} color="#E8F6FF" />
+      <Rbox pos={[bx + 4.4, 1.6, passZ - 0.2]} size={[1.6, 0.9, 0.7]} r={0.08} color="#E8F5F0" />
       {[-0.4, 0.4].map((x) => (
         <Ball key={x} pos={[bx + 4.4 + x, 1.35, passZ - 0.2]} r={0.2} color={x < 0 ? C.pink : C.yellow} scale={[1, 0.8, 1]} />
       ))}
@@ -417,7 +417,7 @@ function Toilet({ pos, rotY }: { pos: V3; rotY: number }) {
     <group position={pos} rotation={[0, rotY, 0]}>
       <Rbox pos={[0, 0.55, -0.3]} size={[0.62, 0.8, 0.28]} r={0.08} color={C.white} />
       <Cyl pos={[0, 0.3, 0.1]} rTop={0.3} rBottom={0.22} h={0.5} color={C.white} seg={16} />
-      <Cyl pos={[0, 0.56, 0.1]} rTop={0.3} h={0.06} color="#EAF2F5" seg={16} />
+      <Cyl pos={[0, 0.56, 0.1]} rTop={0.3} h={0.06} color="#EEF4F0" seg={16} />
       <Ball pos={[0, 1.0, -0.3]} r={0.06} color={STEEL_DARK} />
     </group>
   );
@@ -429,7 +429,7 @@ function Sink({ pos, rotY }: { pos: V3; rotY: number }) {
       <Rbox pos={[0, 0.9, 0]} size={[0.9, 0.12, 0.55]} r={0.06} color={C.white} />
       <Rbox pos={[0, 0.45, -0.05]} size={[0.14, 0.9, 0.14]} r={0.04} color={C.stone} />
       <Cyl pos={[0, 1.02, -0.15]} rTop={0.03} h={0.22} color={STEEL_DARK} seg={6} />
-      <Rbox pos={[0, 1.7, -0.27]} size={[0.8, 0.9, 0.05]} r={0.04} color="#D9EEF7" />
+      <Rbox pos={[0, 1.7, -0.27]} size={[0.8, 0.9, 0.05]} r={0.04} color="#DCEFE9" />
       <Rbox pos={[0, 1.7, -0.3]} size={[0.9, 1.0, 0.04]} r={0.03} color={C.woodDark} />
     </group>
   );
@@ -441,7 +441,7 @@ function Restroom({ plan }: { plan: WorldPlan }) {
   const cz = mid(rr.z0, rr.z1);
   const hgt = 2.7;
   const wall = '#D6EFE5';
-  const tileBand = '#9ED8C4';
+  const tileBand = '#B9DDB0';
   const doorZ = [mid(rr.z0, cz), mid(cz, rr.z1)];
   return (
     <group>
@@ -546,7 +546,7 @@ function menuTexture(items: MenuItem[], demo: boolean): CanvasTexture {
   g.lineWidth = 6;
   g.strokeRect(18, 18, c.width - 36, c.height - 36);
   g.textBaseline = 'middle';
-  g.fillStyle = '#FF9FB5';
+  g.fillStyle = '#FFB5AA';
   g.font = '700 78px system-ui, "Noto Sans Thai", sans-serif';
   g.textAlign = 'center';
   g.fillText('เมนูแนะนำวันนี้', c.width / 2, 92);
@@ -596,18 +596,18 @@ export function InteriorLive({ plan, menu = [], demo }: { plan: WorldPlan; menu?
   const w = r.x1 - r.x0;
   return (
     <>
-      <Sign pos={[anchors.cashiers.x + 0.6, 3.4, r.z0 + 0.62]} w={4.2} text="CAFÉ & BAR" fg="#FFB36B" bg="#2A2230" />
-      <Sign pos={[anchors.chefs.x, 5.6, r.z0 + 1.0]} w={4.4} text="ครัวสด ใหม่" fg="#9EE6C4" bg="#22302B" />
-      <Sign pos={[0, 4.35, r.z1 + 0.45]} w={3.8} text="OPEN" fg="#FF8FA6" bg="#2A2230" />
+      <Sign pos={[anchors.cashiers.x + 0.6, 3.4, r.z0 + 0.62]} w={4.2} text="CAFÉ & BAR" fg="#FFB36B" bg="#3A2A24" />
+      <Sign pos={[anchors.chefs.x, 5.6, r.z0 + 1.0]} w={4.4} text="ครัวสด ใหม่" fg="#B9DDB0" bg="#22302B" />
+      <Sign pos={[0, 4.35, r.z1 + 0.45]} w={3.8} text="OPEN" fg="#FFB5A8" bg="#3A2A24" />
       {/* the big menu board on the left wall */}
       <mesh position={[r.x0 + 0.32, 3.0, boardZ]} rotation={[0, Math.PI / 2, 0]} userData={{ noBake: true }}>
         <planeGeometry args={[8.6, 4.3]} />
         <meshBasicMaterial map={menuTex} />
       </mesh>
       {/* restroom signs */}
-      <Sign pos={[rr.x0 - 0.2, 3.25, cz]} w={2.6} text="ห้องน้ำ WC" fg="#9EE6C4" bg="#22302B" rotY={-Math.PI / 2} />
-      <Sign pos={[rr.x0 - 0.2, 2.62, mid(rr.z0, cz)]} w={1.1} text="ชาย" fg="#7FB8FF" bg="#1F2A3A" rotY={-Math.PI / 2} />
-      <Sign pos={[rr.x0 - 0.2, 2.62, mid(cz, rr.z1)]} w={1.1} text="หญิง" fg="#FF9FB5" bg="#3A2230" rotY={-Math.PI / 2} />
+      <Sign pos={[rr.x0 - 0.2, 3.25, cz]} w={2.6} text="ห้องน้ำ WC" fg="#B9DDB0" bg="#22302B" rotY={-Math.PI / 2} />
+      <Sign pos={[rr.x0 - 0.2, 2.62, mid(rr.z0, cz)]} w={1.1} text="ชาย" fg="#9ED3CC" bg="#2F3A36" rotY={-Math.PI / 2} />
+      <Sign pos={[rr.x0 - 0.2, 2.62, mid(cz, rr.z1)]} w={1.1} text="หญิง" fg="#FFB5AA" bg="#3A2A24" rotY={-Math.PI / 2} />
       <ColdAir pos={[-w / 4, 3.7, r.z0 + 0.45]} rotY={0} />
       <ColdAir pos={[w / 4, 3.7, r.z0 + 0.45]} rotY={0} />
       <ColdAir pos={[r.x0 + 0.45, 3.7, mid(plan.plaza.z0, plan.plaza.z1) + 6.4]} rotY={Math.PI / 2} />

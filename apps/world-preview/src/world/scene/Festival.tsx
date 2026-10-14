@@ -29,7 +29,7 @@ function rowPoints(plan: WorldPlan, step: number): V3[] {
 }
 
 function Tree({ pos, s = 1 }: { pos: V3; s?: number }) {
-  const orn = ['#E23B4E', '#FFD36B', '#6CB9E0', '#F7A8B8'];
+  const orn = ['#D9553F', '#FFD36B', '#7BBDB3', '#F7A8B8'];
   return (
     <group position={pos} scale={s}>
       <Cyl pos={[0, 0.3, 0]} rTop={0.2} h={0.6} color="#8A5A3B" seg={8} />
@@ -64,7 +64,7 @@ function Lantern({ pos, s = 1 }: { pos: V3; s?: number }) {
     <group position={pos} scale={s}>
       <Cyl pos={[0, 0.5, 0]} rTop={0.01} h={0.6} color="#8A5A3B" seg={4} />
       <Cyl pos={[0, 0.2, 0]} rTop={0.16} h={0.08} color="#F2C14E" seg={10} />
-      <Ball pos={[0, -0.05, 0]} r={0.36} color="#E23B4E" scale={[1, 0.85, 1]} />
+      <Ball pos={[0, -0.05, 0]} r={0.36} color="#D9553F" scale={[1, 0.85, 1]} />
       <Cyl pos={[0, -0.36, 0]} rTop={0.14} h={0.08} color="#F2C14E" seg={10} />
       <Cyl pos={[0, -0.62, 0]} rTop={0.02} h={0.4} color="#F2C14E" seg={4} />
       <Glow pos={[0, -0.05, 0]} r={0.14} color="#FFB36B" strength={0.7} />
@@ -85,7 +85,7 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
   const right: V3 = [plaza.x1 + 2.7, 0.14, plaza.z0 + 4];
 
   if (festival === 'xmas') {
-    const bulbs = ['#E23B4E', '#5BB066', '#FFD36B', '#6CB9E0'];
+    const bulbs = ['#D9553F', '#5BB066', '#FFD36B', '#7BBDB3'];
     return (
       <>
         {rowPoints(plan, 1.2).map((p, i) => (
@@ -95,9 +95,9 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
           </group>
         ))}
         <Tree pos={left} s={1.15} />
-        <Gift pos={[left[0] + 1.6, 0.14, left[2] + 0.4]} color="#E23B4E" ribbon="#FFD36B" />
-        <Gift pos={[left[0] + 2.2, 0.14, left[2] - 0.2]} color="#6CB9E0" ribbon="#FFFFFF" s={0.8} />
-        <Gift pos={[left[0] - 1.6, 0.14, left[2] + 0.3]} color="#5BB066" ribbon="#E23B4E" s={0.9} />
+        <Gift pos={[left[0] + 1.6, 0.14, left[2] + 0.4]} color="#D9553F" ribbon="#FFD36B" />
+        <Gift pos={[left[0] + 2.2, 0.14, left[2] - 0.2]} color="#7BBDB3" ribbon="#FFFFFF" s={0.8} />
+        <Gift pos={[left[0] - 1.6, 0.14, left[2] + 0.3]} color="#5BB066" ribbon="#D9553F" s={0.9} />
         {/* snowman */}
         <group position={right}>
           <Ball pos={[0, 0.55, 0]} r={0.62} color="#FFFFFF" />
@@ -110,12 +110,12 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
             <meshLambertMaterial color="#FF8A3D" />
           </mesh>
           {[-1, 1].map((x) => (
-            <Ball key={x} pos={[x * 0.12, 2.12, 0.29]} r={0.035} color="#2A2230" />
+            <Ball key={x} pos={[x * 0.12, 2.12, 0.29]} r={0.035} color="#3A2A24" />
           ))}
           {[0.5, 1.3].map((y) => (
-            <Ball key={y} pos={[0, y, y > 1 ? 0.42 : 0.6]} r={0.05} color="#2A2230" />
+            <Ball key={y} pos={[0, y, y > 1 ? 0.42 : 0.6]} r={0.05} color="#3A2A24" />
           ))}
-          <Cyl pos={[0, 1.78, 0]} rTop={0.36} h={0.12} color="#E23B4E" seg={12} />
+          <Cyl pos={[0, 1.78, 0]} rTop={0.36} h={0.12} color="#D9553F" seg={12} />
         </group>
       </>
     );
@@ -129,7 +129,7 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
         ))}
         {/* mandarin tree */}
         <group position={left}>
-          <Cyl pos={[0, 0.4, 0]} rTop={0.5} rBottom={0.35} h={0.8} color="#E23B4E" seg={12} />
+          <Cyl pos={[0, 0.4, 0]} rTop={0.5} rBottom={0.35} h={0.8} color="#D9553F" seg={12} />
           <Cyl pos={[0, 0.82, 0]} rTop={0.52} h={0.06} color="#F2C14E" seg={12} />
           <Ball pos={[0, 1.6, 0]} r={1.0} color="#5BB066" scale={[1, 1.1, 1]} />
           {Array.from({ length: 9 }).map((_, i) => (
@@ -162,15 +162,15 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
         {/* water bowl with floating flowers */}
         <group position={left}>
           <Cyl pos={[0, 0.35, 0]} rTop={1.3} rBottom={0.9} h={0.7} color="#D8B26A" seg={18} />
-          <Cyl pos={[0, 0.62, 0]} rTop={1.15} h={0.12} color="#8FD3F0" seg={18} />
+          <Cyl pos={[0, 0.62, 0]} rTop={1.15} h={0.12} color="#9ED3CC" seg={18} />
           {Array.from({ length: 6 }).map((_, i) => (
             <Flower key={i} pos={[Math.cos(i * 1.1) * 0.7, 0.74, Math.sin(i * 1.1) * 0.7]} color={petals[i % 4]} />
           ))}
         </group>
         {/* bucket with a ladle and a little garland of flowers */}
         <group position={right}>
-          <Cyl pos={[0, 0.45, 0]} rTop={0.7} rBottom={0.55} h={0.9} color="#6CB9E0" seg={16} />
-          <Cyl pos={[0, 0.82, 0]} rTop={0.62} h={0.1} color="#BFE8FA" seg={16} />
+          <Cyl pos={[0, 0.45, 0]} rTop={0.7} rBottom={0.55} h={0.9} color="#7BBDB3" seg={16} />
+          <Cyl pos={[0, 0.82, 0]} rTop={0.62} h={0.1} color="#CBE6DF" seg={16} />
           <Cyl pos={[0.9, 0.7, 0]} rTop={0.04} h={1.4} color="#8A5A3B" seg={6} rot={[0, 0, 0.9]} />
           <Cyl pos={[1.35, 1.25, 0]} rTop={0.2} rBottom={0.14} h={0.18} color="#E9C46A" seg={10} />
           {Array.from({ length: 5 }).map((_, i) => (
@@ -192,11 +192,11 @@ export function FestivalStatic({ plan, festival }: { plan: WorldPlan; festival: 
   return (
     <>
       <group position={left}>
-        <Cyl pos={[0.5, 0.05, 0]} rTop={2.0} h={0.12} color="#6CB9E0" seg={24} />
+        <Cyl pos={[0.5, 0.05, 0]} rTop={2.0} h={0.12} color="#7BBDB3" seg={24} />
         {kr.map(([x, z], i) => (
           <group key={i} position={[x + 0.5, 0.18, z]}>
             <Cyl pos={[0, 0.06, 0]} rTop={0.34} rBottom={0.3} h={0.14} color="#7DB661" seg={12} />
-            <Ball pos={[0, 0.2, 0]} r={0.2} color={['#F7A8B8', '#FFFFFF', '#C7A6F0'][i % 3]} scale={[1, 0.7, 1]} />
+            <Ball pos={[0, 0.2, 0]} r={0.2} color={['#F7A8B8', '#FFFFFF', '#D9B8C9'][i % 3]} scale={[1, 0.7, 1]} />
             <Cyl pos={[0, 0.34, 0]} rTop={0.03} h={0.22} color="#FFF1DC" seg={6} />
             <Glow pos={[0, 0.5, 0]} r={0.06} color="#FFC46B" strength={0.9} />
           </group>

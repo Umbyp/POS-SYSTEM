@@ -25,9 +25,9 @@ type Kind = 'motes' | 'fireflies' | 'snow' | 'confetti' | 'water' | 'sparks';
 const KIND_CFG: Record<Kind, { colors: string[]; size: number; vy: [number, number]; sway: number; n: number }> = {
   motes: { colors: ['#FFF4D6', '#FFE7B8', '#FFFFFF'], size: 0.16, vy: [0.08, 0.2], sway: 0.25, n: 46 },
   fireflies: { colors: ['#D8FF8A', '#FFF59A', '#B6FF9E'], size: 0.24, vy: [0.02, 0.12], sway: 0.6, n: 40 },
-  snow: { colors: ['#FFFFFF', '#EAF4FF'], size: 0.2, vy: [-0.9, -0.5], sway: 0.35, n: 90 },
-  confetti: { colors: ['#F2C14E', '#E23B4E', '#FFD36B', '#FF8A3D'], size: 0.2, vy: [-0.8, -0.4], sway: 0.45, n: 80 },
-  water: { colors: ['#9ED8F0', '#CBEFFF', '#6CB9E0'], size: 0.2, vy: [-1.6, -1.0], sway: 0.15, n: 80 },
+  snow: { colors: ['#FFFFFF', '#EEF6F2'], size: 0.2, vy: [-0.9, -0.5], sway: 0.35, n: 90 },
+  confetti: { colors: ['#F2C14E', '#D9553F', '#FFD36B', '#FF8A3D'], size: 0.2, vy: [-0.8, -0.4], sway: 0.45, n: 80 },
+  water: { colors: ['#B7DCD3', '#DCEFE9', '#7BBDB3'], size: 0.2, vy: [-1.6, -1.0], sway: 0.15, n: 80 },
   sparks: { colors: ['#FFC46B', '#FFE3A8', '#FFB347'], size: 0.22, vy: [0.2, 0.5], sway: 0.4, n: 60 },
 };
 

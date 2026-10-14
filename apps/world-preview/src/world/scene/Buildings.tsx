@@ -85,7 +85,7 @@ export function Counter({ pos, glow }: { pos: V3; glow: number }) {
       <Cyl pos={[2.1, 1.14, 0.4]} rTop={0.7} h={0.1} color={C.cream} seg={20} />
       {/* register */}
       <Rbox pos={[-0.9, 1.45, 0.4]} size={[0.9, 0.5, 0.6]} r={0.08} color={C.metal} />
-      <Rbox pos={[-0.9, 1.78, 0.28]} size={[0.7, 0.2, 0.34]} r={0.05} color="#8FE3C0" rot={[-0.5, 0, 0]} />
+      <Rbox pos={[-0.9, 1.78, 0.28]} size={[0.7, 0.2, 0.34]} r={0.05} color="#B9DDB0" rot={[-0.5, 0, 0]} />
       {/* golden bell */}
       <Cyl pos={[0.9, 1.32, 0.4]} rTop={0.3} h={0.05} color={C.gold} seg={16} />
       <Ball pos={[0.9, 1.45, 0.4]} r={0.2} color={C.gold} scale={[1, 0.85, 1]} />

@@ -103,7 +103,7 @@ export interface BurstEntity {
 }
 
 const BURST_COLORS: Record<BurstKind, string[]> = {
-  sparkle: ['#FFE08A', '#FFFFFF', '#F7A8B8', '#9EE6C4'],
+  sparkle: ['#FFE08A', '#FFFFFF', '#F7A8B8', '#B9DDB0'],
   coin: ['#F2C14E', '#FFE08A'],
   poof: ['#FFFFFF', '#E8E4DC'],
 };

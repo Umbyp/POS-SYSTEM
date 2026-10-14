@@ -7,7 +7,7 @@
   --border: #e6e6e6;
 }
 .dark {
-  --bg: #1b1a2e;
+  --bg: #2A1F26;
   --card: rgba(33, 33, 33, 0.92);
   --fg: #f5f5f5;
   --muted: #a3a3a3;
@@ -107,16 +107,16 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .dock-bar { background: linear-gradient(135deg, #FFF3E6, #FFE3EC); border: 2px solid #fff; box-shadow: 0 6px 18px rgba(196, 90, 60, 0.22); }
 .dock .chips button { border: 0; font-weight: 700; color: #5B3A1E; box-shadow: 0 2px 0 rgba(91, 58, 30, 0.12); transition: transform 0.12s; }
 .dock .chips button:active { transform: translateY(2px) scale(0.96); box-shadow: none; }
-.dock .c1 { background: #FFD9A8; } .dock .c2 { background: #FFC8D6; } .dock .c3 { background: #C9ECD3; }
-.dock .c4 { background: #DCD0FF; } .dock .c5 { background: #BFE3FF; } .dock .c6 { background: #FFF0A8; }
+.dock .c1 { background: #FFD9A8; } .dock .c2 { background: #FFC8D6; } .dock .c3 { background: #D6EBC8; }
+.dock .c4 { background: #EBD3E0; } .dock .c5 { background: #CDE8E0; } .dock .c6 { background: #FFF0A8; }
 .dock .gear { background: linear-gradient(135deg, #E87B5A, #C4553A); color: #fff; border: 0; box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
 .dock .panel { background: linear-gradient(135deg, #FFF8F0, #FFEAF1); border: 2px solid #fff; box-shadow: 0 6px 18px rgba(196, 90, 60, 0.2); }
 .dock .panel .label { color: #A0623C; font-weight: 700; }
 .dock .panel button { background: #fff; border: 0; color: #5B3A1E; font-weight: 600; box-shadow: 0 2px 0 rgba(91, 58, 30, 0.1); }
 .dock .panel button.on { background: linear-gradient(135deg, #E87B5A, #C4553A); color: #fff; }
-.dark .dock-bar, .dark .dock .panel { background: linear-gradient(135deg, #3A2E50, #4A2E44); border-color: #5a4a70; }
+.dark .dock-bar, .dark .dock .panel { background: linear-gradient(135deg, #4A3340, #573540); border-color: #76545A; }
 .dark .dock .panel .label { color: #F5C7A9; }
-.dark .dock .panel button { background: #55456E; color: #FFE9D6; }
+.dark .dock .panel button { background: #6A4850; color: #FFE9D6; }
 
 .c-late { color: #dc2626; }
 .dark .c-late { color: #f87171; }
@@ -129,10 +129,10 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 
 /* cuter details sheet */
 .sheet { background: linear-gradient(180deg, #FFF8F0, var(--card) 40%); border: 2px solid #fff; border-bottom: 0; border-radius: 28px 28px 0 0; }
-.dark .sheet { background: linear-gradient(180deg, #3A2E50, var(--card) 40%); border-color: #5a4a70; }
+.dark .sheet { background: linear-gradient(180deg, #4A3340, var(--card) 40%); border-color: #76545A; }
 .sheet-grip { width: 46px; height: 5px; background: #F0C9B0; }
 .sheet-x { background: #fff; border: 0; box-shadow: 0 2px 0 rgba(91,58,30,0.12); }
-.dark .sheet-x { background: #55456E; color: #FFE9D6; }
+.dark .sheet-x { background: #6A4850; color: #FFE9D6; }
 .sh-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; font-size: 30px; box-shadow: 0 3px 0 rgba(91,58,30,0.14), inset 0 -4px 0 rgba(0,0,0,0.05); flex: none; animation: bob 2.4s ease-in-out infinite; }
 @keyframes bob { 50% { transform: translateY(-3px) rotate(-3deg); } }
 .sh-icon.gold { background: linear-gradient(135deg, #FFE8A3, #FFC857); } .sh-icon.pink { background: linear-gradient(135deg, #FFD3E0, #FFA9C2); }
@@ -144,7 +144,7 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .empty { text-align: center; padding: 14px; margin-top: 8px; border: 2px dashed var(--border); border-radius: 18px; color: var(--muted); font-size: 14px; }
 .warn { border-radius: 14px; }
 .oc { border: 0; border-left: 6px solid #D4D4D8; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 rgba(91,58,30,0.08); padding: 10px 12px; }
-.dark .oc { background: #473A60; }
+.dark .oc { background: #5A3F49; }
 .oc.s-PENDING { border-left-color: #FBBF24; } .oc.s-PREPARING { border-left-color: #60A5FA; }
 .oc.s-READY { border-left-color: #4ADE80; } .oc.s-COMPLETED { border-left-color: #F2C14E; } .oc.s-CANCELLED { border-left-color: #9CA3AF; }
 .oc.late { border-left-color: #EF4444; background: #FFF1F1; }
@@ -167,6 +167,6 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .price { background: linear-gradient(135deg, #FFE08A, #FFC857); color: #6B4A00; font-weight: 800; padding: 2px 12px; border-radius: 999px; font-size: 13px; }
 .pet-card { display: grid; gap: 6px; margin-top: 6px; }
 .pet-card > div { display: flex; gap: 10px; align-items: baseline; background: #fff; border-radius: 16px; padding: 8px 12px; box-shadow: 0 2px 0 rgba(91,58,30,0.08); font-size: 14px; }
-.dark .pet-card > div { background: #473A60; }
+.dark .pet-card > div { background: #5A3F49; }
 .pet-card b { color: #A0623C; font-size: 12px; min-width: 64px; }
 .hearts { letter-spacing: 2px; }
