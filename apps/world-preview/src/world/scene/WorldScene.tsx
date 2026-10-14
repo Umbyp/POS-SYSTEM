@@ -1,3 +1,6 @@
+import { Ambient } from './Ambient';
+import { FestivalLive, FestivalStatic, type Festival } from './Festival';
+import { Pet } from '../characters/Pet';
 import type { PickFn, Selection } from '../../selection';
 import { useMemo } from 'react';
 import type { MenuItem, RestaurantTable, Staff } from '../../types';
@@ -196,6 +199,7 @@ export function WorldScene({
   onFeed,
   onPick,
   selection,
+  festival,
 }: {
   tables: RestaurantTable[];
   isDark: boolean;
@@ -208,6 +212,7 @@ export function WorldScene({
   onFeed: (f: Omit<FeedItem, 'id'>) => void;
   onPick: PickFn;
   selection: Selection | null;
+  festival: Festival;
 }) {
   const base = isDark ? NIGHT : DAY;
   // indoors the lamps are on, so the night room stays bright and warm
@@ -227,6 +232,12 @@ export function WorldScene({
         {plan.theme === 'interior' ? <InteriorStatic plan={plan} glow={mood.glow} /> : <Town plan={plan} glow={mood.glow} />}
       </Bake>
       {plan.theme === 'interior' ? <InteriorLive plan={plan} menu={menu} demo={demo} /> : null}
+      <Bake deps={[isDark, plan, festival]}>
+        <FestivalStatic plan={plan} festival={festival} />
+      </Bake>
+      <FestivalLive plan={plan} festival={festival} />
+      <Ambient plan={plan} isDark={isDark} festival={festival} />
+      <Pet plan={plan} selected={selection?.kind === 'pet'} onPick={onPick} />
       {plan.park ? <FerrisWheel pos={[plan.park.x1 - 9, 0, cz(plan.park)]} s={1.1} /> : null}
 
       {/* tables follow the real data, so they are baked separately */}

@@ -7,7 +7,7 @@ import { Ball, Cyl } from '../scene/parts';
 // ---------- speech bubbles ----------
 export type Bubble =
   | 'wait' | 'cook' | 'ready' | 'late' | 'paid' | 'type' | 'chat' | 'nap' | 'photo' | 'serve' | 'cancel'
-  | 'eat' | 'angry' | 'hi' | 'think' | 'music' | 'relax' | 'happy';
+  | 'eat' | 'angry' | 'hi' | 'think' | 'music' | 'relax' | 'happy' | 'love';
 const EMOJI: Record<Bubble, string> = {
   wait: '⏳',
   cook: '🍳',
@@ -27,6 +27,7 @@ const EMOJI: Record<Bubble, string> = {
   music: '🎵',
   relax: '😌',
   happy: '😊',
+  love: '💖',
 };
 
 const cache = new Map<Bubble, CanvasTexture>();

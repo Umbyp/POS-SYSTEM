@@ -1,7 +1,7 @@
 // Small synthesised sound effects (Web Audio): no audio files to ship or load.
 // Browsers only allow sound after a user gesture, so the context is created on the first click.
 
-export type SoundKind = 'new' | 'cook' | 'ready' | 'serve' | 'paid' | 'late' | 'arrive' | 'cancel';
+export type SoundKind = 'new' | 'cook' | 'ready' | 'serve' | 'paid' | 'late' | 'arrive' | 'cancel' | 'meow';
 
 let ctx: AudioContext | null = null;
 let enabled = true;
@@ -100,6 +100,10 @@ export function playSound(kind: SoundKind) {
     case 'arrive': // tiny entrance chime
       tone(1175, now, 0.25, 'sine', 0.08);
       tone(1568, now + 0.1, 0.3, 'sine', 0.08);
+      break;
+    case 'meow': // mew: a short gliding chirp
+      tone(900, now, 0.22, 'triangle', 0.1, 560);
+      tone(1250, now + 0.05, 0.16, 'sine', 0.05, 800);
       break;
     case 'cancel':
       tone(420, now, 0.3, 'sine', 0.1, 180);
