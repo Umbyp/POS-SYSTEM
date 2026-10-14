@@ -1,7 +1,7 @@
 import type { PickFn } from '../../selection';
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber/native';
-import { CanvasTexture, Color, SRGBColorSpace, type Group, type MeshBasicMaterial, type Sprite, type SpriteMaterial } from 'three';
+import { CanvasTexture, Color, SRGBColorSpace, type Group, type Mesh, type MeshBasicMaterial, type Sprite, type SpriteMaterial } from 'three';
 import type { Role } from '../../types';
 import { C } from '../palette';
 import { Ball, Cyl, Rbox } from '../scene/parts';
@@ -374,6 +374,17 @@ export function Character({
   const ring = useRef<MeshBasicMaterial>(null);
   const bubble = useRef<Sprite>(null);
   const marker = useRef<Group>(null);
+  // face parts, switched by mood
+  const happyEyes = useRef<Group>(null);
+  const smile = useRef<Mesh>(null);
+  const frown = useRef<Mesh>(null);
+  const mouthO = useRef<Mesh>(null);
+  const browL = useRef<Mesh>(null);
+  const browR = useRef<Mesh>(null);
+  const cheekL = useRef<Mesh>(null);
+  const cheekR = useRef<Mesh>(null);
+  const prevPose = useRef<string>('');
+  const settleAt = useRef(-9);
   const selRef = useRef(selected);
   selRef.current = selected;
   const lastBubble = useRef<string | null>('init');
@@ -405,17 +416,24 @@ export function Character({
       }
     }
 
+    // landing squash when a walk (or any pose) ends, a little bow when serving
+    if (prevPose.current !== pose) {
+      if (prevPose.current === 'walk' || prevPose.current === 'carry') settleAt.current = t;
+      prevPose.current = pose;
+    }
+    const since = t - settleAt.current;
+    const settle = since < 0.6 ? Math.sin(since * 20) * Math.exp(-since * 6) * 0.14 : 0;
     // each pose is a small variation on the same rig
     const walking = pose === 'walk' || pose === 'carry';
     const freq = walking ? 7 : pose === 'cheer' ? 6 : 2.2;
-    const hop = pose === 'cheer' ? Math.abs(Math.sin(t * freq)) * 0.45 : walking ? Math.abs(Math.sin(t * freq)) * 0.12 : Math.max(0, Math.sin(t * 2.2)) ** 2 * 0.1;
+    const hop = pose === 'cheer' ? Math.abs(Math.sin(t * freq)) * 0.45 : walking ? Math.abs(Math.sin(t * freq)) * 0.17 : Math.max(0, Math.sin(t * 2.2)) ** 2 * 0.1;
     const seated = pose === 'sit' || pose === 'eat';
     const dancing = pose === 'dance';
     if (root.current) root.current.position.y = seated ? -0.3 : pose === 'nap' ? -0.08 : dancing ? Math.abs(Math.sin(t * 6)) * 0.22 : hop;
     if (squish.current) {
-      const k = pose === 'nap' ? -0.06 : Math.sin(t * freq) * (walking ? 0.05 : 0.035);
+      const k = (pose === 'nap' ? -0.06 : Math.sin(t * freq * (walking ? 2 : 1)) * (walking ? 0.09 : 0.035)) + settle;
       squish.current.scale.set(1 - k * 0.6, 1 + k, 1 - k * 0.6);
-      squish.current.rotation.x = walking ? 0.12 : pose === 'serve' ? 0.25 : 0;
+      squish.current.rotation.x = walking ? 0.12 : pose === 'serve' ? 0.25 + Math.max(0, Math.sin(t * 2.5)) * 0.2 : 0;
       squish.current.rotation.z = walking ? Math.sin(t * freq * 0.5) * 0.06 : dancing ? Math.sin(t * 6) * 0.2 : 0;
       if (pose === 'stretch') squish.current.rotation.x = -0.15;
     }
@@ -425,7 +443,32 @@ export function Character({
       head.current.rotation.x = pose === 'stir' || pose === 'type' ? 0.22 : pose === 'nap' ? 0.2 : pose === 'stretch' ? -0.2 : pose === 'eat' ? 0.12 : 0;
       if (pose === 'think') head.current.rotation.z = 0.18;
     }
-    if (eyes.current) eyes.current.scale.y = pose === 'nap' ? 0.08 : (t * 0.25) % 1 > 0.96 ? 0.1 : 1;
+    // mood -> face
+    const b = agent.bubble;
+    const mood: 'happy' | 'angry' | 'yum' | 'sleep' | 'calm' =
+      pose === 'nap' ? 'sleep'
+      : b === 'angry' || b === 'late' || agent.status === 'late' ? 'angry'
+      : pose === 'eat' ? 'yum'
+      : pose === 'cheer' || pose === 'dance' || pose === 'wave' || b === 'paid' || b === 'ready' || b === 'happy' || b === 'hi' || b === 'music' ? 'happy'
+      : 'calm';
+    const blink = (t * 0.25) % 1 > 0.96;
+    if (eyes.current) eyes.current.visible = mood !== 'happy' && mood !== 'sleep' && !(mood === 'yum' && Math.sin(t * 4) > 0.2);
+    if (eyes.current) eyes.current.scale.y = blink ? 0.1 : 1;
+    if (happyEyes.current) happyEyes.current.visible = mood === 'happy' || mood === 'sleep' || (mood === 'yum' && Math.sin(t * 4) > 0.2);
+    if (smile.current) smile.current.visible = mood === 'happy' || mood === 'calm' || mood === 'sleep';
+    if (smile.current) smile.current.scale.set(mood === 'happy' ? 1.7 : 1, mood === 'happy' ? 1.5 : 1, 1);
+    if (frown.current) frown.current.visible = mood === 'angry';
+    if (mouthO.current) {
+      mouthO.current.visible = mood === 'yum';
+      mouthO.current.scale.y = 0.7 + Math.abs(Math.sin(t * 4)) * 0.6;
+    }
+    const k = mood === 'angry' ? 1 : 0;
+    if (browL.current) browL.current.rotation.z = k * -0.5;
+    if (browR.current) browR.current.rotation.z = k * 0.5;
+    const cheek = mood === 'happy' || mood === 'yum' ? 1.5 : mood === 'angry' ? 0.6 : 1;
+    if (cheekL.current) cheekL.current.scale.set(cheek, 0.65 * cheek, 0.25);
+    if (cheekR.current) cheekR.current.scale.set(cheek, 0.65 * cheek, 0.25);
+
 
     // arms
     let l = 0.3 + Math.sin(t * 2.2) * 0.25;
@@ -572,13 +615,42 @@ export function Character({
                 </group>
               ))}
             </group>
-            <Ball pos={[-0.27, HEAD_Y + 0.13, 0.62]} r={0.04} color={INK} scale={[2.2, 0.45, 0.4]} />
-            <Ball pos={[0.27, HEAD_Y + 0.13, 0.62]} r={0.04} color={INK} scale={[2.2, 0.45, 0.4]} />
-            <Ball pos={[-0.47, HEAD_Y - 0.26, 0.48]} r={0.13} color="#FF9FB0" scale={[1, 0.65, 0.25]} />
-            <Ball pos={[0.47, HEAD_Y - 0.26, 0.48]} r={0.13} color="#FF9FB0" scale={[1, 0.65, 0.25]} />
-            <mesh position={[0, HEAD_Y - 0.22, 0.68]} rotation={[0, 0, Math.PI]}>
+            {/* happy ^ ^ eyes (shown when cheerful, tasting or asleep) */}
+            <group ref={happyEyes} position={[0, HEAD_Y - 0.1, 0.62]} visible={false}>
+              {[-1, 1].map((x) => (
+                <mesh key={x} position={[x * 0.25, -0.02, 0.02]}>
+                  <torusGeometry args={[0.09, 0.025, 6, 12, Math.PI]} />
+                  <meshLambertMaterial color={INK} />
+                </mesh>
+              ))}
+            </group>
+            <mesh ref={browL} position={[-0.27, HEAD_Y + 0.13, 0.62]} scale={[2.2, 0.45, 0.4]}>
+              <sphereGeometry args={[0.04, 8, 6]} />
+              <meshLambertMaterial color={INK} />
+            </mesh>
+            <mesh ref={browR} position={[0.27, HEAD_Y + 0.13, 0.62]} scale={[2.2, 0.45, 0.4]}>
+              <sphereGeometry args={[0.04, 8, 6]} />
+              <meshLambertMaterial color={INK} />
+            </mesh>
+            <mesh ref={cheekL} position={[-0.47, HEAD_Y - 0.26, 0.48]} scale={[1, 0.65, 0.25]}>
+              <sphereGeometry args={[0.13, 10, 8]} />
+              <meshLambertMaterial color="#FF9FB0" />
+            </mesh>
+            <mesh ref={cheekR} position={[0.47, HEAD_Y - 0.26, 0.48]} scale={[1, 0.65, 0.25]}>
+              <sphereGeometry args={[0.13, 10, 8]} />
+              <meshLambertMaterial color="#FF9FB0" />
+            </mesh>
+            <mesh ref={smile} position={[0, HEAD_Y - 0.22, 0.68]} rotation={[0, 0, Math.PI]}>
               <torusGeometry args={[0.075, 0.017, 6, 12, Math.PI]} />
               <meshLambertMaterial color={INK} />
+            </mesh>
+            <mesh ref={frown} position={[0, HEAD_Y - 0.28, 0.68]} visible={false}>
+              <torusGeometry args={[0.07, 0.017, 6, 12, Math.PI]} />
+              <meshLambertMaterial color={INK} />
+            </mesh>
+            <mesh ref={mouthO} position={[0, HEAD_Y - 0.25, 0.68]} scale={[1, 1, 0.4]} visible={false}>
+              <sphereGeometry args={[0.07, 10, 8]} />
+              <meshLambertMaterial color="#7A2E2E" />
             </mesh>
             {role === 'ADMIN' ? (
               <>

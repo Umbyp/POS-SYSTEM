@@ -4,8 +4,8 @@ import { Roof } from './Buildings';
 import { Lantern } from './Decor';
 import { FOODS, GiantFood } from './Foods';
 
-const WALLS = ['#FFE3C2', '#FBD0D8', '#D5EBFF', '#E4F4C8', '#FFF0B8', '#E9D5FF'];
-const ROOFS = ['#D25E3B', '#E58FA8', '#4F8FD6', '#7DB661', '#F2B33C', '#9B7BD8'];
+const WALLS = ['#FFE3C2', '#FBD0D8', '#E4F3EE', '#E4F4C8', '#FFF0B8', '#F6E1E4'];
+const ROOFS = ['#D25E3B', '#E58FA8', '#5FA39A', '#7DB661', '#F2B33C', '#C06A78'];
 
 /** A small food stall with a giant food item on the roof. `variant` picks colours + food. */
 export function Stall({ pos, rotY, variant, glow }: { pos: V3; rotY: number; variant: number; glow: number }) {

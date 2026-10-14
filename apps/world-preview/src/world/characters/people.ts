@@ -5,9 +5,9 @@ export type HairStyle = 'tuft' | 'bun' | 'pigtails' | 'bowl' | 'twinbuns' | 'lon
 const STYLES: HairStyle[] = ['tuft', 'bun', 'pigtails', 'bowl', 'twinbuns', 'long', 'curly', 'sidepony'];
 // soft clay colours
 const SKIN = ['#FFE0C8', '#F8CDB0', '#EDB894'];
-const HAIR = ['#4A3328', '#7A4E36', '#2E2E3E', '#C98A3E', '#A86B8C', '#6E7FB5'];
-const BOWS = ['#F7A8B8', '#B9E0A5', '#C7A6F0', '#FFD36B', '#9FD0F2'];
-const SHOES = ['#8B5E4A', '#5E8A5B', '#4A4A66', '#C0566F'];
+const HAIR = ['#4A3328', '#7A4E36', '#2E2E3E', '#C98A3E', '#8B4A4A', '#4A3F52'];
+const BOWS = ['#F2A7A0', '#B9DDB0', '#FFD36B', '#FFE9D0', '#E8896B'];
+const SHOES = ['#8B5E4A', '#5E8A5B', '#5A4638', '#C0566F'];
 
 export interface Look {
   style: HairStyle;
@@ -57,40 +57,41 @@ export interface Outfit {
 type Colourway = Omit<Outfit, 'pattern'>;
 /** Five colourways per role (the last ones are the special colours) so a team does not look like clones. */
 const OUTFITS: Record<Role, Colourway[]> = {
+  // one family of colours for the whole shop: terracotta, rose, butter, sage, teal, cocoa on cream
   KITCHEN: [
-    { top: '#FFFFFF', accent: '#E23B4E' },
-    { top: '#FFF6E5', accent: '#4F8FD6' },
-    { top: '#FFFFFF', accent: '#7DB661' },
-    { top: '#FFE9F0', accent: '#D35D8A' },
-    { top: '#E8F4FF', accent: '#2F8F83' },
+    { top: '#FFFFFF', accent: '#D25E3B' },
+    { top: '#FFF6E5', accent: '#5FA39A' },
+    { top: '#FFFFFF', accent: '#8DB67A' },
+    { top: '#FFE9E3', accent: '#C9677A' },
+    { top: '#FFF6E5', accent: '#E8A33A' },
   ],
   CASHIER: [
-    { top: '#FFE3EA', accent: '#F58FA6' },
-    { top: '#E4F4E8', accent: '#7DB661' },
+    { top: '#FFE3DC', accent: '#E58B7C' },
+    { top: '#E6F2DC', accent: '#8DB67A' },
     { top: '#FFF0D6', accent: '#D25E3B' },
-    { top: '#E6E0FF', accent: '#7B5BD8' },
-    { top: '#FFF8C9', accent: '#F2B33C' },
+    { top: '#F6E1E4', accent: '#C06A78' },
+    { top: '#FFF3C4', accent: '#E8A33A' },
   ],
   ADMIN: [
-    { top: '#CFE2FF', accent: '#3D5A99' },
-    { top: '#E9DEFF', accent: '#7B5BD8' },
-    { top: '#D9F0EA', accent: '#2F8F83' },
-    { top: '#FFE3D1', accent: '#C0566F' },
-    { top: '#E3F7C8', accent: '#4F7D3A' },
+    { top: '#DCEFE9', accent: '#4F8F83' },
+    { top: '#F6E1E4', accent: '#B65F6E' },
+    { top: '#E4F0D6', accent: '#5E9C4A' },
+    { top: '#FFE3D1', accent: '#8A5A3B' },
+    { top: '#FFF0D6', accent: '#C98A3E' },
   ],
   GUEST: [
     { top: '#FFD6A5', accent: '#E8A33A' },
-    { top: '#CDE7F7', accent: '#4F8FD6' },
-    { top: '#E3F4C9', accent: '#7DB661' },
-    { top: '#FAD4E6', accent: '#D35D8A' },
-    { top: '#E6DDFB', accent: '#7B5BD8' },
+    { top: '#DDF0EA', accent: '#5FA39A' },
+    { top: '#E6F2DC', accent: '#8DB67A' },
+    { top: '#FAD9D2', accent: '#C9677A' },
+    { top: '#F6E1E4', accent: '#B65F6E' },
   ],
   OWNER: [
     { top: '#FFE08A', accent: '#E8A33A' },
-    { top: '#FFD1DC', accent: '#D35D8A' },
+    { top: '#FFD6CF', accent: '#C9677A' },
     { top: '#FFE9B8', accent: '#C98A3E' },
-    { top: '#D8F0FF', accent: '#4F8FD6' },
-    { top: '#F3DCFF', accent: '#9B5BC4' },
+    { top: '#E4F3EE', accent: '#5FA39A' },
+    { top: '#F6E1E4', accent: '#B65F6E' },
   ],
 };
 export const outfitFor = (role: Role, s: Staff): Outfit => {

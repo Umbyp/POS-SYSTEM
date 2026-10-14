@@ -94,3 +94,6 @@
 - Tap a person or a table → camera glides there → bottom sheet (read-only): orders, items, wait time. Tap empty space or ✕ to close; a tapped person is followed until you drag.
 - Extras: flying order slips, auto day/night by the real clock (🕒 → ☀️ → 🌙), summary strip (late count, average wait), colourful dock with ⚙ scene settings.
 - Polish: `Pacer.tsx` draws 30 fps when idle and ~60 fps while you interact, and lowers the resolution if the device is slow; soft vignette, fade-in, distance fog in the town theme.
+
+## Cute pass
+Expressive faces (happy ^^ eyes, frown, tasting mouth), bouncier walking with landing squash, the shop cat (tap it: meow), floating dust motes / fireflies / kitchen steam, festival themes (Christmas, Chinese New Year, Songkran, Loy Krathong) from the ⚙ panel, and a friendlier details sheet with an order progress path.

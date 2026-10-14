@@ -19,8 +19,8 @@ export const C = {
   trunk: '#8A5A3B',
   pink: '#F7A8B8',
   yellow: '#FFD36B',
-  lilac: '#C7A6F0',
-  sky: '#9ED8F0',
+  lilac: '#D9B8C9',
+  sky: '#B7DCD3',
   glow: '#FFC46B',
   metal: '#B8B2A8',
   gold: '#F2C14E',
@@ -28,13 +28,13 @@ export const C = {
   rug: '#F4C9A8',
   tableTop: '#F3DDB8',
   chair: '#E0A06C',
-  water: '#8FD3F0',
-  waterDeep: '#6CB9E0',
+  water: '#9ED3CC',
+  waterDeep: '#7BBDB3',
   tan: '#E8B36B',
-  cherry: '#E23B4E',
+  cherry: '#D9553F',
   cocoa: '#6B3F2A',
-  mint: '#9EE6C4',
-  navy: '#3D5A99',
+  mint: '#B9DDB0',
+  navy: '#7A4A3A',
   cream2: '#FFF6E5',
 } as const;
 
@@ -58,10 +58,10 @@ export const DAY: Mood = {
 };
 
 export const NIGHT: Mood = {
-  background: '#3B3A6E',
-  ambient: '#C3C1F0',
+  background: '#4B3B5A',
+  ambient: '#EAD5DA',
   ambientIntensity: 1.4,
-  sun: '#CBD3FF',
+  sun: '#F0DCD0',
   sunIntensity: 1.15,
   glow: 1,
 };

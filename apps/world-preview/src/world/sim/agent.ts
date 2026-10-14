@@ -8,7 +8,7 @@ export type Pose =
   | 'sit' | 'eat' | 'wave' | 'stretch' | 'dance' | 'think';
 
 /** Every person currently in the world, so the details sheet can look them up. Filled by the Director. */
-export const registry: { agents: Agent[] } = { agents: [] };
+export const registry: { agents: Agent[]; pet: { x: number; z: number; doing: string } | null } = { agents: [], pet: null };
 
 /** One staff member in the running world. Mutated by the Director every frame, read by the Character. */
 export interface Agent {

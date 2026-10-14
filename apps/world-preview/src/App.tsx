@@ -9,6 +9,7 @@ import { clearToken, getToken, login } from './api';
 import { useWorldData, type DataMode } from './useWorldData';
 import type { FeedItem } from './world/sim/Director';
 import { Sheet } from './Sheet';
+import { FESTIVALS, type Festival } from './world/scene/Festival';
 import { Pacer } from './Pacer';
 import { registry } from './world/sim/agent';
 import { isLate, isActive } from './world/sim/orders';
@@ -31,6 +32,7 @@ export function App() {
   const [showNames, setShowNames] = useState(true);
   const [focus, setFocus] = useState<Focus | null>(null);
   const [following, setFollowing] = useState(false);
+  const [festival, setFestival] = useState<Festival>('none');
   const [panel, setPanel] = useState(false);
   const [sel, setSel] = useState<Selection | null>(null);
   const closeSheet = useCallback(() => {
@@ -39,15 +41,23 @@ export function App() {
   }, []);
   const stopFollow = useCallback(() => setFollowing(false), []);
   const track = useMemo(() => {
-    if (!following || sel?.kind !== 'person') return null;
+    if (!following || !sel || sel.kind === 'table') return null;
+    if (sel.kind === 'pet') return () => registry.pet;
     const id = sel.id;
     return () => registry.agents.find((a) => a.staff.id === id) ?? null;
   }, [following, sel]);
   const onPick = useCallback<PickFn>((s, x, z) => {
     setSel(s);
-    setFollowing(s.kind === 'person');
+    setFollowing(s.kind !== 'table');
     setFocus((f) => ({ x, z: z + 1.5, dist: 11, n: (f?.n ?? 0) + 1 }));
   }, []);
+  // dev helper for checking the preview from the console
+  useEffect(() => {
+    if (import.meta.env.DEV) (window as unknown as { __worldPickPet?: () => void }).__worldPickPet = () => {
+      const p = registry.pet;
+      if (p) onPick({ kind: 'pet' }, p.x, p.z);
+    };
+  }, [onPick]);
   const [sound, setSound] = useState(soundEnabled());
   // browsers only allow sound after a click or tap, so start the audio engine on the first one
   useEffect(() => {
@@ -103,7 +113,7 @@ export function App() {
       >
         <Pacer boostKey={focus?.n ?? resetKey} />
         <Controls plan={plan} resetKey={resetKey} focus={focus} track={track} onUserMove={stopFollow} />
-        <WorldScene tables={tables} isDark={isDark} plan={plan} staff={mode ? data.staff : []} orders={mode ? data.orders : null} menu={mode ? data.menu : []} demo={mode === 'demo'} showNames={showNames} onFeed={onFeed} onPick={onPick} selection={sel} />
+        <WorldScene tables={tables} isDark={isDark} plan={plan} staff={mode ? data.staff : []} orders={mode ? data.orders : null} menu={mode ? data.menu : []} demo={mode === 'demo'} showNames={showNames} onFeed={onFeed} onPick={onPick} selection={sel} festival={festival} />
       </Canvas>
 
       <div className="vignette" />
@@ -180,6 +190,14 @@ export function App() {
                   ))}
                 </div>
               ) : null}
+              <div className="row">
+                <span className="label">เทศกาล</span>
+                {FESTIVALS.map((f) => (
+                  <button key={f.id} className={festival === f.id ? 'on' : ''} onClick={() => setFestival(f.id)}>
+                    {f.emoji} {f.label}
+                  </button>
+                ))}
+              </div>
               {plan.hiddenTables > 0 ? <div className="muted small">+{plan.hiddenTables} โต๊ะที่ไม่ได้แสดง (สูงสุด {MAX_TABLES})</div> : null}
             </div>
           ) : null}

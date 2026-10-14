@@ -132,6 +132,7 @@ export function Director({
     lateClock: 0,
     burstId: 0,
     lateSet: new Set<number>(),
+    guestSeq: 0,
     guestInit: false,
     guestPlan: null as WorldPlan | null,
     guestsByTable: new Map<number, Agent[]>(),
@@ -443,7 +444,7 @@ export function Director({
   const spawnGuest = (idx: number, chairNo: number, k: number, instant: boolean) => {
     const p = planRef.current;
     const tbl = sortedRef.current[idx];
-    const staff: Staff = { id: `guest-${tbl?.id ?? idx}-${k}`, name: '', role: 'GUEST' };
+    const staff: Staff = { id: `guest-${tbl?.id ?? idx}-${k}-${++sim.current.guestSeq}`, name: '', role: 'GUEST' };
     const a = makeAgent({ staff, x: 0, z: 0, rotY: 0, status: 'idle' });
     const chair = chairSpot(p, idx, chairNo);
     a.seat = { table: idx, chair: chairNo };

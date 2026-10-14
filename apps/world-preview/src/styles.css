@@ -7,7 +7,7 @@
   --border: #e6e6e6;
 }
 .dark {
-  --bg: #1b1a2e;
+  --bg: #2A1F26;
   --card: rgba(33, 33, 33, 0.92);
   --fg: #f5f5f5;
   --muted: #a3a3a3;
@@ -107,16 +107,16 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .dock-bar { background: linear-gradient(135deg, #FFF3E6, #FFE3EC); border: 2px solid #fff; box-shadow: 0 6px 18px rgba(196, 90, 60, 0.22); }
 .dock .chips button { border: 0; font-weight: 700; color: #5B3A1E; box-shadow: 0 2px 0 rgba(91, 58, 30, 0.12); transition: transform 0.12s; }
 .dock .chips button:active { transform: translateY(2px) scale(0.96); box-shadow: none; }
-.dock .c1 { background: #FFD9A8; } .dock .c2 { background: #FFC8D6; } .dock .c3 { background: #C9ECD3; }
-.dock .c4 { background: #DCD0FF; } .dock .c5 { background: #BFE3FF; } .dock .c6 { background: #FFF0A8; }
+.dock .c1 { background: #FFD9A8; } .dock .c2 { background: #FFC8D6; } .dock .c3 { background: #D6EBC8; }
+.dock .c4 { background: #EBD3E0; } .dock .c5 { background: #CDE8E0; } .dock .c6 { background: #FFF0A8; }
 .dock .gear { background: linear-gradient(135deg, #E87B5A, #C4553A); color: #fff; border: 0; box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
 .dock .panel { background: linear-gradient(135deg, #FFF8F0, #FFEAF1); border: 2px solid #fff; box-shadow: 0 6px 18px rgba(196, 90, 60, 0.2); }
 .dock .panel .label { color: #A0623C; font-weight: 700; }
 .dock .panel button { background: #fff; border: 0; color: #5B3A1E; font-weight: 600; box-shadow: 0 2px 0 rgba(91, 58, 30, 0.1); }
 .dock .panel button.on { background: linear-gradient(135deg, #E87B5A, #C4553A); color: #fff; }
-.dark .dock-bar, .dark .dock .panel { background: linear-gradient(135deg, #3A2E50, #4A2E44); border-color: #5a4a70; }
+.dark .dock-bar, .dark .dock .panel { background: linear-gradient(135deg, #4A3340, #573540); border-color: #76545A; }
 .dark .dock .panel .label { color: #F5C7A9; }
-.dark .dock .panel button { background: #55456E; color: #FFE9D6; }
+.dark .dock .panel button { background: #6A4850; color: #FFE9D6; }
 
 .c-late { color: #dc2626; }
 .dark .c-late { color: #f87171; }
@@ -126,3 +126,47 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .dark .vignette { background: radial-gradient(ellipse at center, transparent 58%, rgba(10, 5, 30, 0.35) 100%); }
 .app canvas { animation: fadein 0.8s ease-out; }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* cuter details sheet */
+.sheet { background: linear-gradient(180deg, #FFF8F0, var(--card) 40%); border: 2px solid #fff; border-bottom: 0; border-radius: 28px 28px 0 0; }
+.dark .sheet { background: linear-gradient(180deg, #4A3340, var(--card) 40%); border-color: #76545A; }
+.sheet-grip { width: 46px; height: 5px; background: #F0C9B0; }
+.sheet-x { background: #fff; border: 0; box-shadow: 0 2px 0 rgba(91,58,30,0.12); }
+.dark .sheet-x { background: #6A4850; color: #FFE9D6; }
+.sh-icon { width: 58px; height: 58px; display: grid; place-items: center; border-radius: 50%; font-size: 30px; box-shadow: 0 3px 0 rgba(91,58,30,0.14), inset 0 -4px 0 rgba(0,0,0,0.05); flex: none; animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(-3px) rotate(-3deg); } }
+.sh-icon.gold { background: linear-gradient(135deg, #FFE8A3, #FFC857); } .sh-icon.pink { background: linear-gradient(135deg, #FFD3E0, #FFA9C2); }
+.sh-icon.peach { background: linear-gradient(135deg, #FFE0C2, #FFB98A); } .sh-icon.mint { background: linear-gradient(135deg, #D6F5E1, #9EE6C4); }
+.sheet h2 { font-size: 21px; }
+.sh-title .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.sh-sub { font-size: 13px; color: #A0623C; }
+.dark .sh-sub { color: #F5C7A9; }
+.empty { text-align: center; padding: 14px; margin-top: 8px; border: 2px dashed var(--border); border-radius: 18px; color: var(--muted); font-size: 14px; }
+.warn { border-radius: 14px; }
+.oc { border: 0; border-left: 6px solid #D4D4D8; border-radius: 18px; background: #fff; box-shadow: 0 3px 0 rgba(91,58,30,0.08); padding: 10px 12px; }
+.dark .oc { background: #5A3F49; }
+.oc.s-PENDING { border-left-color: #FBBF24; } .oc.s-PREPARING { border-left-color: #60A5FA; }
+.oc.s-READY { border-left-color: #4ADE80; } .oc.s-COMPLETED { border-left-color: #F2C14E; } .oc.s-CANCELLED { border-left-color: #9CA3AF; }
+.oc.late { border-left-color: #EF4444; background: #FFF1F1; }
+.dark .oc.late { background: #5A3040; }
+.steps { display: flex; justify-content: space-between; margin: 8px 2px 6px; position: relative; }
+.steps::before { content: ''; position: absolute; left: 12%; right: 12%; top: 14px; height: 4px; border-radius: 2px; background: #EFE3D6; }
+.steps.off { justify-content: center; font-size: 14px; color: var(--muted); margin: 6px 0; } .steps.off::before { display: none; }
+.step { display: grid; justify-items: center; gap: 2px; z-index: 1; flex: 1; }
+.step .dot { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #F3EBE2; font-size: 15px; filter: grayscale(1); opacity: 0.55; }
+.step .lbl { font-size: 10.5px; color: var(--muted); }
+.step.done .dot { background: #C9F0D6; filter: none; opacity: 1; }
+.step.now .dot { background: #FFE08A; filter: none; opacity: 1; transform: scale(1.18); box-shadow: 0 0 0 4px rgba(255, 200, 80, 0.35); animation: pulse 1.4s ease-in-out infinite; }
+.step.now .lbl { color: var(--fg); font-weight: 700; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(255, 200, 80, 0.12); } }
+.oc ul { list-style: none; padding: 0; margin: 6px 0 2px; display: grid; gap: 4px; }
+.oc li { display: flex; align-items: center; gap: 8px; font-size: 14px; flex-wrap: wrap; }
+.oc li .qty { min-width: 24px; height: 24px; display: grid; place-items: center; border-radius: 12px; background: #FFE3D3; color: #B24A2B; font-weight: 800; font-size: 12px; }
+.oc li em { font-size: 12px; background: #FFF4C2; color: #8A6A00; padding: 1px 8px; border-radius: 10px; }
+.oc-foot { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.price { background: linear-gradient(135deg, #FFE08A, #FFC857); color: #6B4A00; font-weight: 800; padding: 2px 12px; border-radius: 999px; font-size: 13px; }
+.pet-card { display: grid; gap: 6px; margin-top: 6px; }
+.pet-card > div { display: flex; gap: 10px; align-items: baseline; background: #fff; border-radius: 16px; padding: 8px 12px; box-shadow: 0 2px 0 rgba(91,58,30,0.08); font-size: 14px; }
+.dark .pet-card > div { background: #5A3F49; }
+.pet-card b { color: #A0623C; font-size: 12px; min-width: 64px; }
+.hearts { letter-spacing: 2px; }
