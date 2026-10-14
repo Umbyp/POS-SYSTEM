@@ -21,6 +21,13 @@
       "runtimeArgs": ["run", "web"],
       "cwd": "apps/mobile-staff",
       "port": 8081
+    },
+    {
+      "name": "world-preview",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "apps/world-preview",
+      "port": 5180
     }
   ]
 }
