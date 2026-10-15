@@ -104,11 +104,14 @@ export function Sheet({
   tables,
   orders,
   onClose,
+  onDress,
 }: {
   sel: Selection;
   tables: RestaurantTable[];
   orders: OrderView[];
   onClose: () => void;
+  /** open the dressing room for this person (only when the viewer may decorate) */
+  onDress?: (id: string) => void;
 }) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -203,6 +206,11 @@ export function Sheet({
       body = (
         <>
           <Title icon={ROLE_ICON[role]} tone={ROLE_TONE[role]} title={title} sub={<>{ROLE_TH[role]} · {doing} {mood}</>} />
+          {onDress && role !== 'GUEST' ? (
+            <button className="edit-btn" onClick={() => onDress(a.staff.id)}>
+              ✏️ แต่งตัว
+            </button>
+          ) : null}
           {a.status === 'late' ? <div className="warn">⚠️ มีงานที่ช้ากว่าที่ควร</div> : null}
           <div className="sh-sub">{relatedLabel}</div>
           {related.length ? related.slice(0, 4).map((o) => <OrderCard key={o.id} o={o} now={now} />) : <div className="empty">🍃 ไม่มีรายการ</div>}

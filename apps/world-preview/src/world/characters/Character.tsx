@@ -652,7 +652,7 @@ export function Character({
               <sphereGeometry args={[0.07, 10, 8]} />
               <meshLambertMaterial color="#7A2E2E" />
             </mesh>
-            {role === 'ADMIN' ? (
+            {role === 'ADMIN' || look.extra === 'glasses' ? (
               <>
                 {[-1, 1].map((x) => (
                   <mesh key={x} position={[x * 0.25, HEAD_Y - 0.1, 0.66]}>
@@ -662,6 +662,14 @@ export function Character({
                 ))}
                 <Rbox pos={[0, HEAD_Y - 0.1, 0.68]} size={[0.1, 0.02, 0.02]} r={0.005} color={accent} />
               </>
+            ) : null}
+            {look.extra === 'flower' ? (
+              <group position={[0.5, HEAD_Y + 0.42, 0.28]}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <Ball key={i} pos={[Math.cos(i * 1.2566) * 0.1, Math.sin(i * 1.2566) * 0.1, 0]} r={0.065} color="#FFB5C0" />
+                ))}
+                <Ball pos={[0, 0, 0.03]} r={0.055} color="#FFD36B" />
+              </group>
             ) : null}
             <HeadWear role={role} accent={accent} />
           </group>

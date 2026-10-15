@@ -97,3 +97,7 @@
 
 ## Cute pass
 Expressive faces (happy ^^ eyes, frown, tasting mouth), bouncier walking with landing squash, the shop cat (tap it: meow), floating dust motes / fireflies / kitchen steam, festival themes (Christmas, Chinese New Year, Songkran, Loy Krathong) from the ⚙ panel, and a friendlier details sheet with an order progress path.
+
+## Customise (dressing room + decorate mode)
+Owner/admin only. Tap a staff member → ✏️ แต่งตัว (hair, colours, pattern, glasses/flower, size, nickname). 🔨 ตกแต่ง in the dock: place/move/rotate/recolour/delete ~40 pieces in 6 categories (plants, furniture, lights, cute things, rugs, wall decor that slides to a free spot on the side walls; kept clear of tables, lanes and stations), paint walls/floor/accent, or pick a ready-made style (cozy, minimal, walnut, japan, pastel).
+LIVE saves to the store database via `GET/PUT /api/world-config` (table `WorldConfig`, migration `20261014120000_world_config`; cosmetic only). DEMO keeps it in the browser tab. To test against a branch API on another port: `WORLD_API=http://localhost:4001 npm run dev`.

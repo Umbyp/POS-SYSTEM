@@ -18,6 +18,7 @@ import employeeRoutes from './modules/employees/employee.routes';
 import reportRoutes from './modules/reports/report.routes';
 import tableRoutes from './modules/tables/table.routes';
 import storeRoutes from './modules/stores/store.routes'; // 🆕
+import worldRoutes from './modules/world/world.routes';
 import activityRoutes from './modules/activity/activity.routes';
 import customerRoutes from './modules/customers/customer.routes';
 import paymentRoutes from './modules/payments/payment.routes';
@@ -168,6 +169,7 @@ app.use('/api/employees', employeeRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/tables', tableRoutes);
 app.use('/api/stores', storeRoutes); // 🆕
+app.use('/api/world-config', worldRoutes);
 app.use('/api/activity-logs', activityRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/loyalty', loyaltyRoutes);
