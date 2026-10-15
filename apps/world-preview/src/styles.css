@@ -210,3 +210,9 @@ body { font-family: system-ui, -apple-system, 'Sukhumvit Set', 'Noto Sans Thai',
 .build .sh-title { margin-bottom: 2px; }
 .build .dact { margin-top: 6px; }
 .build .hint { margin: 4px 0; }
+.cats { display: flex; gap: 6px; overflow-x: auto; padding: 2px 2px 6px; scrollbar-width: none; }
+.cats::-webkit-scrollbar { display: none; }
+.cats button { flex: none; height: 32px; padding: 0 12px; border-radius: 16px; border: 0; background: #fff; color: #5B3A1E; font-size: 13px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 0 rgba(91,58,30,0.12); }
+.dark .cats button { background: #6A4850; color: #FFE9D6; }
+.cats button.on { background: linear-gradient(135deg, #FFE08A, #FFC857); color: #6B4A00; }
+.sw.auto { background: #fff; color: #A0623C; font-weight: 900; display: grid; place-items: center; font-size: 15px; }

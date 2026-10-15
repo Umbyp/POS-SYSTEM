@@ -1,29 +1,72 @@
 import type { ItemType, PlacedItem } from '../config';
 import type { WorldPlan } from './layout';
-import { restroomRect } from './scene/Interior';
+import { restroomRect, wallBlocks } from './scene/Interior';
+
+export type Category = 'plants' | 'furniture' | 'light' | 'cute' | 'rug' | 'wall';
+export const CATEGORIES: { id: Category; name: string; emoji: string }[] = [
+  { id: 'plants', name: 'ต้นไม้', emoji: '🪴' },
+  { id: 'furniture', name: 'เฟอร์นิเจอร์', emoji: '🛋️' },
+  { id: 'light', name: 'ไฟ', emoji: '💡' },
+  { id: 'cute', name: 'ของน่ารัก', emoji: '🧸' },
+  { id: 'rug', name: 'พรม', emoji: '🟫' },
+  { id: 'wall', name: 'ติดผนัง', emoji: '🖼️' },
+];
 
 export interface ItemInfo {
   type: ItemType;
   name: string;
   emoji: string;
-  /** footprint radius, used to keep things from overlapping */
+  cat: Category;
+  /** footprint radius (for wall pieces: half the width), used to keep things from overlapping */
   r: number;
   /** flat things (rugs) may sit under other items */
   flat?: boolean;
 }
 
+const I = (type: ItemType, name: string, emoji: string, cat: Category, r: number, flat?: boolean): ItemInfo => ({ type, name, emoji, cat, r, flat });
 export const CATALOG: ItemInfo[] = [
-  { type: 'plant', name: 'กระถางต้นไม้', emoji: '🪴', r: 0.55 },
-  { type: 'tallplant', name: 'ไม้ใบสูง', emoji: '🌿', r: 0.65 },
-  { type: 'tree', name: 'ต้นไม้ใหญ่', emoji: '🌳', r: 1.0 },
-  { type: 'lamp', name: 'โคมไฟตั้งพื้น', emoji: '💡', r: 0.5 },
-  { type: 'lantern', name: 'โคมกระดาษ', emoji: '🏮', r: 0.5 },
-  { type: 'rug', name: 'พรมกลม', emoji: '🟠', r: 1.9, flat: true },
-  { type: 'rugsq', name: 'พรมเหลี่ยม', emoji: '🟫', r: 1.9, flat: true },
-  { type: 'bench', name: 'ม้านั่ง', emoji: '🪑', r: 1.2 },
-  { type: 'sofa', name: 'โซฟา', emoji: '🛋️', r: 1.5 },
-  { type: 'shelf', name: 'ชั้นหนังสือ', emoji: '📚', r: 1.1 },
+  I('plant', 'กระถางต้นไม้', '🪴', 'plants', 0.55),
+  I('tallplant', 'ไม้ใบสูง', '🌿', 'plants', 0.65),
+  I('tree', 'ต้นไม้ใหญ่', '🌳', 'plants', 1.0),
+  I('cactus', 'กระบองเพชร', '🌵', 'plants', 0.5),
+  I('flowerbox', 'กระบะดอกไม้', '🌷', 'plants', 1.0),
+  I('bonsai', 'บอนไซ', '🎍', 'plants', 0.55),
+  I('bamboo', 'กระถางไผ่', '🎋', 'plants', 0.5),
+  I('bench', 'ม้านั่งยาว', '🪑', 'furniture', 1.2),
+  I('sofa', 'โซฟา', '🛋️', 'furniture', 1.5),
+  I('armchair', 'เก้าอี้นวม', '💺', 'furniture', 0.8),
+  I('stool', 'สตูล', '⚪', 'furniture', 0.45),
+  I('sidetable', 'โต๊ะข้าง', '☕', 'furniture', 0.55),
+  I('shelf', 'ชั้นหนังสือ', '📚', 'furniture', 1.1),
+  I('cakecase', 'ตู้โชว์ขนม', '🍰', 'furniture', 1.0),
+  I('screen', 'ฉากกั้นห้อง', '🏯', 'furniture', 1.3),
+  I('lamp', 'โคมไฟตั้งพื้น', '💡', 'light', 0.5),
+  I('lantern', 'โคมกระดาษ', '🏮', 'light', 0.5),
+  I('fairytree', 'ต้นไม้ไฟกระพริบ', '✨', 'light', 0.7),
+  I('candles', 'เทียนหอม', '🕯️', 'light', 0.7),
+  I('lamppost', 'เสาไฟสวน', '🏮', 'light', 0.35),
+  I('teddy', 'ตุ๊กตาหมี', '🧸', 'cute', 0.6),
+  I('balloons', 'ช่อลูกโป่ง', '🎈', 'cute', 0.5),
+  I('giftpile', 'กองของขวัญ', '🎁', 'cute', 1.0),
+  I('cakestand', 'ที่วางเค้ก', '🎂', 'cute', 0.6),
+  I('coffeecart', 'รถเข็นกาแฟ', '☕', 'cute', 0.9),
+  I('easel', 'ขาตั้งภาพ', '🎨', 'cute', 0.8),
+  I('flowerarch', 'ซุ้มดอกไม้', '💐', 'cute', 1.3),
+  I('fountain', 'น้ำพุเล็ก', '⛲', 'cute', 1.3),
+  I('rug', 'พรมกลม', '🟠', 'rug', 1.9, true),
+  I('rugsq', 'พรมเหลี่ยม', '🟫', 'rug', 1.9, true),
+  I('runner', 'พรมทางเดิน', '🟥', 'rug', 2.0, true),
+  I('poster', 'โปสเตอร์', '🖼️', 'wall', 0.7),
+  I('frame', 'กรอบภาพทิวทัศน์', '🏞️', 'wall', 1.0),
+  I('mirror', 'กระจกกลม', '🪞', 'wall', 0.7),
+  I('clock', 'นาฬิกาแขวน', '🕰️', 'wall', 0.6),
+  I('neon', 'ป้ายไฟนีออน', '🌟', 'wall', 1.0),
+  I('wallshelf', 'ชั้นลอยผนัง', '🌱', 'wall', 0.9),
+  I('banner', 'ธงราว', '🎏', 'wall', 1.3),
+  I('garland', 'พวงดอกไม้', '🌸', 'wall', 1.3),
+  I('wreath', 'พวงหรีดต้อนรับ', '🌼', 'wall', 0.7),
 ];
+export const isWall = (t: ItemType) => infoOf(t).cat === 'wall';
 export const infoOf = (t: ItemType): ItemInfo => CATALOG.find((c) => c.type === t) ?? CATALOG[0];
 
 export const snap = (v: number) => Math.round(v * 2) / 2;
@@ -56,6 +99,13 @@ export function canPlace(plan: WorldPlan, type: ItemType, x: number, z: number, 
   if (plan.theme !== 'interior') return false;
   const { plate } = plan;
   const info = infoOf(type);
+  if (info.cat === 'wall') {
+    // wall pieces must sit on a side wall, clear of windows, the menu board and the restroom
+    const side = x < (plate.x0 + plate.x1) / 2 ? 'L' : 'R';
+    if (z < plan.plaza.z0 - 0.5 || z > plate.z1 - 2.5) return false;
+    if (wallBlocks(plan, side).some((b) => Math.abs(z - b.z) < b.half + info.r)) return false;
+    return !items.some((it) => it.id !== ignoreId && infoOf(it.type).cat === 'wall' && Math.abs(it.x - x) < 1 && Math.abs(it.z - z) < info.r + infoOf(it.type).r);
+  }
   const m = 1.0 + (info.flat ? 0 : info.r * 0.4);
   if (x < plate.x0 + m || x > plate.x1 - m || z < plate.z0 + m || z > plate.z1 - m) return false;
   for (const b of blockedBoxes(plan)) if (inBox(b, x, z, info.flat ? 0 : info.r * 0.5)) return false;
@@ -69,4 +119,20 @@ export function canPlace(plan: WorldPlan, type: ItemType, x: number, z: number, 
     }
   }
   return true;
+}
+
+/** Where a wall piece goes when the pointer is at (x, z): glued to the nearer side wall, facing into the room,
+ *  and nudged along the wall to the closest free spot (clear of windows, the menu board and other wall pieces). */
+export function wallSnap(plan: WorldPlan, type: ItemType, x: number, z: number, items: PlacedItem[], ignoreId?: string): { x: number; z: number; rot: number } {
+  const { plate } = plan;
+  const left = x < (plate.x0 + plate.x1) / 2;
+  const wx = left ? plate.x0 + 0.02 : plate.x1 - 0.02;
+  const rot = left ? 1 : 3;
+  for (let k = 0; k <= 24; k++) {
+    for (const sign of k === 0 ? [1] : [1, -1]) {
+      const zz = z + sign * k * 0.5;
+      if (canPlace(plan, type, wx, zz, items, ignoreId)) return { x: wx, z: zz, rot };
+    }
+  }
+  return { x: wx, z, rot };
 }

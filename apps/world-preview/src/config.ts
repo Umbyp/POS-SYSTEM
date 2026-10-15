@@ -16,7 +16,15 @@ export interface PersonCfg {
   girth?: number;
 }
 
-export type ItemType = 'plant' | 'tallplant' | 'tree' | 'lamp' | 'lantern' | 'rug' | 'rugsq' | 'bench' | 'sofa' | 'shelf';
+export const ITEM_TYPES = [
+  'plant', 'tallplant', 'tree', 'cactus', 'flowerbox', 'bonsai', 'bamboo',
+  'bench', 'sofa', 'armchair', 'stool', 'sidetable', 'shelf', 'cakecase', 'screen',
+  'lamp', 'lantern', 'fairytree', 'candles', 'lamppost',
+  'teddy', 'balloons', 'giftpile', 'cakestand', 'coffeecart', 'easel', 'flowerarch', 'fountain',
+  'rug', 'rugsq', 'runner',
+  'poster', 'frame', 'mirror', 'clock', 'neon', 'wallshelf', 'banner', 'garland', 'wreath',
+] as const;
+export type ItemType = (typeof ITEM_TYPES)[number];
 
 export interface PlacedItem {
   id: string;
@@ -25,6 +33,8 @@ export interface PlacedItem {
   z: number;
   /** quarter turns */
   rot: number;
+  /** the owner's own colour for this piece (hex) */
+  color?: string;
 }
 
 export interface WorldConfig {
@@ -46,7 +56,7 @@ export function normaliseConfig(raw: unknown): WorldConfig {
     v: 1,
     preset: (r.preset as PresetId) || 'cozy',
     paint: r.paint ?? {},
-    items: Array.isArray(r.items) ? r.items.filter((i) => i && typeof i.x === 'number' && typeof i.z === 'number') : [],
+    items: Array.isArray(r.items) ? r.items.filter((i) => i && typeof i.x === 'number' && typeof i.z === 'number' && (ITEM_TYPES as readonly string[]).includes(i.type)) : [],
     people: r.people && typeof r.people === 'object' ? r.people : {},
   };
 }

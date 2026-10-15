@@ -225,7 +225,7 @@ export function WorldScene({
   items: PlacedItem[];
   /** decorate mode (null = normal viewing) */
   build: BuildState | null;
-  onBuildPlace: (x: number, z: number) => void;
+  onBuildPlace: (x: number, z: number, rot: number) => void;
   onBuildSelect: (id: string | null) => void;
 }) {
   const base = isDark ? NIGHT : DAY;

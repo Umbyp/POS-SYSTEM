@@ -14,7 +14,8 @@ import { BuildPanel } from './BuildPanel';
 import type { BuildState } from './world/scene/BuildLayer';
 import { useWorldConfig } from './useWorldConfig';
 import { applyLook } from './world/palette';
-import { MAX_ITEMS, type PersonCfg } from './config';
+import { MAX_ITEMS, type PersonCfg, type PlacedItem } from './config';
+import { isWall } from './world/build';
 import { FESTIVALS, type Festival } from './world/scene/Festival';
 import { Pacer } from './Pacer';
 import { registry } from './world/sim/agent';
@@ -23,6 +24,12 @@ import type { PickFn, Selection } from './selection';
 import { initAudio, setSoundEnabled, soundEnabled } from './world/sim/sound';
 
 const hour = new Date().getHours();
+
+/** Camera target for an item: wall pieces are viewed from inside the room, everything else from the front. */
+function focusItem(it: PlacedItem, dist: number, n: number): Focus {
+  if (isWall(it.type)) return { x: it.x, z: it.z, dist, az: it.rot === 1 ? Math.PI / 2 : -Math.PI / 2, n: n + 1 };
+  return { x: it.x, z: it.z + 2.8, dist, n: n + 1 };
+}
 
 export function App() {
   const [mode, setMode] = useState<DataMode | null>(getToken() ? 'live' : null);
@@ -69,6 +76,15 @@ export function App() {
   }, []);
   // dev helper for checking the preview from the console
   useEffect(() => {
+    if (import.meta.env.DEV)
+      (window as unknown as { __worldFocusItem?: (i: number, dist?: number) => string }).__worldFocusItem = (i, dist = 9) => {
+        const it = itemsRef.current[i];
+        if (!it) return 'none';
+        setFocus((f) => focusItem(it, dist, f?.n ?? 0));
+        return it.type;
+      };
+  }, []);
+  useEffect(() => {
     if (import.meta.env.DEV) (window as unknown as { __worldPickPet?: () => void }).__worldPickPet = () => {
       const p = registry.pet;
       if (p) onPick({ kind: 'pet' }, p.x, p.z);
@@ -93,6 +109,8 @@ export function App() {
   const data = useWorldData(mode, () => setMode(null), demoCount);
   const { config, setConfig, state: saveState, canEdit } = useWorldConfig(mode);
   // the colours of the shop follow the saved preset and paint; a new look remounts the scene
+  const itemsRef = useRef(config.items);
+  itemsRef.current = config.items;
   const lookKey = useMemo(() => applyLook(config.preset, config.paint), [config.preset, config.paint]);
   const tables = mode ? data.tables : [];
   // tables that seat six or more (or are marked LARGE) are drawn as long group tables
@@ -120,22 +138,26 @@ export function App() {
     ? `${Math.max(1, Math.round(activeOrders.reduce((t, o) => t + (nowSum - o.createdAt), 0) / activeOrders.length / 60_000))} น.`
     : '–';
   const onBuildPlace = useCallback(
-    (x: number, z: number) => {
+    (x: number, z: number, rot: number) => {
       const b = buildRef.current;
       if (!b?.type) return;
       const type = b.type;
       if (b.movingId) {
         const id = b.movingId;
-        setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? { ...i, x, z, rot: b.rot } : i)) }));
+        setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === id ? { ...i, x, z, rot } : i)) }));
         setBuild((cur) => (cur ? { ...cur, type: null, movingId: null, selectedId: id } : cur));
       } else {
         const id = `i${Date.now().toString(36)}${Math.floor(Math.random() * 1e4).toString(36)}`;
-        setConfig((c) => (c.items.length >= MAX_ITEMS ? c : { ...c, items: [...c.items, { id, type, x, z, rot: b.rot }] }));
+        setConfig((c) => (c.items.length >= MAX_ITEMS ? c : { ...c, items: [...c.items, { id, type, x, z, rot, ...(b.color ? { color: b.color } : {}) }] }));
       }
     },
     [setConfig],
   );
-  const onBuildSelect = useCallback((id: string | null) => setBuild((b) => (b ? { ...b, selectedId: id } : b)), []);
+  const onBuildSelect = useCallback((id: string | null) => {
+    setBuild((b) => (b ? { ...b, selectedId: id } : b));
+    const it = id ? itemsRef.current.find((i) => i.id === id) : null;
+    if (it) setFocus((f) => focusItem(it, 10, f?.n ?? 0));
+  }, []);
   const patchPerson = useCallback(
     (id: string, patch: Partial<PersonCfg>) =>
       setConfig((c) => {
@@ -319,7 +341,7 @@ export function App() {
                     setSel(null);
                     setFollowing(false);
                     setDressingId(null);
-                    setBuild({ type: null, movingId: null, rot: 0, selectedId: null });
+                    setBuild({ type: null, movingId: null, rot: 0, selectedId: null, color: null });
                   }}
                 >
                   🔨 ตกแต่ง

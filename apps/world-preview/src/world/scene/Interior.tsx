@@ -611,3 +611,20 @@ export function InteriorLive({ plan, menu = [], demo }: { plan: WorldPlan; menu?
 }
 
 export type { Rect };
+
+
+/** Stretches of side wall that are already taken (windows, the menu board, the restroom) as {z, half}. */
+export function wallBlocks(plan: WorldPlan, side: 'L' | 'R'): { z: number; half: number }[] {
+  const r = plan.plate;
+  const boardZ = mid(plan.plaza.z0, plan.plaza.z1);
+  const out: { z: number; half: number }[] = [];
+  for (let z = r.z0 + 8; z <= r.z1 - 6; z += 9) {
+    if (side === 'R' || Math.abs(z - boardZ) > 6) out.push({ z, half: 2.2 });
+  }
+  if (side === 'L') out.push({ z: boardZ, half: 4.9 });
+  else {
+    const rr = restroomRect(plan);
+    out.push({ z: mid(rr.z0, rr.z1), half: (rr.z1 - rr.z0) / 2 + 0.5 });
+  }
+  return out;
+}

@@ -41,6 +41,7 @@ const configSchema = z
             x: z.number().min(-400).max(400),
             z: z.number().min(-400).max(400),
             rot: z.number().int().min(0).max(3),
+            color: hex.optional(),
           })
           .strict(),
       )

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { MAX_ITEMS, type WorldConfig } from './config';
-import { CATALOG } from './world/build';
+import { CATALOG, CATEGORIES, infoOf, isWall, type Category } from './world/build';
 import { PRESETS } from './world/palette';
 import type { BuildState } from './world/scene/BuildLayer';
 import type { SaveState } from './useWorldConfig';
 
 const WALLS = ['#F7E6CF', '#FFF6E5', '#FCE8EC', '#E8F0E0', '#EAF2EF', '#F3E3D3', '#E7D5C0', '#D9C7B0'];
 const FLOORS = ['#DDAA6E', '#E8DCC8', '#B87B45', '#E3C791', '#F7D9B0', '#C9A27A', '#9C7B5A', '#D8C8B0'];
+const ITEM_COLORS = ['#D25E3B', '#E58B7C', '#F2A7A0', '#C9677A', '#FFD36B', '#E8A33A', '#8DB67A', '#5FA39A', '#FFFFFF', '#FFF1DC', '#8A5A3B', '#4A3328'];
 const ACCENTS = ['#D25E3B', '#C9677A', '#8DB67A', '#5FA39A', '#E8A33A', '#B65F6E', '#7A4A3A', '#6B8E7F'];
 
 const SAVE_TEXT: Record<SaveState, string> = {
@@ -46,6 +47,7 @@ export function BuildPanel({
   onExit: () => void;
 }) {
   const [tab, setTab] = useState<'items' | 'paint' | 'style'>('items');
+  const [cat, setCat] = useState<Category>('plants');
   const sel = config.items.find((i) => i.id === build.selectedId);
   const full = config.items.length >= MAX_ITEMS;
 
@@ -80,10 +82,17 @@ export function BuildPanel({
       {tab === 'items' ? (
         <>
           <div className="hint">
-            {build.type ? '👆 แตะพื้นเพื่อวาง (วงเขียว = วางได้ วงแดง = วางไม่ได้)' : sel ? '✋ เลือกชิ้นนี้อยู่' : 'เลือกของจากด้านล่างแล้วแตะพื้น หรือแตะของที่วางไว้เพื่อแก้'}
+            {build.type ? (isWall(build.type) ? '👆 เลื่อนไปใกล้ผนังซ้าย/ขวา แล้วแตะเพื่อติด (วงเขียว = ติดได้)' : '👆 แตะพื้นเพื่อวาง (วงเขียว = วางได้ วงแดง = วางไม่ได้)') : sel ? `✋ เลือก “${infoOf(sel.type).name}” อยู่` : 'เลือกของจากด้านล่างแล้วแตะพื้น หรือแตะของที่วางไว้เพื่อแก้'}
+          </div>
+          <div className="cats">
+            {CATEGORIES.map((c) => (
+              <button key={c.id} className={cat === c.id ? 'on' : ''} onClick={() => setCat(c.id)}>
+                {c.emoji} {c.name}
+              </button>
+            ))}
           </div>
           <div className="catalog">
-            {CATALOG.map((c) => (
+            {CATALOG.filter((c) => c.cat === cat).map((c) => (
               <button
                 key={c.type}
                 disabled={full && build.type !== c.type}
@@ -95,6 +104,29 @@ export function BuildPanel({
               </button>
             ))}
           </div>
+          {build.type || sel ? (
+            <div className="drow">
+              <label>สีของชิ้นนี้</label>
+              <div className="swatches">
+                <button
+                  className={`sw auto ${(sel ? !sel.color : !build.color) ? 'on' : ''}`}
+                  onClick={() => (sel && !build.type ? setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === sel.id ? { ...i, color: undefined } : i)) })) : setBuild((b) => ({ ...b, color: null })))}
+                  aria-label="สีเดิม"
+                >
+                  ↺
+                </button>
+                {ITEM_COLORS.map((col) => (
+                  <button
+                    key={col}
+                    className={`sw ${(sel && !build.type ? sel.color : build.color)?.toLowerCase() === col.toLowerCase() ? 'on' : ''}`}
+                    style={{ background: col }}
+                    aria-label={col}
+                    onClick={() => (sel && !build.type ? setConfig((c) => ({ ...c, items: c.items.map((i) => (i.id === sel.id ? { ...i, color: col } : i)) })) : setBuild((b) => ({ ...b, color: col })))}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
           <div className="dact">
             {build.type ? (
               <>
